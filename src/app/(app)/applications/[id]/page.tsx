@@ -4,6 +4,8 @@ import { format, formatDistanceToNow } from "date-fns";
 import { GlobeIcon, MailIcon, UserIcon, GraduationCapIcon, MapPinIcon } from "lucide-react";
 import { requireCtx } from "@/lib/actions/context";
 import { getApplicationDetail } from "@/lib/queries/applications";
+import { getPools } from "@/lib/queries/grants";
+import { NewGrantDialog } from "@/components/grants/new-grant-dialog";
 import { formatMoney } from "@/lib/utils";
 import { PageHeader } from "@/components/patterns/page-header";
 import { StageBadge } from "@/components/patterns/stage-badge";
@@ -27,6 +29,12 @@ export default async function ApplicationDetailPage({
   const { app, company, stages, history, notes, chats, criteria, scores, memos, grants, owner } = detail;
   const currentStage = stages.find((s) => s.id === app.stageId);
 
+  // Grant CTA: late-stage or funded, and no live grant yet.
+  const hasLiveGrant = grants.some((g) => g.status !== "cancelled");
+  const lateStage =
+    currentStage?.requiresVote || currentStage?.kind === "won" || app.status === "funded";
+  const pools = !hasLiveGrant && lateStage ? await getPools(ctx.org.id) : [];
+
   return (
     <div className="pb-10">
       <PageHeader
@@ -44,6 +52,26 @@ export default async function ApplicationDetailPage({
           </span>
         }
         description={company.oneLiner ?? app.pitchSummary ?? undefined}
+        actions={
+          pools.length > 0 ? (
+            <NewGrantDialog
+              pools={pools}
+              defaultPoolId={pools[0].id}
+              prefillApplicationId={app.id}
+              triggerLabel="Create grant"
+              applications={[
+                {
+                  id: app.id,
+                  companyId: company.id,
+                  companyName: company.name,
+                  amountRequested: app.amountRequested,
+                  useOfFundsNarrative: app.useOfFundsNarrative,
+                  stageName: currentStage?.name ?? "",
+                },
+              ]}
+            />
+          ) : undefined
+        }
       />
 
       <div className="px-6">

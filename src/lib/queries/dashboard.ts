@@ -1,4 +1,4 @@
-import { and, eq, desc, asc, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, desc, asc, gte, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   application,
@@ -12,6 +12,8 @@ import {
   actionItem,
 } from "@/db/schema";
 
+import { summarizePool } from "@/lib/grants/budget";
+
 /** Remaining budget = pool + rollover − Σ(approved/issued/cashed/reconciled). Derived, never stored. */
 export async function getBudgetSummary(orgId: string, fiscalYear?: number) {
   const pools = await db
@@ -22,28 +24,12 @@ export async function getBudgetSummary(orgId: string, fiscalYear?: number) {
   const pool = fiscalYear ? pools.find((p) => p.fiscalYear === fiscalYear) : pools[0];
   if (!pool) return null;
 
-  const committed = await db
-    .select({
-      total: sql<string>`coalesce(sum(${grant.amountAwarded}), 0)`,
-      count: sql<number>`count(*)::int`,
-    })
+  const rows = await db
+    .select({ status: grant.status, amountAwarded: grant.amountAwarded })
     .from(grant)
-    .where(
-      and(
-        eq(grant.poolId, pool.id),
-        inArray(grant.status, ["approved", "issued", "cashed", "reconciled"])
-      )
-    );
-
-  const total = Number(pool.totalBudget) + Number(pool.rolloverFromPrior);
-  const deployed = Number(committed[0]?.total ?? 0);
-  return {
-    pool,
-    total,
-    deployed,
-    remaining: total - deployed,
-    grantCount: committed[0]?.count ?? 0,
-  };
+    .where(eq(grant.poolId, pool.id));
+  const s = summarizePool(pool, rows);
+  return { pool, ...s, deployed: s.committed + s.deployed };
 }
 
 export async function getDashboardData(orgId: string, memberId: string) {
