@@ -4,6 +4,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { GlobeIcon, MailIcon, UserIcon, GraduationCapIcon, MapPinIcon } from "lucide-react";
 import { requireCtx } from "@/lib/actions/context";
 import { getApplicationDetail } from "@/lib/queries/applications";
+import { isOverdue } from "@/lib/queries/dashboard";
 import { getPools } from "@/lib/queries/grants";
 import { NewGrantDialog } from "@/components/grants/new-grant-dialog";
 import { StartMemoButton } from "@/components/memos/start-memo-button";
@@ -17,6 +18,10 @@ import { Separator } from "@/components/ui/separator";
 import { StageStepper } from "@/components/applications/stage-stepper";
 import { NoteComposer } from "@/components/applications/note-composer";
 import { EnrichButton } from "@/components/applications/enrich-button";
+import { Scorecard } from "@/components/applications/scorecard";
+import { CoffeeChatDialog } from "@/components/applications/coffee-chat-dialog";
+import { CoffeeChatCard } from "@/components/applications/coffee-chat-card";
+import { NextStepEditor } from "@/components/applications/next-step-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +33,7 @@ export default async function ApplicationDetailPage({
   const detail = await getApplicationDetail(ctx.org.id, id);
   if (!detail) notFound();
 
-  const { app, company, stages, history, notes, chats, criteria, scores, memos, grants, owner } = detail;
+  const { app, company, stages, history, notes, chats, attendees, activeMembers, criteria, scores, memos, grants, owner } = detail;
   const currentStage = stages.find((s) => s.id === app.stageId);
 
   // Grant CTA: late-stage or funded, and no live grant yet.
@@ -117,62 +122,59 @@ export default async function ApplicationDetailPage({
               <CardHeader>
                 <CardTitle>Screening</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-1.5">
-                {criteria.map((c) => {
-                  const myScores = scores.filter((s) => s.criterionId === c.id);
-                  const avg =
-                    myScores.length > 0
-                      ? myScores.reduce((n, s) => n + s.score, 0) / myScores.length
-                      : null;
-                  return (
-                    <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="min-w-0 truncate">{c.label}</span>
-                      <span className="tnum shrink-0 text-xs text-fg-muted">
-                        {avg != null ? `${avg.toFixed(1)} / 5 · ${myScores.length}` : "—"}
-                      </span>
-                    </div>
-                  );
-                })}
+              <CardContent>
+                <Scorecard
+                  applicationId={app.id}
+                  criteria={criteria.map((c) => {
+                    const rows = scores.filter((s) => s.criterionId === c.id);
+                    return {
+                      id: c.id,
+                      label: c.label,
+                      description: c.description,
+                      mean:
+                        rows.length > 0
+                          ? rows.reduce((n, s) => n + s.score, 0) / rows.length
+                          : null,
+                      count: rows.length,
+                      myScore:
+                        rows.find((s) => s.scoredByMemberId === ctx.member.id)?.score ?? null,
+                    };
+                  })}
+                />
               </CardContent>
             </Card>
           )}
 
-          {chats.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Coffee chats</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                {chats.map((c) => (
-                  <div key={c.id} className="rounded-md border border-border p-3">
-                    <div className="flex items-center justify-between text-xs text-fg-muted">
-                      <span>
-                        {c.happenedAt
-                          ? format(c.happenedAt, "MMM d, yyyy")
-                          : c.scheduledAt
-                            ? `Scheduled ${format(c.scheduledAt, "MMM d, p")}`
-                            : "Unscheduled"}
-                      </span>
-                      {c.verdict && (
-                        <Badge
-                          variant={
-                            c.verdict === "advance"
-                              ? "success"
-                              : c.verdict === "decline"
-                                ? "danger"
-                                : "neutral"
-                          }
-                        >
-                          {c.verdict}
-                        </Badge>
-                      )}
-                    </div>
-                    {c.debrief && <p className="mt-2 text-sm leading-relaxed">{c.debrief}</p>}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle>Coffee chats</CardTitle>
+              {app.status === "open" && (
+                <CoffeeChatDialog
+                  applicationId={app.id}
+                  members={activeMembers}
+                  viewerMemberId={ctx.member.id}
+                />
+              )}
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {chats.length === 0 && (
+                <p className="text-sm text-fg-muted">
+                  No coffee chats yet
+                  {currentStage?.minAttendees
+                    ? ` — ${currentStage.minAttendees} recorded verdicts are needed to advance past ${currentStage.name}.`
+                    : "."}
+                </p>
+              )}
+              {chats.map((c) => (
+                <CoffeeChatCard
+                  key={c.id}
+                  chat={c}
+                  attendees={attendees.filter((a) => a.coffeeChatId === c.id)}
+                  viewerMemberId={ctx.member.id}
+                />
+              ))}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
@@ -230,6 +232,13 @@ export default async function ApplicationDetailPage({
               <Fact label="Owner">{owner?.displayName ?? "Unassigned"}</Fact>
               <Fact label="Applied">{format(app.appliedAt, "MMM d, yyyy")}</Fact>
               {app.teamSize && <Fact label="Team">{app.teamSize} people</Fact>}
+              <Separator />
+              <NextStepEditor
+                applicationId={app.id}
+                nextStep={app.nextStep}
+                nextStepDue={app.nextStepDue}
+                overdue={isOverdue(app.nextStepDue)}
+              />
               {(company.websiteUrl || company.domain) && (
                 <>
                   <Separator />

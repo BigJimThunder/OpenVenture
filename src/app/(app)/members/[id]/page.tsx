@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MemberAdminControls } from "@/components/members/member-admin-controls";
+import { EditProfileDialog } from "@/components/members/edit-profile-dialog";
 import { OnboardingChecklist } from "@/components/members/onboarding-checklist";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,17 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
           m.classYear ? ` · Class of ${m.classYear}` : ""
         } · joined ${format(m.joinedAt, "MMM yyyy")}`}
         actions={
-          ctx.member.role === "admin" && m.id !== ctx.member.id ? (
+          m.id === ctx.member.id ? (
+            <EditProfileDialog
+              profile={{
+                displayName: m.displayName,
+                cohort: m.cohort,
+                classYear: m.classYear,
+                bio: m.bio,
+                linkedinUrl: m.linkedinUrl,
+              }}
+            />
+          ) : ctx.member.role === "admin" ? (
             <MemberAdminControls memberId={m.id} currentRole={m.role} status={m.status} />
           ) : undefined
         }

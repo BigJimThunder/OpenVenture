@@ -7,17 +7,18 @@ import {
   DragOverlay,
   PointerSensor,
   KeyboardSensor,
+  closestCorners,
   useSensor,
   useSensors,
   useDroppable,
-  useDraggable,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { formatDistanceToNowStrict } from "date-fns";
 import { toast } from "sonner";
 import { KanbanIcon, VoteIcon, FileTextIcon, SignalHighIcon } from "lucide-react";
-import { moveApplicationStage } from "@/lib/actions/applications";
+import { moveApplicationStage, reorderApplication } from "@/lib/actions/applications";
 import type { PipelineApp, PipelineData } from "@/lib/queries/applications";
 import { DECLINE_REASONS, type DeclineReason } from "@/db/schema";
 import { cn, formatMoney, initials } from "@/lib/utils";
@@ -128,18 +129,33 @@ export function Board({ data }: { data: PipelineData }) {
   const openFull = React.useCallback((id: string) => router.push(`/pipeline/${id}`), [router]);
 
   const commitMove = React.useCallback(
-    async function commitMove(app: PipelineApp, toStageId: string, declineReason?: DeclineReason) {
+    async function commitMove(
+      app: PipelineApp,
+      toStageId: string,
+      declineReason?: DeclineReason,
+      position?: number
+    ) {
       const prev = apps;
-      setApps((cur) => cur.map((a) => (a.id === app.id ? { ...a, stageId: toStageId } : a)));
+      setApps((cur) =>
+        cur.map((a) =>
+          a.id === app.id
+            ? { ...a, stageId: toStageId, ...(position != null ? { position: String(position) } : {}) }
+            : a
+        )
+      );
       const res = await moveApplicationStage({
         applicationId: app.id,
         toStageId,
         declineReason,
+        position,
       });
       if (!res.ok) {
         setApps(prev);
         toast.error(res.error, {
-          action: { label: "Retry", onClick: () => commitMove(app, toStageId, declineReason) },
+          action: {
+            label: "Retry",
+            onClick: () => commitMove(app, toStageId, declineReason, position),
+          },
         });
       } else {
         router.refresh();
@@ -149,7 +165,7 @@ export function Board({ data }: { data: PipelineData }) {
   );
 
   const requestMove = React.useCallback(
-    (app: PipelineApp, toStageId: string) => {
+    (app: PipelineApp, toStageId: string, position?: number) => {
       if (app.stageId === toStageId) return;
       const stage = data.stages.find((s) => s.id === toStageId);
       if (!stage) return;
@@ -158,9 +174,73 @@ export function Board({ data }: { data: PipelineData }) {
         setPendingDecline({ app, toStageId, stageName: stage.name });
         return;
       }
-      void commitMove(app, toStageId);
+      void commitMove(app, toStageId, undefined, position);
     },
     [data.stages, commitMove]
+  );
+
+  /**
+   * Persist a same-column reorder. Fractional midpoints keep it to one write;
+   * when neighbours tie (fresh boards default every position to "0") the whole
+   * column is renumbered once so future drags have room.
+   */
+  const commitReorder = React.useCallback(
+    async (app: PipelineApp, column: PipelineApp[], insertIdx: number) => {
+      const before = column[insertIdx - 1];
+      const after = column[insertIdx];
+      const beforePos = before ? Number(before.position) : null;
+      const afterPos = after ? Number(after.position) : null;
+
+      const needsRenumber =
+        (beforePos != null && afterPos != null && beforePos >= afterPos) ||
+        (beforePos == null && afterPos != null && afterPos <= 0 && column.length > 0);
+
+      const newOrder = [...column.slice(0, insertIdx), app, ...column.slice(insertIdx)];
+
+      let updates: { id: string; position: number }[];
+      if (needsRenumber) {
+        updates = newOrder.map((a, i) => ({ id: a.id, position: i + 1 }));
+      } else {
+        const pos =
+          beforePos == null && afterPos == null
+            ? 1
+            : beforePos == null
+              ? (afterPos as number) - 1
+              : afterPos == null
+                ? beforePos + 1
+                : (beforePos + afterPos) / 2;
+        updates = [{ id: app.id, position: pos }];
+      }
+
+      const prev = apps;
+      const posById = new Map(updates.map((u) => [u.id, String(u.position)]));
+      const orderIdx = new Map(newOrder.map((a, i) => [a.id, i]));
+      setApps((cur) => {
+        const next = cur.map((a) =>
+          posById.has(a.id) ? { ...a, position: posById.get(a.id) as string } : a
+        );
+        // Keep this column's cards in their new visual order within the array.
+        return next
+          .map((a, i) => ({ a, key: orderIdx.has(a.id) ? orderIdx.get(a.id)! : null, i }))
+          .sort((x, y) => {
+            if (x.key == null || y.key == null) return x.i - y.i;
+            return x.key - y.key;
+          })
+          .map((x) => x.a);
+      });
+
+      const results = await Promise.all(
+        updates.map((u) => reorderApplication({ applicationId: u.id, position: u.position }))
+      );
+      const failed = results.find((r) => !r.ok);
+      if (failed && !failed.ok) {
+        setApps(prev);
+        toast.error(failed.error);
+      } else {
+        router.refresh();
+      }
+    },
+    [apps, router]
   );
 
   function onDragStart(e: DragStartEvent) {
@@ -173,7 +253,44 @@ export function Board({ data }: { data: PipelineData }) {
     if (!over) return;
     const app = apps.find((a) => a.id === active.id);
     if (!app) return;
-    requestMove(app, String(over.id));
+
+    const overId = String(over.id);
+    const overApp = apps.find((a) => a.id === overId);
+    const targetStageId = overApp ? overApp.stageId : overId;
+    if (!data.stages.some((s) => s.id === targetStageId)) return;
+
+    const columnWithoutApp = (byStage.get(targetStageId) ?? []).filter((a) => a.id !== app.id);
+
+    if (targetStageId === app.stageId) {
+      // Same column: card-over-card is a reorder, not a stage move.
+      if (!overApp || overApp.id === app.id) return;
+      const fullColumn = byStage.get(targetStageId) ?? [];
+      const fromIdx = fullColumn.findIndex((a) => a.id === app.id);
+      const overIdx = fullColumn.findIndex((a) => a.id === overId);
+      if (fromIdx < 0 || overIdx < 0 || fromIdx === overIdx) return;
+      // In filtered-column indices, arrayMove semantics land the dragged card
+      // at overIdx whether it travelled up or down.
+      void commitReorder(app, columnWithoutApp, overIdx);
+      return;
+    }
+
+    // Cross-column: drop position slots the card where it landed.
+    const insertIdx = overApp
+      ? columnWithoutApp.findIndex((a) => a.id === overId)
+      : columnWithoutApp.length;
+    const before = columnWithoutApp[insertIdx - 1];
+    const after = columnWithoutApp[insertIdx >= 0 ? insertIdx : columnWithoutApp.length];
+    const beforePos = before ? Number(before.position) : null;
+    const afterPos = after ? Number(after.position) : null;
+    const position =
+      beforePos != null && afterPos != null && beforePos < afterPos
+        ? (beforePos + afterPos) / 2
+        : beforePos != null && afterPos == null
+          ? beforePos + 1
+          : afterPos != null
+            ? afterPos - 1
+            : undefined;
+    requestMove(app, targetStageId, position);
   }
 
   const selected = React.useMemo(
@@ -226,6 +343,19 @@ export function Board({ data }: { data: PipelineData }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [flatOrder, selectedId, selected, peekId, setPeek, openFull, pendingDecline, data.stages]);
 
+  // The peek panel's Decline… button raises this; the board owns the dialog.
+  React.useEffect(() => {
+    function onPeekDecline(e: Event) {
+      const applicationId = (e as CustomEvent<{ applicationId: string }>).detail?.applicationId;
+      const app = apps.find((a) => a.id === applicationId);
+      const lost = data.stages.find((s) => s.kind === "lost");
+      if (!app || !lost || app.stageId === lost.id) return;
+      setPendingDecline({ app, toStageId: lost.id, stageName: lost.name });
+    }
+    window.addEventListener("peek-decline", onPeekDecline);
+    return () => window.removeEventListener("peek-decline", onPeekDecline);
+  }, [apps, data.stages]);
+
   // Publish the selection so ⌘K acts on it rather than only navigating.
   usePaletteContext(
     selected
@@ -268,7 +398,12 @@ export function Board({ data }: { data: PipelineData }) {
 
   return (
     <>
-      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      >
         <div className="flex h-full gap-2.5 overflow-x-auto px-4 pt-3 pb-4">
           {data.stages.map((stage) => (
             <Column
@@ -335,16 +470,18 @@ function Column({
           isOver && "border-accent/40 bg-accent-subtle/40"
         )}
       >
-        {apps.map((app) => (
-          <DraggableCard
-            key={app.id}
-            app={app}
-            slaDays={stage.slaDays}
-            selected={selectedId === app.id}
-            peeked={peekId === app.id}
-            onSelect={onSelect}
-          />
-        ))}
+        <SortableContext items={apps.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+          {apps.map((app) => (
+            <DraggableCard
+              key={app.id}
+              app={app}
+              slaDays={stage.slaDays}
+              selected={selectedId === app.id}
+              peeked={peekId === app.id}
+              onSelect={onSelect}
+            />
+          ))}
+        </SortableContext>
         {apps.length === 0 && (
           <div className="flex flex-1 items-center justify-center py-6 text-2xs text-fg-subtle">
             Drop here
@@ -368,12 +505,20 @@ function DraggableCard({
   peeked: boolean;
   onSelect: (id: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: app.id });
+  const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
+    id: app.id,
+  });
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      style={{
+        transform: transform
+          ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)`
+          : undefined,
+        transition,
+      }}
       className={cn("outline-none", isDragging && "opacity-40")}
       onClick={() => onSelect(app.id)}
     >

@@ -15,7 +15,9 @@ import { EmptyState } from "@/components/patterns/empty-state";
 import { Button } from "@/components/ui/button";
 import { GrantsTable } from "@/components/grants/grants-table";
 import { NewGrantDialog } from "@/components/grants/new-grant-dialog";
+import { NewPoolDialog } from "@/components/grants/new-pool-dialog";
 import { PoolSelector } from "@/components/grants/pool-selector";
+import { currentFiscalQuarter } from "@/lib/queries/reports";
 
 export const metadata: Metadata = { title: "Grants" };
 export const dynamic = "force-dynamic";
@@ -26,13 +28,22 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
   const pools = await getPools(ctx.org.id);
 
   if (pools.length === 0) {
+    const isAdmin = ctx.member.role === "admin";
+    const { fiscalYear } = currentFiscalQuarter(ctx.org.fiscalYearStartMonth);
     return (
       <div>
-        <PageHeader title="Grants" />
+        <PageHeader
+          title="Grants"
+          actions={isAdmin ? <NewPoolDialog defaultFiscalYear={fiscalYear} /> : undefined}
+        />
         <div className="px-6">
           <EmptyState
             title="No grant pool yet"
-            description="An admin can create the fiscal-year pool from Settings."
+            description={
+              isAdmin
+                ? "Create the fiscal-year pool to start granting."
+                : "An admin can create the fiscal-year pool from Settings."
+            }
           />
         </div>
       </div>

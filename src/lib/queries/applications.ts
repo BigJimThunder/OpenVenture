@@ -1,4 +1,4 @@
-import { and, eq, asc, desc, isNull } from "drizzle-orm";
+import { and, eq, asc, desc, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   application,
@@ -13,6 +13,7 @@ import {
   screeningScore,
   activity,
   memo,
+  voteRound,
   grant,
 } from "@/db/schema";
 
@@ -81,6 +82,8 @@ export async function getApplicationPeek(orgId: string, id: string) {
       appliedAt: application.appliedAt,
       enteredStageAt: application.enteredStageAt,
       declineReason: application.declineReason,
+      nextStep: application.nextStep,
+      nextStepDue: application.nextStepDue,
       companyName: company.name,
       companyOneLiner: company.oneLiner,
       companyDomain: company.domain,
@@ -95,7 +98,10 @@ export async function getApplicationPeek(orgId: string, id: string) {
     .limit(1);
   if (!app) return null;
 
-  const [criteria, scores, activities] = await Promise.all([
+  // Computed server-side: client components can't call Date.now() in render.
+  const nextStepOverdue = app.nextStepDue != null && app.nextStepDue.getTime() < Date.now();
+
+  const [criteria, scores, activities, latestMemoRows, latestRoundRows] = await Promise.all([
     db
       .select()
       .from(screeningCriterion)
@@ -118,6 +124,18 @@ export async function getApplicationPeek(orgId: string, id: string) {
       .where(and(eq(activity.entityType, "application"), eq(activity.entityId, id)))
       .orderBy(desc(activity.occurredAt))
       .limit(8),
+    db
+      .select({ id: memo.id, status: memo.status })
+      .from(memo)
+      .where(eq(memo.applicationId, id))
+      .orderBy(desc(memo.createdAt))
+      .limit(1),
+    db
+      .select({ id: voteRound.id, memoId: voteRound.memoId, status: voteRound.status })
+      .from(voteRound)
+      .where(and(eq(voteRound.applicationId, id), inArray(voteRound.status, ["open", "revealed"])))
+      .orderBy(desc(voteRound.createdAt))
+      .limit(1),
   ]);
 
   // Mean score per criterion, with the number of reviewers behind it — a 4.3
@@ -129,7 +147,13 @@ export async function getApplicationPeek(orgId: string, id: string) {
     return { id: c.id, label: c.label, mean, count };
   });
 
-  return { app, scoring, activities };
+  return {
+    app: { ...app, nextStepOverdue },
+    scoring,
+    activities,
+    latestMemo: latestMemoRows[0] ?? null,
+    activeRound: latestRoundRows[0] ?? null,
+  };
 }
 
 export type ApplicationPeek = NonNullable<Awaited<ReturnType<typeof getApplicationPeek>>>;
@@ -205,18 +229,26 @@ export async function getApplicationDetail(orgId: string, id: string) {
     ]);
 
   const chatIds = chats.map((c) => c.id);
-  const attendees = chatIds.length
-    ? await db
-        .select({
-          coffeeChatId: coffeeChatAttendee.coffeeChatId,
-          verdict: coffeeChatAttendee.verdict,
-          note: coffeeChatAttendee.note,
-          memberName: member.displayName,
-        })
-        .from(coffeeChatAttendee)
-        .innerJoin(member, eq(coffeeChatAttendee.memberId, member.id))
-        .where(eq(coffeeChatAttendee.coffeeChatId, chatIds[0]))
-    : [];
+  const [attendees, activeMembers] = await Promise.all([
+    chatIds.length
+      ? db
+          .select({
+            coffeeChatId: coffeeChatAttendee.coffeeChatId,
+            memberId: coffeeChatAttendee.memberId,
+            verdict: coffeeChatAttendee.verdict,
+            note: coffeeChatAttendee.note,
+            memberName: member.displayName,
+          })
+          .from(coffeeChatAttendee)
+          .innerJoin(member, eq(coffeeChatAttendee.memberId, member.id))
+          .where(inArray(coffeeChatAttendee.coffeeChatId, chatIds))
+      : Promise.resolve([]),
+    db
+      .select({ id: member.id, displayName: member.displayName })
+      .from(member)
+      .where(and(eq(member.orgId, orgId), eq(member.status, "active")))
+      .orderBy(asc(member.displayName)),
+  ]);
 
   return {
     app,
@@ -226,6 +258,7 @@ export async function getApplicationDetail(orgId: string, id: string) {
     notes,
     chats,
     attendees,
+    activeMembers,
     criteria,
     scores,
     activities,

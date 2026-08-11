@@ -6,6 +6,7 @@ import type { CapTableState } from "@/lib/captable/types";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LabWorkbench } from "@/components/lab/workbench";
+import { TableActions } from "@/components/lab/table-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,9 @@ export default async function CapTablePage({ params }: PageProps<"/lab/[id]">) {
           </span>
         }
         description="Immutable event ledger — every derived number expands to show its work. Not legal or financial advice."
+        actions={
+          <TableActions capTableId={detail.table.id} tableName={detail.table.name} />
+        }
       />
       <div className="px-6">
         <LabWorkbench

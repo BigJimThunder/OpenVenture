@@ -40,6 +40,10 @@ export type RedactedResults = {
   submittedCount: number;
   eligibleCount: number;
   recusedCount: number;
+  /** The viewer is recused from this round — show a notice, never a ballot form. */
+  viewerIsRecused: boolean;
+  /** The viewer appears in the round's eligibility list (recused or not). */
+  viewerIsEligible: boolean;
   /** Only present pre-reveal: the viewer's own ballot, if any. */
   myBallot: BallotRow | null;
   /** Empty until revealed. */
@@ -67,6 +71,8 @@ export function redactVoteResults(
     submittedCount: submitted.length,
     eligibleCount: eligible.length,
     recusedCount: recused.length,
+    viewerIsRecused: recused.some((e) => e.memberId === viewerMemberId),
+    viewerIsEligible: eligibility.some((e) => e.memberId === viewerMemberId),
   };
 
   if (!revealed) {

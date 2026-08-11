@@ -1,12 +1,14 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { PlusIcon } from "lucide-react";
+import Link from "next/link";
 import { requireCtx } from "@/lib/actions/context";
 import { getPipeline } from "@/lib/queries/applications";
-import { formatMoney } from "@/lib/utils";
+import { cn, formatMoney, seasonStartYear } from "@/lib/utils";
 import { ScreenHeader, ScreenFooter } from "@/components/shell/screen-header";
 import { Kbd } from "@/components/patterns/kbd";
 import { Board } from "@/components/applications/board";
+import { AppList } from "@/components/applications/app-list";
+import { PipelineFilters } from "@/components/applications/pipeline-filters";
 import { PeekPanel, PeekPanelSkeleton } from "@/components/applications/peek-panel";
 
 export const metadata: Metadata = { title: "Pipeline" };
@@ -18,12 +20,39 @@ export default async function PipelinePage({ searchParams }: PageProps<"/pipelin
   const data = await getPipeline(ctx.org.id);
 
   const peekId = typeof params.peek === "string" ? params.peek : undefined;
+  const view = params.view === "list" ? "list" : "board";
+  const status =
+    typeof params.status === "string" && ["open", "funded", "declined", "all"].includes(params.status)
+      ? params.status
+      : "all";
+  const season =
+    typeof params.season === "string" && /^\d{4}$/.test(params.season) ? params.season : "all";
+
+  const seasons = [...new Set(data.apps.map((a) => seasonStartYear(new Date(a.appliedAt))))].sort(
+    (a, b) => b - a
+  );
+
+  const apps = data.apps.filter((a) => {
+    if (status !== "all" && a.status !== status) return false;
+    if (season !== "all" && seasonStartYear(new Date(a.appliedAt)) !== Number(season)) return false;
+    return true;
+  });
+  const filtered = { ...data, apps };
 
   const activeStageIds = new Set(
     data.stages.filter((s) => s.kind === "active").map((s) => s.id)
   );
-  const open = data.apps.filter((a) => a.status === "open" && activeStageIds.has(a.stageId));
+  const open = apps.filter((a) => a.status === "open" && activeStageIds.has(a.stageId));
   const requested = open.reduce((n, a) => n + Number(a.amountRequested ?? 0), 0);
+
+  const viewHref = (v: "board" | "list") => {
+    const next = new URLSearchParams();
+    if (v === "list") next.set("view", "list");
+    if (status !== "all") next.set("status", status);
+    if (season !== "all") next.set("season", season);
+    const qs = next.toString();
+    return qs ? `/pipeline?${qs}` : "/pipeline";
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -34,31 +63,36 @@ export default async function PipelinePage({ searchParams }: PageProps<"/pipelin
           <>
             <Kbd>⌘K</Kbd>
             <div className="flex overflow-hidden rounded-[5px] border border-border">
-              <span className="flex h-6 items-center bg-bg-subtle px-2.5 text-[11.5px] font-medium">
+              <Link
+                href={viewHref("board")}
+                className={cn(
+                  "flex h-6 items-center px-2.5 text-[11.5px]",
+                  view === "board" ? "bg-bg-subtle font-medium" : "text-fg-subtle hover:text-fg"
+                )}
+              >
                 Board
-              </span>
-              <span className="flex h-6 items-center border-l border-border px-2.5 text-[11.5px] text-fg-subtle">
+              </Link>
+              <Link
+                href={viewHref("list")}
+                className={cn(
+                  "flex h-6 items-center border-l border-border px-2.5 text-[11.5px]",
+                  view === "list" ? "bg-bg-subtle font-medium" : "text-fg-subtle hover:text-fg"
+                )}
+              >
                 List
-              </span>
+              </Link>
             </div>
           </>
         }
       />
 
       <div className="flex h-9.5 shrink-0 items-center gap-1.5 border-b border-border px-4">
-        <FilterChip label="Status" value="is Active" />
-        <FilterChip label="Season" value={`is ${seasonLabel()}`} />
-        <span className="inline-flex items-center gap-1.5 rounded-[5px] border border-dashed border-border-strong px-2 py-0.5 text-[11.5px] text-fg-subtle">
-          <PlusIcon className="size-2.5" />
-          Filter
-          <Kbd>F</Kbd>
-        </span>
-        <span className="ml-auto text-2xs text-fg-subtle">Save as view</span>
+        <PipelineFilters status={status} season={season} seasons={seasons} />
       </div>
 
       <div className="flex min-h-0 flex-1">
         <main className="min-w-0 flex-1 overflow-x-auto">
-          <Board data={data} />
+          {view === "board" ? <Board data={filtered} /> : <AppList data={filtered} />}
         </main>
         {peekId && (
           <Suspense key={peekId} fallback={<PeekPanelSkeleton />}>
@@ -80,18 +114,4 @@ export default async function PipelinePage({ searchParams }: PageProps<"/pipelin
       </ScreenFooter>
     </div>
   );
-}
-
-function FilterChip({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-[5px] border border-border bg-bg-subtle px-2 py-0.5 text-[11.5px] text-fg-muted">
-      {label} <span className="text-fg">{value}</span>
-    </span>
-  );
-}
-
-/** Academic year, e.g. "2025–26" — the club's unit of time, not the calendar year. */
-function seasonLabel(now = new Date()) {
-  const start = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
-  return `${start}–${String(start + 1).slice(2)}`;
 }
