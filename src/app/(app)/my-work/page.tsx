@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { formatDistanceToNowStrict, format } from "date-fns";
-import { ChevronDownIcon, FileTextIcon, CircleDashedIcon } from "lucide-react";
+import { formatDistanceToNowStrict } from "date-fns";
+import { ChevronDownIcon, FileTextIcon } from "lucide-react";
 import { requireCtx } from "@/lib/actions/context";
 import { getMyWork, slaBreachDays, isOverdue } from "@/lib/queries/dashboard";
 import { formatMoney, cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { Kbd } from "@/components/patterns/kbd";
 import { StageDot } from "@/components/patterns/entity-ref";
 import { PriorityGlyph, PRIORITY_ORDER } from "@/components/patterns/priority-glyph";
 import { EmptyState } from "@/components/patterns/empty-state";
+import { ActionItemRow } from "@/components/meetings/action-item-row";
 
 export const metadata: Metadata = { title: "My work" };
 export const dynamic = "force-dynamic";
@@ -94,26 +95,9 @@ export default async function MyWorkPage() {
         {data.tasks.length > 0 && (
           <>
             <GroupHeader title="Action items" count={data.tasks.length} />
-            {data.tasks.map((t) => {
-              const overdue = isOverdue(t.dueAt);
-              return (
-                <Row key={t.id}>
-                  <CircleDashedIcon className="size-3.5 shrink-0 text-fg-subtle" />
-                  <Ref>{formatRef("actionItem", t.ref)}</Ref>
-                  <span className="truncate text-sm">{t.title}</span>
-                  {t.dueAt && (
-                    <span
-                      className={cn(
-                        "ml-auto shrink-0 text-[11.5px]",
-                        overdue ? "text-danger" : "text-fg-muted"
-                      )}
-                    >
-                      {format(t.dueAt, "MMM d")}
-                    </span>
-                  )}
-                </Row>
-              );
-            })}
+            {data.tasks.map((t) => (
+              <ActionItemRow key={t.id} item={t} overdue={isOverdue(t.dueAt)} />
+            ))}
           </>
         )}
       </main>

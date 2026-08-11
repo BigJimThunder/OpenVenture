@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { format, formatDistanceToNow } from "date-fns";
-import { GlobeIcon, MailIcon, UserIcon, GraduationCapIcon, MapPinIcon } from "lucide-react";
-import { requireCtx } from "@/lib/actions/context";
+import { requireCtx, roleAtLeast } from "@/lib/actions/context";
 import { getApplicationDetail } from "@/lib/queries/applications";
 import { isOverdue } from "@/lib/queries/dashboard";
 import { getPools } from "@/lib/queries/grants";
@@ -16,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { StageStepper } from "@/components/applications/stage-stepper";
+import { FactsEditor } from "@/components/applications/facts-editor";
 import { NoteComposer } from "@/components/applications/note-composer";
 import { EnrichButton } from "@/components/applications/enrich-button";
 import { Scorecard } from "@/components/applications/scorecard";
@@ -196,57 +196,37 @@ export default async function ApplicationDetailPage({
         </div>
 
         <div className="flex flex-col gap-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Facts</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2 text-sm">
-              <Fact icon={GlobeIcon} label="Website">
-                {company.websiteUrl ? (
-                  <a
-                    href={company.websiteUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-accent hover:underline"
-                  >
-                    {company.domain}
-                  </a>
-                ) : (
-                  "—"
-                )}
-              </Fact>
-              <Fact icon={UserIcon} label="Founder">
-                {app.applicantName ?? "—"}
-              </Fact>
-              <Fact icon={MailIcon} label="Email">
-                {app.applicantEmail ?? "—"}
-              </Fact>
-              <Fact icon={GraduationCapIcon} label="Department">
-                {app.department ?? "—"}
-                {app.classYear ? ` · ’${String(app.classYear).slice(2)}` : ""}
-              </Fact>
-              <Fact icon={MapPinIcon} label="Campus source">
-                {app.campusSource ?? "—"}
-              </Fact>
-              <Separator />
-              <Fact label="Owner">{owner?.displayName ?? "Unassigned"}</Fact>
-              <Fact label="Applied">{format(app.appliedAt, "MMM d, yyyy")}</Fact>
-              {app.teamSize && <Fact label="Team">{app.teamSize} people</Fact>}
-              <Separator />
-              <NextStepEditor
-                applicationId={app.id}
-                nextStep={app.nextStep}
-                nextStepDue={app.nextStepDue}
-                overdue={isOverdue(app.nextStepDue)}
-              />
-              {(company.websiteUrl || company.domain) && (
-                <>
-                  <Separator />
-                  <EnrichButton companyId={company.id} applicationId={app.id} />
-                </>
-              )}
-            </CardContent>
-          </Card>
+          <FactsEditor
+            applicationId={app.id}
+            canEdit={roleAtLeast(ctx.member.role, "analyst")}
+            facts={{
+              applicantName: app.applicantName,
+              applicantEmail: app.applicantEmail,
+              department: app.department,
+              classYear: app.classYear,
+              campusSource: app.campusSource,
+              teamSize: app.teamSize,
+              ownerMemberId: app.ownerMemberId,
+            }}
+            website={{ url: company.websiteUrl, domain: company.domain }}
+            ownerName={owner?.displayName ?? null}
+            appliedAt={app.appliedAt}
+            members={activeMembers}
+          >
+            <Separator />
+            <NextStepEditor
+              applicationId={app.id}
+              nextStep={app.nextStep}
+              nextStepDue={app.nextStepDue}
+              overdue={isOverdue(app.nextStepDue)}
+            />
+            {(company.websiteUrl || company.domain) && (
+              <>
+                <Separator />
+                <EnrichButton companyId={company.id} applicationId={app.id} />
+              </>
+            )}
+          </FactsEditor>
 
           {(memos.length > 0 || grants.length > 0) && (
             <Card>
@@ -301,26 +281,6 @@ export default async function ApplicationDetailPage({
           </Card>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Fact({
-  icon: Icon,
-  label,
-  children,
-}: {
-  icon?: React.ComponentType<{ className?: string }>;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="flex items-center gap-1.5 text-xs text-fg-muted">
-        {Icon && <Icon className="size-3.5" />}
-        {label}
-      </span>
-      <span className="min-w-0 truncate text-right text-sm">{children}</span>
     </div>
   );
 }

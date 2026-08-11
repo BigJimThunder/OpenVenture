@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatDistanceToNowStrict, format } from "date-fns";
-import { ChevronDownIcon, VoteIcon, CalendarIcon, CircleDashedIcon } from "lucide-react";
+import { ChevronDownIcon, VoteIcon, CalendarIcon } from "lucide-react";
 import { requireCtx } from "@/lib/actions/context";
 import { getDashboardData, isOverdue, slaBreachDays } from "@/lib/queries/dashboard";
 import { formatMoney, initials, cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { Kbd } from "@/components/patterns/kbd";
 import { StageDot } from "@/components/patterns/entity-ref";
 import { PriorityGlyph, PRIORITY_ORDER } from "@/components/patterns/priority-glyph";
 import { EmptyState } from "@/components/patterns/empty-state";
+import { ActionItemRow } from "@/components/meetings/action-item-row";
 
 export const dynamic = "force-dynamic";
 
@@ -166,17 +167,12 @@ export default async function InboxPage() {
               </Row>
             )}
             {data.myActionItems.map((t) => (
-              <Row key={t.id}>
-                <CircleDashedIcon className="size-3.5 shrink-0 text-fg-subtle" />
-                <Ref>{formatRef("actionItem", t.ref)}</Ref>
-                <span className="truncate text-sm">{t.title}</span>
-                {t.dueAt && (
-                  <span className="ml-auto shrink-0 text-[11.5px] text-fg-muted">
-                    {format(t.dueAt, "MMM d")}
-                  </span>
-                )}
-                <Owner name={ctx.member.displayName} />
-              </Row>
+              <ActionItemRow
+                key={t.id}
+                item={t}
+                overdue={isOverdue(t.dueAt)}
+                trailing={<Owner name={ctx.member.displayName} />}
+              />
             ))}
           </>
         )}
