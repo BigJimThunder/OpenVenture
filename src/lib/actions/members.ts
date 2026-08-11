@@ -15,6 +15,45 @@ import {
 import { authedAction, ActionError } from "./safe-action";
 import { sendEmail } from "@/lib/email";
 
+export const updateMyProfile = authedAction({
+  // Explicitly below the analyst default: read_only members own their profile too.
+  minRole: "read_only",
+  input: z.object({
+    displayName: z.string().min(1).max(120),
+    cohort: z.string().max(60).nullable().optional(),
+    classYear: z.coerce.number().int().min(2000).max(2100).nullable().optional(),
+    bio: z.string().max(1000).nullable().optional(),
+    linkedinUrl: z.string().url().max(300).nullable().optional().or(z.literal("").transform(() => null)),
+  }),
+  handler: async (input, ctx) => {
+    // Operates only on the caller's own row — there is deliberately no
+    // memberId parameter, so no cross-member edit is possible.
+    await db
+      .update(member)
+      .set({
+        displayName: input.displayName,
+        ...(input.cohort !== undefined ? { cohort: input.cohort } : {}),
+        ...(input.classYear !== undefined ? { classYear: input.classYear } : {}),
+        ...(input.bio !== undefined ? { bio: input.bio } : {}),
+        ...(input.linkedinUrl !== undefined ? { linkedinUrl: input.linkedinUrl } : {}),
+      })
+      .where(eq(member.id, ctx.member.id));
+
+    revalidatePath(`/members/${ctx.member.id}`);
+    revalidatePath("/members");
+    return {
+      data: { ok: true },
+      activity: {
+        verb: "member.profile_updated",
+        entityType: "member",
+        entityId: ctx.member.id,
+        entityLabel: input.displayName,
+        summary: `${input.displayName} updated their profile`,
+      },
+    };
+  },
+});
+
 export const inviteMember = authedAction({
   minRole: "admin",
   input: z.object({

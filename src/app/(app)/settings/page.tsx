@@ -10,6 +10,12 @@ import { PageHeader } from "@/components/patterns/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NewPoolDialog } from "@/components/grants/new-pool-dialog";
 import { StageManager } from "@/components/settings/stage-manager";
+import {
+  CriteriaManager,
+  SectorManager,
+  DealSourceManager,
+} from "@/components/settings/lookup-sections";
+import { getLookups } from "@/lib/queries/lookups";
 import { IngestSettings } from "./ingest-settings";
 import { ClubSettings } from "./club-settings";
 
@@ -18,13 +24,14 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const ctx = await requireCtx("admin");
-  const [pools, stages] = await Promise.all([
+  const [pools, stages, lookups] = await Promise.all([
     getPools(ctx.org.id),
     db
       .select()
       .from(pipelineStage)
       .where(and(eq(pipelineStage.orgId, ctx.org.id), isNull(pipelineStage.archivedAt)))
       .orderBy(asc(pipelineStage.position)),
+    getLookups(ctx.org.id),
   ]);
   const { fiscalYear } = currentFiscalQuarter(ctx.org.fiscalYearStartMonth);
 
@@ -90,6 +97,47 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <StageManager stages={stages} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Screening criteria</CardTitle>
+            <CardDescription>
+              The 1–5 scorecard every member fills during Screening. Archiving keeps old scores.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CriteriaManager
+              items={lookups.criteria.map((c) => ({
+                id: c.id,
+                label: c.label,
+                hint: c.description,
+              }))}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Sectors</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SectorManager
+              items={lookups.sectors.map((s) => ({ id: s.id, label: s.name }))}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Deal sources</CardTitle>
+            <CardDescription>Where applications come from — powers sourcing analytics.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DealSourceManager
+              items={lookups.sources.map((s) => ({ id: s.id, label: s.name, hint: s.kind }))}
+            />
           </CardContent>
         </Card>
 
