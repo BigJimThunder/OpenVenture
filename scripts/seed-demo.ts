@@ -397,7 +397,10 @@ async function main() {
     if (finalSlug === "funded") {
       fundedCount++;
       const amount = Math.round(ask * (0.5 + rand() * 0.5));
-      const pool = rand() < 0.4 ? lastPool : thisPool;
+      // Charge the pool whose fiscal year (Jul–Jun) contains the decision date.
+      const decided = app.decidedAt ?? new Date(now);
+      const fy = decided.getUTCMonth() >= 6 ? decided.getUTCFullYear() : decided.getUTCFullYear() - 1;
+      const pool = fy >= 2026 ? thisPool : lastPool;
       const statusRoll = rand();
       await db.insert(t.grant).values({
         orgId: org.id,

@@ -79,7 +79,36 @@ export default async function SettingsPage() {
             />
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Export everything</CardTitle>
+            <CardDescription>
+              Your data is yours — one click dumps it all, no lock-in. Self-reported
+              demographics are aggregate-only by design and never appear in any export.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2 text-sm">
+            <ExportLink href="/api/export/json" label="Full JSON dump" />
+            <ExportLink href="/api/export/csv/applications" label="Applications CSV" />
+            <ExportLink href="/api/export/csv/grants" label="Grants CSV" />
+            <ExportLink href="/api/export/csv/members" label="Members CSV" />
+            <ExportLink href="/api/export/csv/outcomes" label="Outcomes CSV" />
+          </CardContent>
+        </Card>
       </div>
     </div>
+  );
+}
+
+function ExportLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      download
+      className="rounded-md border border-border bg-panel px-2.5 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-bg-subtle"
+    >
+      {label} ↓
+    </a>
   );
 }

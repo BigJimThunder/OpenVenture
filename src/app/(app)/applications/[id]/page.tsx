@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { StageStepper } from "@/components/applications/stage-stepper";
 import { NoteComposer } from "@/components/applications/note-composer";
+import { EnrichButton } from "@/components/applications/enrich-button";
 
 export const dynamic = "force-dynamic";
 
@@ -229,6 +230,12 @@ export default async function ApplicationDetailPage({
               <Fact label="Owner">{owner?.displayName ?? "Unassigned"}</Fact>
               <Fact label="Applied">{format(app.appliedAt, "MMM d, yyyy")}</Fact>
               {app.teamSize && <Fact label="Team">{app.teamSize} people</Fact>}
+              {(company.websiteUrl || company.domain) && (
+                <>
+                  <Separator />
+                  <EnrichButton companyId={company.id} applicationId={app.id} />
+                </>
+              )}
             </CardContent>
           </Card>
 

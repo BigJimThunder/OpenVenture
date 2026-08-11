@@ -11,12 +11,13 @@ Built for clubs that make **non-dilutive grants** to student founders (a ~$10k/y
 | Module | Status | What it does |
 |---|---|---|
 | **Intake & pipeline** | ✅ Shipped | Applications flow from your website form straight into a kanban: Applied → Screening → Coffee Chat → Pitched Group → Decision → Funded/Declined. Declines require a reason — that's what makes the annual retro real. |
-| **Grants** | 🔜 Phase 2 | The pool, requests, approve → issue → reconcile, receipts, budget burn-down. |
-| **Memos & blind IC voting** | 🔜 Phase 3 | Templated memos with section versioning and comments; conviction voting that stays **hidden until reveal** — the cheapest anti-groupthink mechanism there is. |
-| **Members, onboarding, meetings** | 🔜 Phase 4 | Roster, onboarding checklists, agenda builder, two-tap attendance, run mode, recap emails. |
-| **Insights** | 🔜 Phase 5 | The headline: funnel conversion, sector & department mix, per-member sourcing attribution, decline reasons, outcome tiers (the grant-world power-law lesson), and per-member investor self-analysis. |
-| **Cap Table Lab** | ⚙️ Engine shipped & tested | A dilution sandbox for advising grantees: pitch-comp SAFEs, "$125K for 7%" accelerator deals, pool shuffles — with "show your work" on every derived number. |
-| **LP reports** | 🔜 Phase 7 | Quarterly letters generated from real data. |
+| **Grants** | ✅ Shipped | The pool, requests, approve → issue → reconcile, receipts, budget burn-down with an overdraw guard. |
+| **Memos & blind IC voting** | ✅ Shipped | Templated memos with section versioning and comments; conviction voting that stays **hidden until reveal** — the cheapest anti-groupthink mechanism there is. |
+| **Members, onboarding, meetings** | ✅ Shipped | Roster, onboarding checklists, agenda builder, two-tap attendance, run mode, recaps, iCal feed. |
+| **Insights** | ✅ Shipped | The headline: funnel conversion, sector & department mix, per-member sourcing attribution, decline reasons, outcome tiers (the grant-world power-law lesson), and per-member investor self-analysis. |
+| **Cap Table Lab** | ✅ Shipped | A dilution sandbox for advising grantees: pitch-comp SAFEs, "$125K for 7%" accelerator deals, pool shuffles — with "show your work" on every derived number. |
+| **LP reports** | ✅ Shipped | Quarterly letters generated from real data — deployment, pipeline, portfolio moves — plus GP commentary, print-ready for PDF. |
+| **Enrichment & export** | ✅ Shipped | One-click company enrichment from the founder's own website (optional Claude pass with an `ANTHROPIC_API_KEY`); full JSON/CSV export — your data is never locked in. |
 
 ## Stack
 
@@ -25,6 +26,20 @@ Next.js 16 (App Router) · TypeScript · Tailwind v4 + shadcn-style components �
 Runs comfortably at **$0–15/month**: Vercel Hobby + Neon usage-based + Resend free tier.
 
 ## Getting started
+
+### Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FBigJimThunder%2FOpenVenture&env=DATABASE_URL,DATABASE_URL_DIRECT,BETTER_AUTH_SECRET,BETTER_AUTH_URL&envDescription=Neon%20Postgres%20URLs%20and%20an%20auth%20secret%20—%20see%20.env.example&project-name=openventure&repository-name=openventure)
+
+Create a free [Neon](https://neon.tech) database first, paste its pooled and direct
+URLs when prompted, run `pnpm db:push` once against it, and sign in — first sign-in
+walks you through creating the club.
+
+Handing the club to next year's officers? Read **[ADMIN_RUNBOOK.md](ADMIN_RUNBOOK.md)** —
+a non-engineer's guide to invites, exports, the annual handover checklist, and the
+break-glass admin hatch.
+
+### Run locally
 
 ```bash
 pnpm install
