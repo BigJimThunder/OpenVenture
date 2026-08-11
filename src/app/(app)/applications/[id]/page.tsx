@@ -6,6 +6,7 @@ import { requireCtx } from "@/lib/actions/context";
 import { getApplicationDetail } from "@/lib/queries/applications";
 import { getPools } from "@/lib/queries/grants";
 import { NewGrantDialog } from "@/components/grants/new-grant-dialog";
+import { StartMemoButton } from "@/components/memos/start-memo-button";
 import { formatMoney } from "@/lib/utils";
 import { PageHeader } from "@/components/patterns/page-header";
 import { StageBadge } from "@/components/patterns/stage-badge";
@@ -53,7 +54,11 @@ export default async function ApplicationDetailPage({
         }
         description={company.oneLiner ?? app.pitchSummary ?? undefined}
         actions={
-          pools.length > 0 ? (
+          <>
+          {!memos.some((mm) => mm.status !== "archived") && app.status === "open" && (
+            <StartMemoButton applicationId={app.id} />
+          )}
+          {pools.length > 0 ? (
             <NewGrantDialog
               pools={pools}
               defaultPoolId={pools[0].id}
@@ -70,7 +75,8 @@ export default async function ApplicationDetailPage({
                 },
               ]}
             />
-          ) : undefined
+          ) : null}
+          </>
         }
       />
 

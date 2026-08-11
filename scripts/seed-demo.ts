@@ -216,6 +216,17 @@ async function main() {
   const start = now - 334 * 86400000;
 
   let fundedCount = 0;
+  type MemoCandidate = {
+    appId: string;
+    companyId: string;
+    companyName: string;
+    oneLiner: string;
+    ask: number;
+    finalSlug: string;
+    ownerId: string;
+    appliedAt: Date;
+  };
+  const memoCandidates: MemoCandidate[] = [];
   for (let i = 0; i < COMPANIES.length; i++) {
     const [name, oneLiner, sectorSlug, ask] = COMPANIES[i];
     const domain = `${name.toLowerCase().replace(/[^a-z0-9]/g, "")}.example.com`;
@@ -435,7 +446,174 @@ async function main() {
       summary: `${owner.displayName} added ${name} to the pipeline`,
       occurredAt: appliedAt,
     });
+
+    if (["pitched-group", "decision", "funded", "declined"].includes(finalSlug)) {
+      memoCandidates.push({
+        appId: app.id,
+        companyId: co.id,
+        companyName: name,
+        oneLiner,
+        ask,
+        finalSlug,
+        ownerId: owner.id,
+        appliedAt,
+      });
+    }
   }
+
+  // ——— Memos + blind IC votes ———
+  // Real prose (not lorem), one circulated version each; two revealed rounds
+  // with outcomes, one OPEN blind round so the reveal flow is demoable live.
+  const templateSections = await db
+    .select()
+    .from(t.memoTemplateSection)
+    .where(eq(t.memoTemplateSection.templateId, template.id));
+  const bySectionTitle = (title: string) =>
+    templateSections.find((s) => s.title === title)!;
+
+  const tiptap = (text: string) => ({
+    type: "doc",
+    content: text.split("\n\n").map((p) => ({
+      type: "paragraph",
+      content: [{ type: "text", text: p }],
+    })),
+  });
+
+  function memoProse(c: MemoCandidate): Record<string, string> {
+    return {
+      Summary: `${c.companyName} is ${c.oneLiner.charAt(0).toLowerCase()}${c.oneLiner.slice(1)}. The founding team is asking for $${c.ask.toLocaleString()} in non-dilutive funding to get past a specific, verifiable blocker. They came through our standard funnel: application, screening against criteria, and a two-member coffee chat that ended in a clear advance.`,
+      Team: `The founders are current students with real skin in the game — this is not a class project they will abandon in May. In the coffee chat they were direct about what they don't know, which we weight heavily. They have shipped something usable and iterated on user feedback at least twice.`,
+      "Product & Traction": `The product exists and works. Early usage is small but genuine: real users they can name, not sign-ups from friends. The honest read is that traction is early-stage even by our standards, and the grant is precisely what removes the next bottleneck rather than general runway.`,
+      "Use of Funds": `The full ask of $${c.ask.toLocaleString()} maps to itemized costs the founders quoted from real invoices. Nothing in the budget is salary. If we fund at a lower number, the founders identified which line items they would cut first, which we take as a good sign of planning discipline.`,
+      Risks: `The biggest risk is graduation drift — the team's timeline collides with recruiting season. Second, a well-funded competitor could reach campus first, though distribution here favors whoever actually shows up in person. We are not underwriting a venture-scale outcome; we are underwriting momentum.`,
+      Recommendation: `${c.finalSlug === "declined" ? `Decline for now. The team is promising but the ask doesn't unlock a milestone we can verify; we'd rather see them again in a semester.` : `Fund $${c.ask.toLocaleString()}. The ask is within range, maps to a verifiable milestone, and the team has done everything our process asks of them.`}`,
+    };
+  }
+
+  async function seedMemo(
+    c: MemoCandidate,
+    opts: { roundState: "none" | "open" | "revealed"; outcome?: "fund" | "decline" }
+  ) {
+    const prose = memoProse(c);
+    const [memoRow] = await db
+      .insert(t.memo)
+      .values({
+        orgId: org.id,
+        applicationId: c.appId,
+        templateId: template.id,
+        title: `${c.companyName} — grant memo`,
+        status: opts.roundState === "revealed" ? "decided" : "circulated",
+        authorMemberId: c.ownerId,
+        currentVersionNo: 1,
+        recommendation: c.finalSlug === "declined" ? "decline" : "fund",
+        proposedAmount: String(c.ask),
+        circulatedAt: new Date(c.appliedAt.getTime() + 30 * 86400000),
+        ...(opts.roundState === "revealed"
+          ? { decidedAt: new Date(c.appliedAt.getTime() + 40 * 86400000) }
+          : {}),
+      })
+      .returning();
+
+    const [version] = await db
+      .insert(t.memoVersion)
+      .values({ memoId: memoRow.id, versionNo: 1, createdByMemberId: c.ownerId })
+      .returning();
+
+    for (const [title, text] of Object.entries(prose)) {
+      const ts = bySectionTitle(title);
+      const base = {
+        memoId: memoRow.id,
+        templateSectionId: ts.id,
+        title,
+        position: ts.position,
+        contentJson: tiptap(text),
+        contentText: text,
+        wordCount: text.split(/\s+/).length,
+        updatedByMemberId: c.ownerId,
+      };
+      await db.insert(t.memoSection).values(base); // live draft
+      await db.insert(t.memoSection).values({ ...base, versionId: version.id }); // v1 snapshot
+    }
+
+    if (opts.roundState === "none") return;
+
+    const voters = members.filter((m) => m.role !== "read_only");
+    const now2 = Date.now();
+    const [round] = await db
+      .insert(t.voteRound)
+      .values({
+        orgId: org.id,
+        applicationId: c.appId,
+        memoId: memoRow.id,
+        title: `IC vote: ${c.companyName}`,
+        opensAt: new Date(now2 - 3 * 86400000),
+        closesAt: new Date(now2 + (opts.roundState === "open" ? 2 : -1) * 86400000),
+        status: opts.roundState,
+        ...(opts.roundState === "revealed"
+          ? {
+              revealedAt: new Date(now2 - 86400000),
+              revealedByMemberId: members[0].id,
+              outcome: opts.outcome,
+              outcomeNote:
+                opts.outcome === "fund"
+                  ? `Approved at $${c.ask.toLocaleString()} contingent on receipts.`
+                  : "Revisit after they land their first two paying users.",
+              decidedByMemberId: members[0].id,
+            }
+          : {}),
+      })
+      .returning();
+
+    await db.insert(t.voteEligibility).values(
+      voters.map((v, idx) => ({
+        voteRoundId: round.id,
+        memberId: v.id,
+        isRecused: idx === voters.length - 1, // one recusal for realism
+      }))
+    );
+
+    // Ballots: a contentious spread for revealed rounds, partial for open.
+    const eligibleVoters = voters.slice(0, -1);
+    const votersToCast =
+      opts.roundState === "open"
+        ? eligibleVoters.slice(0, Math.floor(eligibleVoters.length * 0.6))
+        : eligibleVoters;
+    const rationalesFund = [
+      "Ask maps to a hard milestone. Cheap way to find out.",
+      "Team has shipped twice since applying — momentum is real.",
+      "This is exactly the kind of founder our grant exists for.",
+      "Small check, verifiable use of funds, strong coffee-chat signal.",
+    ];
+    const rationalesDecline = [
+      "Traction is friends-and-family. One semester too early.",
+      "Use of funds is fuzzy — half of this is nice-to-have.",
+      "Worried the team disbands at graduation.",
+    ];
+    for (let vi = 0; vi < votersToCast.length; vi++) {
+      const leanFund = opts.outcome !== "decline" ? vi % 3 !== 2 : vi % 3 === 0;
+      await db.insert(t.vote).values({
+        voteRoundId: round.id,
+        memberId: votersToCast[vi].id,
+        decision: leanFund ? "fund" : "decline",
+        conviction: leanFund ? 3 + (vi % 3) : 1 + (vi % 2),
+        rationale: leanFund
+          ? rationalesFund[vi % rationalesFund.length]
+          : rationalesDecline[vi % rationalesDecline.length],
+        suggestedAmount: leanFund && vi % 2 === 0 ? String(Math.round(c.ask * 0.8)) : null,
+      });
+    }
+  }
+
+  const fundedCandidates = memoCandidates.filter((c) => c.finalSlug === "funded");
+  const declinedCandidates = memoCandidates.filter((c) => c.finalSlug === "declined");
+  const liveCandidates = memoCandidates.filter(
+    (c) => c.finalSlug === "pitched-group" || c.finalSlug === "decision"
+  );
+  if (fundedCandidates[0]) await seedMemo(fundedCandidates[0], { roundState: "revealed", outcome: "fund" });
+  if (declinedCandidates[0]) await seedMemo(declinedCandidates[0], { roundState: "revealed", outcome: "decline" });
+  if (liveCandidates[0]) await seedMemo(liveCandidates[0], { roundState: "open" });
+  if (liveCandidates[1]) await seedMemo(liveCandidates[1], { roundState: "none" });
+  if (fundedCandidates[1]) await seedMemo(fundedCandidates[1], { roundState: "revealed", outcome: "fund" });
 
   // Weekly meetings over the past 12 weeks.
   for (let w = 0; w < 12; w++) {
