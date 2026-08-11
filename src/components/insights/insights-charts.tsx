@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { ShieldCheckIcon } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -21,8 +22,9 @@ import {
   CHART_PALETTE,
 } from "@/components/patterns/chart";
 import { TIER_META } from "@/components/grants/outcomes-table";
+import { SUPPRESSED_LABEL } from "@/lib/insights/k-anonymize";
 import type { OutcomeTier, DeclineReason } from "@/db/schema";
-import { formatCompact } from "@/lib/utils";
+import { cn, formatCompact, formatPct } from "@/lib/utils";
 
 const money = (v: number | string) => `$${Number(v).toLocaleString("en-US")}`;
 
@@ -78,11 +80,55 @@ function Section({ id, title, children }: { id: string; title: string; children:
   );
 }
 
+/**
+ * The funnel as a strip: reached, conversion from the previous stage, and how
+ * long the previous stage took. Declined is excluded — it isn't a step on the
+ * path, it's an exit.
+ */
+function FunnelStrip({ stages }: { stages: Props["funnel"]["stages"] }) {
+  const path = stages.filter((s) => s.kind !== "lost");
+  if (path.length === 0 || (path[0]?.reached ?? 0) === 0) return null;
+  return (
+    <div className="mb-3 overflow-x-auto">
+      <div className="flex min-w-fit rounded-lg border border-border bg-panel">
+        {path.map((s, i) => {
+          const prev = i > 0 ? path[i - 1].reached : null;
+          const conv = prev ? s.reached / prev : null;
+          return (
+            <div
+              key={s.name}
+              className="min-w-28 flex-1 border-r border-border px-3 py-2.5 last:border-r-0"
+            >
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ background: `var(--${s.colorToken})` }}
+                  aria-hidden
+                />
+                <span className="truncate text-2xs font-medium uppercase tracking-wide text-fg-subtle">
+                  {s.name}
+                </span>
+              </div>
+              <div className="tnum mt-1 text-lg font-semibold tracking-tight">{s.reached}</div>
+              <div className="tnum mt-0.5 text-2xs text-fg-muted">
+                {conv != null ? `${formatPct(conv, 0)} of ${path[i - 1].name}` : "every application"}
+                {s.medianDaysInPrev != null && (
+                  <span className="text-fg-subtle"> · ~{Math.round(s.medianDaysInPrev)}d</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition, portfolio }: Props) {
   return (
     <div>
-      {/* Anchor nav */}
-      <nav className="mb-6 flex flex-wrap gap-1.5">
+      {/* Anchor nav — sticky so the sections stay reachable mid-scroll */}
+      <nav className="sticky top-0 z-10 -mx-6 mb-6 flex flex-wrap gap-1.5 border-b border-border bg-bg/95 px-6 py-2 backdrop-blur">
         {[
           ["funnel", "Funnel"],
           ["sourcing", "Sourcing"],
@@ -101,6 +147,7 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
       </nav>
 
       <Section id="funnel" title="Funnel">
+        <FunnelStrip stages={funnel.stages} />
         <div className="grid gap-3 lg:grid-cols-2">
           <ChartFrame
             title="Stage conversion"
@@ -266,10 +313,17 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
             </BarChart>
           </ChartFrame>
           <div className="rounded-lg border border-border bg-panel p-4">
-            <div className="mb-1 text-sm font-semibold">Founder demographics</div>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="text-sm font-semibold">Founder demographics</span>
+              <span className="flex items-center gap-1 rounded-full border border-info-border bg-info-bg px-2 py-0.5 text-2xs font-medium text-info">
+                <ShieldCheckIcon className="size-3" />
+                Privacy floor: 5
+              </span>
+            </div>
             <p className="mb-3 text-2xs text-fg-subtle">
-              Self-reported and optional ({composition.respondents} respondents). Aggregate-only:
-              groups smaller than 5 are never shown, and cross-tabs are disabled by design.
+              Self-reported and optional ({composition.respondents} respondents). Groups smaller
+              than 5 collapse into &ldquo;{SUPPRESSED_LABEL}&rdquo; — suppression is a privacy
+              feature, not missing data. Cross-tabs are disabled by design.
             </p>
             <div className="flex flex-col gap-3">
               {(
@@ -285,13 +339,20 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
                     {label}
                   </div>
                   {buckets.length === 0 ? (
-                    <p className="text-xs text-fg-subtle">All groups too small to show.</p>
+                    <p className="text-xs text-fg-subtle">
+                      Not shown — every group here is under the privacy floor.
+                    </p>
                   ) : (
                     <div className="flex flex-wrap gap-1.5">
                       {buckets.map((b) => (
                         <span
                           key={b.label}
-                          className="tnum rounded-full border border-border bg-bg-subtle px-2.5 py-0.5 text-xs capitalize text-fg-muted"
+                          className={cn(
+                            "tnum rounded-full border px-2.5 py-0.5 text-xs",
+                            b.label === SUPPRESSED_LABEL
+                              ? "border-dashed border-border text-fg-subtle"
+                              : "border-border bg-bg-subtle capitalize text-fg-muted"
+                          )}
                         >
                           {b.label} · {b.count}
                         </span>

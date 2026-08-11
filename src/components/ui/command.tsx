@@ -22,16 +22,21 @@ function CommandDialog({
   children,
   open,
   onOpenChange,
+  shouldFilter,
 }: {
   children: React.ReactNode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Set false when the caller ranks/filters items itself (server search, fuzzy scoring). */
+  shouldFilter?: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="overflow-hidden p-0 top-[30%] translate-y-0 [&>button:last-child]:hidden">
         <DialogTitle className="sr-only">Command palette</DialogTitle>
-        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-2xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-fg-subtle">
+        <Command
+          shouldFilter={shouldFilter}
+          className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-2xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-fg-subtle">
           {children}
         </Command>
       </DialogContent>

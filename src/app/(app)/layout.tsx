@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getCtx } from "@/lib/actions/context";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
+import { GlobalShortcuts } from "@/components/shell/global-shortcuts";
 
 /**
  * Auth-guarded shell. This layout AND every server action independently
@@ -19,6 +20,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="flex h-svh overflow-hidden print:block print:h-auto print:overflow-visible">
+      <GlobalShortcuts />
       <div className="contents print:hidden">
         <Sidebar orgName={ctx.org.name} />
       </div>

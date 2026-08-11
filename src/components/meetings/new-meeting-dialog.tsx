@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createMeeting } from "@/lib/actions/meetings";
@@ -27,9 +27,21 @@ import {
 
 export function NewMeetingDialog() {
   const router = useRouter();
-  const [open, setOpen] = React.useState(false);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [manualOpen, setManualOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [kind, setKind] = React.useState<MeetingKind>("general");
+
+  // ⌘K "New meeting" lands here via ?new=1. Open state is derived from the
+  // URL, not copied into state; closing strips the param.
+  const wantNew = searchParams.get("new") === "1";
+  const open = manualOpen || wantNew;
+
+  function setOpen(next: boolean) {
+    setManualOpen(next);
+    if (!next && wantNew) router.replace(pathname, { scroll: false });
+  }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
