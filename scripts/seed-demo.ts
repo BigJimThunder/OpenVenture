@@ -614,6 +614,33 @@ async function main() {
   if (liveCandidates[0]) await seedMemo(liveCandidates[0], { roundState: "open" });
   if (liveCandidates[1]) await seedMemo(liveCandidates[1], { roundState: "none" });
   if (fundedCandidates[1]) await seedMemo(fundedCandidates[1], { roundState: "revealed", outcome: "fund" });
+  // Extra revealed rounds so per-member calibration has ≥3 data points.
+  if (fundedCandidates[2]) await seedMemo(fundedCandidates[2], { roundState: "revealed", outcome: "fund" });
+  if (declinedCandidates[1]) await seedMemo(declinedCandidates[1], { roundState: "revealed", outcome: "decline" });
+
+  // Outcome-tier check-in history for portfolio companies (backdated 2–3
+  // steps up the ladder) so time-to-outcome charts have shape.
+  const TIER_LADDER = ["incorporated", "launched", "revenue", "raised_round", "accelerator"];
+  const portfolioCos = await db
+    .select()
+    .from(t.company)
+    .where(eq(t.company.status, "portfolio"));
+  for (const co of portfolioCos) {
+    const finalTier = co.outcomeTier ?? "incorporated";
+    const ladderIdx = Math.max(0, TIER_LADDER.indexOf(finalTier));
+    const steps = Math.min(ladderIdx + 1, 3);
+    for (let s = 0; s < steps; s++) {
+      const tierAtStep = TIER_LADDER[Math.max(0, ladderIdx - (steps - 1 - s))];
+      await db.insert(t.outcomeUpdate).values({
+        orgId: org.id,
+        companyId: co.id,
+        tier: tierAtStep,
+        recordedByMemberId: pick(members).id,
+        recordedAt: new Date(now - (steps - s) * 75 * 86400000),
+        note: s === steps - 1 ? "Latest quarterly check-in." : null,
+      });
+    }
+  }
 
   // Weekly meetings over the past 12 weeks.
   for (let w = 0; w < 12; w++) {
