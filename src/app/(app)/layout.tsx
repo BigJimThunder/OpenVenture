@@ -18,11 +18,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   }
 
   return (
-    <div className="flex h-svh overflow-hidden">
-      <Sidebar orgName={ctx.org.name} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar memberName={ctx.member.displayName} role={ctx.member.role} />
-        <main className="flex-1 overflow-y-auto">{children}</main>
+    <div className="flex h-svh overflow-hidden print:block print:h-auto print:overflow-visible">
+      <div className="contents print:hidden">
+        <Sidebar orgName={ctx.org.name} />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col print:block">
+        <div className="contents print:hidden">
+          <Topbar memberName={ctx.member.displayName} role={ctx.member.role} />
+        </div>
+        <main className="flex-1 overflow-y-auto print:overflow-visible">{children}</main>
       </div>
     </div>
   );

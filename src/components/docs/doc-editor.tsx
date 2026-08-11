@@ -56,8 +56,8 @@ export function DocEditor({
   React.useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
 
   return (
-    <div className="rounded-lg border border-border bg-panel p-6">
-      <div className="mb-2 flex justify-end">
+    <div className="rounded-lg border border-border bg-panel p-6 print:border-0 print:p-0 print:[&_.tiptap]:min-h-0">
+      <div className="mb-2 flex justify-end print:hidden">
         <span className={cn("text-2xs", saveState === "error" ? "text-danger" : "text-fg-subtle")}>
           {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed" : ""}
         </span>

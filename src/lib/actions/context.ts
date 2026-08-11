@@ -42,6 +42,39 @@ export type Ctx = {
   org: typeof organization.$inferSelect;
 };
 
+/**
+ * Break-glass admin — survival hatch for the year a cohort graduates without
+ * promoting a successor. Set BOOTSTRAP_ADMIN_EMAIL in the deployment env; the
+ * matching sign-in becomes (or is promoted to) an admin member. Unset it when
+ * you're done. Documented in ADMIN_RUNBOOK.md.
+ */
+function isBreakGlassEmail(email: string): boolean {
+  const configured = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
+  return Boolean(configured) && email.toLowerCase() === configured;
+}
+
+async function maybeBreakGlass(
+  userId: string,
+  email: string
+): Promise<typeof member.$inferSelect | null> {
+  if (!isBreakGlassEmail(email)) return null;
+  const orgs = await db.select().from(organization).limit(1);
+  if (!orgs[0]) return null; // no org yet — first-run /setup handles that
+  const created = await db
+    .insert(member)
+    .values({
+      orgId: orgs[0].id,
+      userId,
+      email: email.toLowerCase(),
+      displayName: email.split("@")[0],
+      role: "admin",
+      status: "active",
+    })
+    .returning();
+  console.warn(`[break-glass] admin member created for ${email}`);
+  return created[0] ?? null;
+}
+
 /** Cached per-request. Returns null when unauthenticated or not yet a member. */
 export const getCtx = cache(async (): Promise<Ctx | null> => {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -61,11 +94,24 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
       .from(member)
       .where(and(eq(member.email, session.user.email.toLowerCase()), isNull(member.userId)))
       .limit(1);
-    if (!pending[0]) return null;
+    if (pending[0]) {
+      const updated = await db
+        .update(member)
+        .set({ userId: session.user.id, status: "active", updatedAt: new Date() })
+        .where(eq(member.id, pending[0].id))
+        .returning();
+      m = updated[0]!;
+    } else {
+      const breakGlass = await maybeBreakGlass(session.user.id, session.user.email);
+      if (!breakGlass) return null;
+      m = breakGlass;
+    }
+  } else if (isBreakGlassEmail(session.user.email) && m.role !== "admin") {
+    // Existing member matching BOOTSTRAP_ADMIN_EMAIL: promote to admin.
     const updated = await db
       .update(member)
-      .set({ userId: session.user.id, status: "active", updatedAt: new Date() })
-      .where(eq(member.id, pending[0].id))
+      .set({ role: "admin", updatedAt: new Date() })
+      .where(eq(member.id, m.id))
       .returning();
     m = updated[0]!;
   }
