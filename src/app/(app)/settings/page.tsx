@@ -1,4 +1,5 @@
 import { requireCtx } from "@/lib/actions/context";
+import { calendarToken } from "@/lib/calendar";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,22 @@ export default async function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {ctx.org.ingestSecret && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Calendar feed</CardTitle>
+              <CardDescription>
+                Subscribe in Google/Apple Calendar — meetings appear automatically.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <code className="block truncate rounded-md border border-border bg-bg-subtle px-2.5 py-1.5 font-mono text-xs">
+                {process.env.BETTER_AUTH_URL ?? ""}/api/calendar/{calendarToken(ctx.org.ingestSecret)}
+              </code>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

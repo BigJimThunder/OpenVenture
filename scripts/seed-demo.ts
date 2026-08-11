@@ -644,17 +644,113 @@ async function main() {
     }
   }
 
-  // One upcoming meeting.
-  await db.insert(t.meeting).values({
-    orgId: org.id,
-    title: "Weekly General Meeting",
-    kind: "general",
-    scheduledAt: new Date(now + 3 * 86400000),
-    durationMinutes: 60,
-    location: "Huntsman Hall 240",
-    status: "scheduled",
-    createdByMemberId: members[0].id,
-  });
+  // One upcoming meeting with a pre-built agenda.
+  const [upcomingMeeting] = await db
+    .insert(t.meeting)
+    .values({
+      orgId: org.id,
+      title: "Weekly General Meeting",
+      kind: "general",
+      scheduledAt: new Date(now + 3 * 86400000),
+      durationMinutes: 60,
+      location: "Huntsman Hall 240",
+      status: "scheduled",
+      createdByMemberId: members[0].id,
+    })
+    .returning();
+  const pitchedApp = memoCandidates.find((c) => c.finalSlug === "pitched-group");
+  await db.insert(t.agendaItem).values([
+    { meetingId: upcomingMeeting.id, position: "1", title: "Sourcing updates", kind: "update", durationMinutes: 10, presenterMemberId: members[2].id },
+    ...(pitchedApp
+      ? [{ meetingId: upcomingMeeting.id, position: "2", title: `${pitchedApp.companyName} — founder pitch`, kind: "pitch" as const, applicationId: pitchedApp.appId, durationMinutes: 20 }]
+      : []),
+    { meetingId: upcomingMeeting.id, position: "3", title: "Budget check-in: pacing to May", kind: "admin", durationMinutes: 10, presenterMemberId: members[0].id },
+    { meetingId: upcomingMeeting.id, position: "4", title: "New-member onboarding progress", kind: "admin", durationMinutes: 5 },
+  ]);
+  await db.insert(t.actionItem).values([
+    { orgId: org.id, meetingId: upcomingMeeting.id, title: "Email the two coffee-chat founders with scheduling links", assigneeMemberId: members[3].id, createdByMemberId: members[0].id, dueAt: new Date(now + 2 * 86400000), status: "open" },
+    { orgId: org.id, title: "Post the grant application deadline on the club Instagram", assigneeMemberId: members[6].id, createdByMemberId: members[1].id, dueAt: new Date(now - 2 * 86400000), status: "open" },
+    { orgId: org.id, title: "Collect receipts from last semester's grantees", assigneeMemberId: members[4].id, createdByMemberId: members[0].id, status: "done", completedAt: new Date(now - 5 * 86400000) },
+  ]);
+
+  // Onboarding: assign the default track to the 5 newest members with
+  // varied progress (one complete, one untouched).
+  const trackTasks = await db
+    .select()
+    .from(t.onboardingTask)
+    .where(eq(t.onboardingTask.trackId, track.id));
+  const newest = members.slice(-5);
+  for (let mi = 0; mi < newest.length; mi++) {
+    const [assignment] = await db
+      .insert(t.onboardingAssignment)
+      .values({
+        memberId: newest[mi].id,
+        trackId: track.id,
+        completedAt: mi === 0 ? new Date(now - 20 * 86400000) : null,
+      })
+      .returning();
+    const doneCount = mi === 0 ? trackTasks.length : Math.max(0, trackTasks.length - 1 - mi);
+    for (let ti = 0; ti < doneCount; ti++) {
+      await db.insert(t.onboardingCompletion).values({
+        assignmentId: assignment.id,
+        taskId: trackTasks[ti].id,
+      });
+    }
+  }
+
+  // Docs: the wiki that survives officer turnover.
+  await db.insert(t.doc).values([
+    {
+      orgId: org.id,
+      title: "Club thesis",
+      slug: "club-thesis",
+      folder: "General",
+      isPinned: true,
+      contentText:
+        "We fund student founders at the earliest possible moment — before incorporation, before revenue, sometimes before a name. Our checks are small ($200–$4,000) and non-dilutive because the constraint at this stage is rarely capital; it is a specific, verifiable blocker: a filing fee, API credits, a prototype run. We optimize for founders who ship between conversations.",
+      contentJson: JSON.stringify({
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "We fund student founders at the earliest possible moment — before incorporation, before revenue, sometimes before a name. Our checks are small ($200–$4,000) and non-dilutive because the constraint at this stage is rarely capital; it is a specific, verifiable blocker: a filing fee, API credits, a prototype run. We optimize for founders who ship between conversations." }] },
+        ],
+      }),
+      createdByMemberId: members[0].id,
+      updatedByMemberId: members[0].id,
+    },
+    {
+      orgId: org.id,
+      title: "Screening rubric",
+      slug: "screening-rubric",
+      folder: "Process",
+      isPinned: true,
+      contentText:
+        "Score each criterion 1–5. Advance to coffee chat at 3.5+ average with no criterion below 2. The two coffee-chat members must BOTH mark advance for a group pitch — one maybe is a no. Declines always get a reason recorded and a kind, specific email within a week.",
+      contentJson: JSON.stringify({
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Score each criterion 1–5. Advance to coffee chat at 3.5+ average with no criterion below 2. The two coffee-chat members must BOTH mark advance for a group pitch — one maybe is a no. Declines always get a reason recorded and a kind, specific email within a week." }] },
+        ],
+      }),
+      createdByMemberId: members[0].id,
+      updatedByMemberId: members[1].id,
+    },
+    {
+      orgId: org.id,
+      title: "How we run meetings",
+      slug: "how-we-run-meetings",
+      folder: "Process",
+      contentText:
+        "Agenda goes out the night before, built in the app from suggested items. Attendance is taken in run mode in the first two minutes. Every discussion item ends with either an action item (with an owner and a date) or an explicit decision — nothing ends with 'we should look into that.' Recap email sends automatically at wrap.",
+      contentJson: JSON.stringify({
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Agenda goes out the night before, built in the app from suggested items. Attendance is taken in run mode in the first two minutes. Every discussion item ends with either an action item (with an owner and a date) or an explicit decision — nothing ends with 'we should look into that.' Recap email sends automatically at wrap." }] },
+        ],
+      }),
+      createdByMemberId: members[1].id,
+      updatedByMemberId: members[1].id,
+    },
+  ]);
 
   console.log(`Seeded: ${COMPANIES.length} applications, ${fundedCount} funded, ${members.length} members.`);
   console.log("Log in as demo@example.com (magic link prints to the server console in dev).");
