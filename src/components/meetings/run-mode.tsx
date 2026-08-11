@@ -192,9 +192,18 @@ export function RunMode({
                     Open application <ExternalLinkIcon className="size-3" />
                   </Link>
                 )}
-                {current.voteRoundId && (
-                  <span className="text-xs text-fg-muted">🗳 blind vote linked — open from the memo</span>
-                )}
+                {current.voteRoundId &&
+                  (current.memoIdForVote ? (
+                    <Link
+                      href={`/memos/${current.memoIdForVote}/vote`}
+                      target="_blank"
+                      className="flex items-center gap-1 text-xs text-accent hover:underline"
+                    >
+                      Open ballot <ExternalLinkIcon className="size-3" />
+                    </Link>
+                  ) : (
+                    <span className="text-xs text-fg-muted">🗳 blind vote linked — open from the memo</span>
+                  ))}
               </div>
             </div>
 

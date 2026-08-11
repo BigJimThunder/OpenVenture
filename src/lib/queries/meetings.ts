@@ -46,11 +46,13 @@ export async function getMeetingDetail(orgId: string, meetingId: string) {
         item: agendaItem,
         presenterName: member.displayName,
         companyName: company.name,
+        voteMemoId: voteRound.memoId,
       })
       .from(agendaItem)
       .leftJoin(member, eq(agendaItem.presenterMemberId, member.id))
       .leftJoin(application, eq(agendaItem.applicationId, application.id))
       .leftJoin(company, eq(application.companyId, company.id))
+      .leftJoin(voteRound, eq(agendaItem.voteRoundId, voteRound.id))
       .where(eq(agendaItem.meetingId, meetingId))
       .orderBy(asc(agendaItem.position)),
     db
