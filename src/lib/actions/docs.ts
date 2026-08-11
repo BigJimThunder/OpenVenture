@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { doc, DOC_VISIBILITIES } from "@/db/schema";
-import { authedAction } from "./safe-action";
+import { authedAction, ActionError } from "./safe-action";
 
 function slugify(title: string) {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
@@ -66,7 +66,7 @@ export const updateDocContent = authedAction({
       .from(doc)
       .where(and(eq(doc.id, input.docId), eq(doc.orgId, ctx.org.id)))
       .limit(1);
-    if (!row) throw new Error("Doc not found");
+    if (!row) throw new ActionError("Doc not found");
     await db
       .update(doc)
       .set({

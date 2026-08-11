@@ -14,7 +14,7 @@ import {
   AGENDA_ITEM_KINDS,
   ATTENDANCE_STATUSES,
 } from "@/db/schema";
-import { authedAction } from "./safe-action";
+import { authedAction, ActionError } from "./safe-action";
 import { sendEmail } from "@/lib/email";
 import { format } from "date-fns";
 
@@ -24,7 +24,7 @@ async function loadMeeting(orgId: string, meetingId: string) {
     .from(meeting)
     .where(and(eq(meeting.id, meetingId), eq(meeting.orgId, orgId)))
     .limit(1);
-  if (!m) throw new Error("Meeting not found");
+  if (!m) throw new ActionError("Meeting not found");
   return m;
 }
 
@@ -112,7 +112,7 @@ export const removeAgendaItem = authedAction({
       .innerJoin(meeting, eq(agendaItem.meetingId, meeting.id))
       .where(eq(agendaItem.id, input.agendaItemId))
       .limit(1);
-    if (!item || item.orgId !== ctx.org.id) throw new Error("Agenda item not found");
+    if (!item || item.orgId !== ctx.org.id) throw new ActionError("Agenda item not found");
     await db.delete(agendaItem).where(eq(agendaItem.id, item.id));
     revalidatePath(`/meetings/${item.meetingId}`);
     return { data: { ok: true } };
@@ -184,7 +184,7 @@ export const toggleActionItem = authedAction({
       .from(actionItem)
       .where(and(eq(actionItem.id, input.actionItemId), eq(actionItem.orgId, ctx.org.id)))
       .limit(1);
-    if (!row) throw new Error("Action item not found");
+    if (!row) throw new ActionError("Action item not found");
     await db
       .update(actionItem)
       .set({
@@ -203,7 +203,7 @@ export const startMeeting = authedAction({
   input: z.object({ meetingId: z.string().uuid() }),
   handler: async (input, ctx) => {
     const m = await loadMeeting(ctx.org.id, input.meetingId);
-    if (m.status !== "scheduled") throw new Error(`Meeting is ${m.status}`);
+    if (m.status !== "scheduled") throw new ActionError(`Meeting is ${m.status}`);
     await db.update(meeting).set({ status: "in_progress" }).where(eq(meeting.id, m.id));
     revalidatePath(`/meetings/${m.id}`);
     return {
@@ -233,7 +233,7 @@ export const setAgendaItemStatus = authedAction({
       .innerJoin(meeting, eq(agendaItem.meetingId, meeting.id))
       .where(eq(agendaItem.id, input.agendaItemId))
       .limit(1);
-    if (!item || item.orgId !== ctx.org.id) throw new Error("Agenda item not found");
+    if (!item || item.orgId !== ctx.org.id) throw new ActionError("Agenda item not found");
     const now = new Date();
     await db
       .update(agendaItem)
