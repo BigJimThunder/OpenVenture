@@ -14,6 +14,18 @@ export type ActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string; code: "auth" | "forbidden" | "validation" | "error" };
 
+/**
+ * A deliberate, user-facing failure ("grant would overdraw the pool",
+ * "decline reason required"). Its message is shown to the user verbatim;
+ * any other thrown error is logged and replaced with a generic message.
+ */
+export class ActionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ActionError";
+  }
+}
+
 type ActivitySpec = {
   verb: string;
   entityType: string;
@@ -59,6 +71,7 @@ export function authedAction<S extends z.ZodType, T>(opts: {
       if (e instanceof AuthError) return { ok: false, code: "auth", error: "Please sign in." };
       if (e instanceof ForbiddenError)
         return { ok: false, code: "forbidden", error: "You don't have permission to do that." };
+      if (e instanceof ActionError) return { ok: false, code: "error", error: e.message };
       console.error("[action]", e);
       return { ok: false, code: "error", error: "Something went wrong." };
     }

@@ -12,7 +12,7 @@ import {
   applicationNote,
   DECLINE_REASONS,
 } from "@/db/schema";
-import { authedAction } from "./safe-action";
+import { authedAction, ActionError } from "./safe-action";
 
 export const createApplication = authedAction({
   minRole: "analyst",
@@ -62,7 +62,7 @@ export const createApplication = authedAction({
         )
       )
       .limit(1);
-    if (!entry) throw new Error("No entry stage configured");
+    if (!entry) throw new ActionError("No entry stage configured");
 
     const [co] = await db
       .insert(company)
@@ -132,19 +132,19 @@ export const moveApplicationStage = authedAction({
       .innerJoin(company, eq(application.companyId, company.id))
       .where(and(eq(application.id, input.applicationId), eq(application.orgId, ctx.org.id)))
       .limit(1);
-    if (!app) throw new Error("Application not found");
+    if (!app) throw new ActionError("Application not found");
 
     const [toStage] = await db
       .select()
       .from(pipelineStage)
       .where(and(eq(pipelineStage.id, input.toStageId), eq(pipelineStage.orgId, ctx.org.id)))
       .limit(1);
-    if (!toStage) throw new Error("Stage not found");
+    if (!toStage) throw new ActionError("Stage not found");
 
     // Moving to a lost stage requires a recorded decline reason — this is
     // the data that makes the annual retro worth anything.
     if (toStage.kind === "lost" && !input.declineReason) {
-      throw new Error("A decline reason is required");
+      throw new ActionError("A decline reason is required");
     }
 
     const now = new Date();
@@ -217,7 +217,7 @@ export const addApplicationNote = authedAction({
       .innerJoin(company, eq(application.companyId, company.id))
       .where(and(eq(application.id, input.applicationId), eq(application.orgId, ctx.org.id)))
       .limit(1);
-    if (!app) throw new Error("Application not found");
+    if (!app) throw new ActionError("Application not found");
 
     const [note] = await db
       .insert(applicationNote)

@@ -16,7 +16,7 @@ import {
   member,
   MEMO_RECOMMENDATIONS,
 } from "@/db/schema";
-import { authedAction } from "./safe-action";
+import { authedAction, ActionError } from "./safe-action";
 import { sendEmail } from "@/lib/email";
 import { formatMoney } from "@/lib/utils";
 
@@ -33,7 +33,7 @@ export const createMemo = authedAction({
       .innerJoin(company, eq(application.companyId, company.id))
       .where(and(eq(application.id, input.applicationId), eq(application.orgId, ctx.org.id)))
       .limit(1);
-    if (!app) throw new Error("Application not found");
+    if (!app) throw new ActionError("Application not found");
 
     // One live memo per application.
     const [existing] = await db
@@ -124,10 +124,10 @@ export const updateMemoSection = authedAction({
       .innerJoin(memo, eq(memoSection.memoId, memo.id))
       .where(eq(memoSection.id, input.sectionId))
       .limit(1);
-    if (!section || section.orgId !== ctx.org.id) throw new Error("Section not found");
-    if (section.versionId) throw new Error("Version snapshots are immutable");
+    if (!section || section.orgId !== ctx.org.id) throw new ActionError("Section not found");
+    if (section.versionId) throw new ActionError("Version snapshots are immutable");
     if (section.status === "decided" || section.status === "archived") {
-      throw new Error("This memo is closed");
+      throw new ActionError("This memo is closed");
     }
 
     const words = input.contentText.trim().split(/\s+/).filter(Boolean).length;
@@ -162,7 +162,7 @@ export const updateMemoMeta = authedAction({
       .from(memo)
       .where(and(eq(memo.id, input.memoId), eq(memo.orgId, ctx.org.id)))
       .limit(1);
-    if (!m) throw new Error("Memo not found");
+    if (!m) throw new ActionError("Memo not found");
     await db
       .update(memo)
       .set({
@@ -199,9 +199,9 @@ export const circulateMemo = authedAction({
       .innerJoin(company, eq(application.companyId, company.id))
       .where(and(eq(memo.id, input.memoId), eq(memo.orgId, ctx.org.id)))
       .limit(1);
-    if (!m) throw new Error("Memo not found");
+    if (!m) throw new ActionError("Memo not found");
     if (m.memo.status === "decided" || m.memo.status === "archived") {
-      throw new Error("This memo is closed");
+      throw new ActionError("This memo is closed");
     }
 
     const draft = await db
@@ -212,7 +212,7 @@ export const circulateMemo = authedAction({
 
     const emptyRequired = draft.filter((s) => s.wordCount === 0);
     if (draft.length > 0 && emptyRequired.length === draft.length) {
-      throw new Error("Write the memo before circulating it");
+      throw new ActionError("Write the memo before circulating it");
     }
 
     const versionNo = m.memo.currentVersionNo + 1;
@@ -307,7 +307,7 @@ export const addMemoComment = authedAction({
       .from(memo)
       .where(and(eq(memo.id, input.memoId), eq(memo.orgId, ctx.org.id)))
       .limit(1);
-    if (!m) throw new Error("Memo not found");
+    if (!m) throw new ActionError("Memo not found");
     const [row] = await db
       .insert(memoComment)
       .values({
@@ -341,7 +341,7 @@ export const resolveMemoComment = authedAction({
       .innerJoin(memo, eq(memoComment.memoId, memo.id))
       .where(eq(memoComment.id, input.commentId))
       .limit(1);
-    if (!c || c.orgId !== ctx.org.id) throw new Error("Comment not found");
+    if (!c || c.orgId !== ctx.org.id) throw new ActionError("Comment not found");
     await db
       .update(memoComment)
       .set({ resolvedAt: new Date(), resolvedByMemberId: ctx.member.id })

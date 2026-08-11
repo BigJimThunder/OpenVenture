@@ -16,7 +16,7 @@ import {
   OUTCOME_TIERS,
 } from "@/db/schema";
 import { canApprove } from "@/lib/grants/budget";
-import { authedAction } from "./safe-action";
+import { authedAction, ActionError } from "./safe-action";
 import { formatMoney } from "@/lib/utils";
 
 function revalidateGrants(applicationId?: string | null) {
@@ -36,7 +36,7 @@ async function loadGrant(orgId: string, grantId: string) {
     .innerJoin(company, eq(grant.companyId, company.id))
     .where(and(eq(grant.id, grantId), eq(grant.orgId, orgId)))
     .limit(1);
-  if (!row) throw new Error("Grant not found");
+  if (!row) throw new ActionError("Grant not found");
   return row;
 }
 
@@ -61,7 +61,7 @@ export const createGrant = authedAction({
         .from(application)
         .where(and(eq(application.id, input.applicationId), eq(application.orgId, ctx.org.id)))
         .limit(1);
-      if (!app) throw new Error("Application not found");
+      if (!app) throw new ActionError("Application not found");
       companyId = app.companyId;
       amountRequested = app.amountRequested;
 
@@ -72,16 +72,16 @@ export const createGrant = authedAction({
           and(eq(grant.applicationId, input.applicationId), ne(grant.status, "cancelled"))
         )
         .limit(1);
-      if (existing) throw new Error("This application already has a grant");
+      if (existing) throw new ActionError("This application already has a grant");
     }
-    if (!companyId) throw new Error("A company or application is required");
+    if (!companyId) throw new ActionError("A company or application is required");
 
     const [pool] = await db
       .select()
       .from(grantPool)
       .where(and(eq(grantPool.id, input.poolId), eq(grantPool.orgId, ctx.org.id)))
       .limit(1);
-    if (!pool) throw new Error("Pool not found");
+    if (!pool) throw new ActionError("Pool not found");
 
     const [co] = await db
       .select({ name: company.name })
@@ -124,7 +124,7 @@ export const approveGrant = authedAction({
   input: z.object({ grantId: z.string().uuid() }),
   handler: async (input, ctx) => {
     const { grant: g, companyName } = await loadGrant(ctx.org.id, input.grantId);
-    if (g.status !== "proposed") throw new Error(`Cannot approve a ${g.status} grant`);
+    if (g.status !== "proposed") throw new ActionError(`Cannot approve a ${g.status} grant`);
 
     // The overdraw guard: remaining budget must cover the award.
     const [pool] = await db.select().from(grantPool).where(eq(grantPool.id, g.poolId)).limit(1);
@@ -134,7 +134,7 @@ export const approveGrant = authedAction({
       .where(and(eq(grant.poolId, g.poolId), ne(grant.id, g.id)));
     const check = canApprove(pool!, others, g.amountAwarded);
     if (!check.ok) {
-      throw new Error(
+      throw new ActionError(
         `Approving would overdraw the pool by ${formatMoney(check.shortfall, { cents: true })} — only ${formatMoney(check.remaining, { cents: true })} remains`
       );
     }
@@ -168,7 +168,7 @@ export const issueGrant = authedAction({
   }),
   handler: async (input, ctx) => {
     const { grant: g, companyName } = await loadGrant(ctx.org.id, input.grantId);
-    if (g.status !== "approved") throw new Error(`Cannot issue a ${g.status} grant`);
+    if (g.status !== "approved") throw new ActionError(`Cannot issue a ${g.status} grant`);
 
     const now = new Date();
     await db
@@ -206,7 +206,7 @@ export const markGrantCashed = authedAction({
   input: z.object({ grantId: z.string().uuid() }),
   handler: async (input, ctx) => {
     const { grant: g, companyName } = await loadGrant(ctx.org.id, input.grantId);
-    if (g.status !== "issued") throw new Error(`Cannot mark a ${g.status} grant as cashed`);
+    if (g.status !== "issued") throw new ActionError(`Cannot mark a ${g.status} grant as cashed`);
     const now = new Date();
     await db
       .update(grant)
@@ -232,7 +232,7 @@ export const reconcileGrant = authedAction({
   handler: async (input, ctx) => {
     const { grant: g, companyName } = await loadGrant(ctx.org.id, input.grantId);
     if (g.status !== "issued" && g.status !== "cashed") {
-      throw new Error(`Cannot reconcile a ${g.status} grant`);
+      throw new ActionError(`Cannot reconcile a ${g.status} grant`);
     }
     const receipts = await db
       .select({ amount: receipt.amount })
@@ -267,7 +267,7 @@ export const cancelGrant = authedAction({
   input: z.object({ grantId: z.string().uuid(), reason: z.string().max(500).optional() }),
   handler: async (input, ctx) => {
     const { grant: g, companyName } = await loadGrant(ctx.org.id, input.grantId);
-    if (g.status === "reconciled") throw new Error("Cannot cancel a reconciled grant");
+    if (g.status === "reconciled") throw new ActionError("Cannot cancel a reconciled grant");
     const now = new Date();
     await db
       .update(grant)
@@ -366,7 +366,7 @@ export const setOutcomeTier = authedAction({
       .from(company)
       .where(and(eq(company.id, input.companyId), eq(company.orgId, ctx.org.id)))
       .limit(1);
-    if (!co) throw new Error("Company not found");
+    if (!co) throw new ActionError("Company not found");
 
     const now = new Date();
     await db

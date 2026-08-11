@@ -15,7 +15,7 @@ import {
   VOTE_DECISIONS,
   VOTE_OUTCOMES,
 } from "@/db/schema";
-import { authedAction } from "./safe-action";
+import { authedAction, ActionError } from "./safe-action";
 import { sendEmail } from "@/lib/email";
 
 function revalidateVote(memoId: string | null, applicationId?: string) {
@@ -36,7 +36,7 @@ async function loadRound(orgId: string, roundId: string) {
     .innerJoin(company, eq(application.companyId, company.id))
     .where(and(eq(voteRound.id, roundId), eq(voteRound.orgId, orgId)))
     .limit(1);
-  if (!row) throw new Error("Vote round not found");
+  if (!row) throw new ActionError("Vote round not found");
   return row;
 }
 
@@ -64,15 +64,15 @@ export const openVoteRound = authedAction({
       .innerJoin(company, eq(application.companyId, company.id))
       .where(and(eq(memo.id, input.memoId), eq(memo.orgId, ctx.org.id)))
       .limit(1);
-    if (!m) throw new Error("Memo not found");
-    if (m.memo.status === "draft") throw new Error("Circulate the memo before opening a vote");
+    if (!m) throw new ActionError("Memo not found");
+    if (m.memo.status === "draft") throw new ActionError("Circulate the memo before opening a vote");
 
     const [existing] = await db
       .select({ id: voteRound.id })
       .from(voteRound)
       .where(and(eq(voteRound.memoId, m.memo.id), eq(voteRound.status, "open")))
       .limit(1);
-    if (existing) throw new Error("A vote is already open on this memo");
+    if (existing) throw new ActionError("A vote is already open on this memo");
 
     const voters = await db
       .select({ id: member.id, email: member.email, name: member.displayName, role: member.role })
@@ -147,8 +147,8 @@ export const submitVote = authedAction({
   }),
   handler: async (input, ctx) => {
     const { round } = await loadRound(ctx.org.id, input.roundId);
-    if (round.status !== "open") throw new Error("This vote is not open");
-    if (round.closesAt && round.closesAt < new Date()) throw new Error("This vote has closed");
+    if (round.status !== "open") throw new ActionError("This vote is not open");
+    if (round.closesAt && round.closesAt < new Date()) throw new ActionError("This vote has closed");
 
     const [elig] = await db
       .select()
@@ -160,8 +160,8 @@ export const submitVote = authedAction({
         )
       )
       .limit(1);
-    if (!elig) throw new Error("You're not eligible to vote in this round");
-    if (elig.isRecused) throw new Error("You're recused from this vote");
+    if (!elig) throw new ActionError("You're not eligible to vote in this round");
+    if (elig.isRecused) throw new ActionError("You're recused from this vote");
 
     const now = new Date();
     await db
@@ -197,7 +197,7 @@ export const revealVoteRound = authedAction({
   handler: async (input, ctx) => {
     const { round, companyName } = await loadRound(ctx.org.id, input.roundId);
     if (round.status !== "open" && round.status !== "closed") {
-      throw new Error(`Cannot reveal a ${round.status} round`);
+      throw new ActionError(`Cannot reveal a ${round.status} round`);
     }
     if (round.quorum) {
       const ballots = await db
@@ -205,7 +205,7 @@ export const revealVoteRound = authedAction({
         .from(vote)
         .where(eq(vote.voteRoundId, round.id));
       if (ballots.length < round.quorum) {
-        throw new Error(`Quorum is ${round.quorum}; only ${ballots.length} have voted`);
+        throw new ActionError(`Quorum is ${round.quorum}; only ${ballots.length} have voted`);
       }
     }
     const now = new Date();
@@ -237,7 +237,7 @@ export const recordVoteOutcome = authedAction({
   }),
   handler: async (input, ctx) => {
     const { round, companyName } = await loadRound(ctx.org.id, input.roundId);
-    if (round.status !== "revealed") throw new Error("Reveal the vote before recording an outcome");
+    if (round.status !== "revealed") throw new ActionError("Reveal the vote before recording an outcome");
 
     const now = new Date();
     await db

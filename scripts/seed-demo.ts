@@ -725,6 +725,32 @@ async function main() {
     }
   }
 
+  // Lab cap tables from presets — these double as living engine examples.
+  const { PRESETS } = await import("../src/lib/captable/presets");
+  for (const presetKey of ["founder-split", "accelerator", "seed-ready"]) {
+    const preset = PRESETS.find((p) => p.key === presetKey)!;
+    const [table] = await db
+      .insert(t.capTable)
+      .values({
+        orgId: org.id,
+        name: `${preset.name} — example`,
+        source: "preset",
+        createdByMemberId: members[0].id,
+      })
+      .returning();
+    await db.insert(t.capEvent).values(
+      preset.events.map((e, i) => ({
+        capTableId: table.id,
+        seq: i + 1,
+        effectiveDate: new Date(now - 30 * 86400000),
+        kind: e.payload.kind,
+        label: e.label,
+        payload: e.payload as unknown as Record<string, unknown>,
+        createdByMemberId: members[0].id,
+      }))
+    );
+  }
+
   // Docs: the wiki that survives officer turnover.
   await db.insert(t.doc).values([
     {

@@ -12,7 +12,7 @@ import {
   onboardingCompletion,
   MEMBER_ROLES,
 } from "@/db/schema";
-import { authedAction } from "./safe-action";
+import { authedAction, ActionError } from "./safe-action";
 import { sendEmail } from "@/lib/email";
 
 export const inviteMember = authedAction({
@@ -30,7 +30,7 @@ export const inviteMember = authedAction({
     // Domain restriction, if the org set one.
     const domains = ctx.org.allowedEmailDomains;
     if (domains.length > 0 && !domains.some((d) => email.endsWith(`@${d}`))) {
-      throw new Error(`Email must be on ${domains.map((d) => `@${d}`).join(" or ")}`);
+      throw new ActionError(`Email must be on ${domains.map((d) => `@${d}`).join(" or ")}`);
     }
 
     const [existing] = await db
@@ -39,7 +39,7 @@ export const inviteMember = authedAction({
       .where(and(eq(member.orgId, ctx.org.id), eq(member.email, email)))
       .limit(1);
     if (existing && existing.status !== "removed") {
-      throw new Error("That email is already a member");
+      throw new ActionError("That email is already a member");
     }
 
     const [row] = await db
@@ -110,7 +110,7 @@ export const updateMemberRole = authedAction({
       .from(member)
       .where(and(eq(member.id, input.memberId), eq(member.orgId, ctx.org.id)))
       .limit(1);
-    if (!target) throw new Error("Member not found");
+    if (!target) throw new ActionError("Member not found");
 
     // Never demote the last admin — the lockout footgun.
     if (target.role === "admin" && input.role !== "admin") {
@@ -125,7 +125,7 @@ export const updateMemberRole = authedAction({
             ne(member.id, target.id)
           )
         );
-      if ((admins?.n ?? 0) === 0) throw new Error("Cannot demote the last admin");
+      if ((admins?.n ?? 0) === 0) throw new ActionError("Cannot demote the last admin");
     }
 
     await db
@@ -157,8 +157,8 @@ export const offboardMember = authedAction({
       .from(member)
       .where(and(eq(member.id, input.memberId), eq(member.orgId, ctx.org.id)))
       .limit(1);
-    if (!target) throw new Error("Member not found");
-    if (target.id === ctx.member.id) throw new Error("You can't offboard yourself");
+    if (!target) throw new ActionError("Member not found");
+    if (target.id === ctx.member.id) throw new ActionError("You can't offboard yourself");
     if (target.role === "admin") {
       const [admins] = await db
         .select({ n: count() })
@@ -171,7 +171,7 @@ export const offboardMember = authedAction({
             ne(member.id, target.id)
           )
         );
-      if ((admins?.n ?? 0) === 0) throw new Error("Cannot offboard the last admin");
+      if ((admins?.n ?? 0) === 0) throw new ActionError("Cannot offboard the last admin");
     }
 
     // Alumni, not deletion — their memos, votes, and history stay attributed.
@@ -213,11 +213,11 @@ export const toggleOnboardingTask = authedAction({
       .innerJoin(member, eq(onboardingAssignment.memberId, member.id))
       .where(eq(onboardingAssignment.id, input.assignmentId))
       .limit(1);
-    if (!assignment || assignment.orgId !== ctx.org.id) throw new Error("Assignment not found");
+    if (!assignment || assignment.orgId !== ctx.org.id) throw new ActionError("Assignment not found");
 
     // Members check off their own list; admins can check anyone's.
     if (assignment.memberId !== ctx.member.id && ctx.member.role !== "admin") {
-      throw new Error("You can only update your own onboarding");
+      throw new ActionError("You can only update your own onboarding");
     }
 
     if (input.done) {
