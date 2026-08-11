@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -10,6 +10,7 @@ import {
   attendance,
   actionItem,
   member,
+  voteRound,
   MEETING_KINDS,
   AGENDA_ITEM_KINDS,
   ATTENDANCE_STATUSES,
@@ -102,6 +103,21 @@ export const addAgendaItem = authedAction({
         position: String(nextPos),
       })
       .returning();
+
+    // Backfill the reverse link so the vote knows which meeting it ran in.
+    if (input.voteRoundId) {
+      await db
+        .update(voteRound)
+        .set({ meetingId: m.id })
+        .where(
+          and(
+            eq(voteRound.id, input.voteRoundId),
+            eq(voteRound.orgId, ctx.org.id),
+            isNull(voteRound.meetingId)
+          )
+        );
+    }
+
     revalidatePath(`/meetings/${m.id}`);
     return { data: { agendaItemId: row.id } };
   },

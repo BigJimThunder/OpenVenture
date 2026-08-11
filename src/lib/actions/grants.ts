@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { and, eq, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -10,6 +10,8 @@ import {
   receipt,
   company,
   application,
+  memo,
+  voteRound,
   outcomeUpdate,
   USE_OF_FUNDS,
   PAYMENT_METHODS,
@@ -54,6 +56,8 @@ export const createGrant = authedAction({
   handler: async (input, ctx) => {
     let companyId = input.companyId ?? null;
     let amountRequested: string | null = null;
+    let memoId: string | null = null;
+    let voteRoundId: string | null = null;
 
     if (input.applicationId) {
       const [app] = await db
@@ -73,6 +77,34 @@ export const createGrant = authedAction({
         )
         .limit(1);
       if (existing) throw new ActionError("This application already has a grant");
+
+      // Link the decision trail: the memo and vote that justified this check.
+      const [[latestMemo], [latestRound]] = await Promise.all([
+        db
+          .select({ id: memo.id })
+          .from(memo)
+          .where(
+            and(
+              eq(memo.applicationId, input.applicationId),
+              inArray(memo.status, ["decided", "circulated"])
+            )
+          )
+          .orderBy(desc(memo.createdAt))
+          .limit(1),
+        db
+          .select({ id: voteRound.id })
+          .from(voteRound)
+          .where(
+            and(
+              eq(voteRound.applicationId, input.applicationId),
+              eq(voteRound.status, "revealed")
+            )
+          )
+          .orderBy(desc(voteRound.createdAt))
+          .limit(1),
+      ]);
+      memoId = latestMemo?.id ?? null;
+      voteRoundId = latestRound?.id ?? null;
     }
     if (!companyId) throw new ActionError("A company or application is required");
 
@@ -96,6 +128,8 @@ export const createGrant = authedAction({
         poolId: input.poolId,
         applicationId: input.applicationId ?? null,
         companyId,
+        memoId,
+        voteRoundId,
         status: "proposed",
         amountRequested,
         amountAwarded: String(input.amountAwarded),
