@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -10,9 +10,14 @@ import {
   pipelineStage,
   stageHistory,
   applicationNote,
+  memo,
+  voteRound,
+  coffeeChat,
+  coffeeChatAttendee,
   DECLINE_REASONS,
 } from "@/db/schema";
 import { withRef } from "@/lib/refs-server";
+import { checkStageGates } from "@/lib/pipeline/gates";
 import { authedAction, ActionError } from "./safe-action";
 
 export const createApplication = authedAction({
@@ -156,6 +161,61 @@ export const moveApplicationStage = authedAction({
     // the data that makes the annual retro worth anything.
     if (toStage.kind === "lost" && !input.declineReason) {
       throw new ActionError("A decline reason is required");
+    }
+
+    // Stage gates: advancing past a flagged stage requires its artifact.
+    // Evidence reads memo/voteRound STATUS only — never `vote` rows, which
+    // stay behind getVoteRoundResults() until reveal.
+    if (toStage.kind === "active" || toStage.kind === "won") {
+      const orgStages = await db
+        .select()
+        .from(pipelineStage)
+        .where(and(eq(pipelineStage.orgId, ctx.org.id), isNull(pipelineStage.archivedAt)));
+      const fromStage =
+        orgStages.find((s) => s.id === app.stageId) ??
+        (
+          await db
+            .select()
+            .from(pipelineStage)
+            .where(eq(pipelineStage.id, app.stageId))
+            .limit(1)
+        )[0];
+      if (fromStage && Number(toStage.position) > Number(fromStage.position)) {
+        const [memoRows, voteRows, verdictCounts] = await Promise.all([
+          db
+            .select({ id: memo.id })
+            .from(memo)
+            .where(
+              and(
+                eq(memo.applicationId, app.id),
+                inArray(memo.status, ["circulated", "decided"])
+              )
+            )
+            .limit(1),
+          db
+            .select({ id: voteRound.id })
+            .from(voteRound)
+            .where(and(eq(voteRound.applicationId, app.id), eq(voteRound.status, "revealed")))
+            .limit(1),
+          db
+            .select({ n: sql<number>`count(*)::int` })
+            .from(coffeeChatAttendee)
+            .innerJoin(coffeeChat, eq(coffeeChatAttendee.coffeeChatId, coffeeChat.id))
+            .where(
+              and(
+                eq(coffeeChat.applicationId, app.id),
+                isNotNull(coffeeChatAttendee.verdict)
+              )
+            )
+            .groupBy(coffeeChatAttendee.coffeeChatId),
+        ]);
+        const gate = checkStageGates(fromStage, toStage, orgStages, {
+          hasCirculatedMemo: memoRows.length > 0,
+          hasRevealedVote: voteRows.length > 0,
+          maxVerdictAttendees: verdictCounts.reduce((max, r) => Math.max(max, r.n), 0),
+        });
+        if (!gate.ok) throw new ActionError(gate.message);
+      }
     }
 
     const now = new Date();
