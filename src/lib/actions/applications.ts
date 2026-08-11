@@ -16,7 +16,9 @@ import {
   coffeeChatAttendee,
   screeningCriterion,
   screeningScore,
+  member,
   DECLINE_REASONS,
+  COFFEE_CHAT_VERDICTS,
 } from "@/db/schema";
 import { withRef } from "@/lib/refs-server";
 import { checkStageGates } from "@/lib/pipeline/gates";
@@ -350,6 +352,147 @@ export const upsertScreeningScores = authedAction({
         summary: `${ctx.member.displayName} scored ${app.companyName} across ${input.scores.length} ${input.scores.length === 1 ? "criterion" : "criteria"}`,
       },
     };
+  },
+});
+
+export const createCoffeeChat = authedAction({
+  minRole: "analyst",
+  input: z.object({
+    applicationId: z.string().uuid(),
+    scheduledAt: z.coerce.date().optional(),
+    location: z.string().max(200).optional(),
+    attendeeMemberIds: z.array(z.string().uuid()).min(1),
+  }),
+  handler: async (input, ctx) => {
+    const [app] = await db
+      .select({ id: application.id, companyName: company.name })
+      .from(application)
+      .innerJoin(company, eq(application.companyId, company.id))
+      .where(and(eq(application.id, input.applicationId), eq(application.orgId, ctx.org.id)))
+      .limit(1);
+    if (!app) throw new ActionError("Application not found");
+
+    const attendeeIds = [...new Set(input.attendeeMemberIds)];
+    const validMembers = await db
+      .select({ id: member.id })
+      .from(member)
+      .where(
+        and(
+          eq(member.orgId, ctx.org.id),
+          inArray(member.id, attendeeIds),
+          eq(member.status, "active")
+        )
+      );
+    if (validMembers.length !== attendeeIds.length) {
+      throw new ActionError("Attendees must be active members");
+    }
+
+    const [chat] = await db
+      .insert(coffeeChat)
+      .values({
+        orgId: ctx.org.id,
+        applicationId: input.applicationId,
+        scheduledAt: input.scheduledAt,
+        location: input.location,
+      })
+      .returning();
+    await db
+      .insert(coffeeChatAttendee)
+      .values(attendeeIds.map((memberId) => ({ coffeeChatId: chat.id, memberId })));
+
+    revalidatePath(`/pipeline/${input.applicationId}`);
+    return {
+      data: { coffeeChatId: chat.id },
+      activity: {
+        verb: "coffee_chat.scheduled",
+        entityType: "application",
+        entityId: app.id,
+        entityLabel: app.companyName,
+        summary: `${ctx.member.displayName} scheduled a coffee chat with ${app.companyName} (${attendeeIds.length} attendee${attendeeIds.length === 1 ? "" : "s"})`,
+      },
+    };
+  },
+});
+
+export const recordCoffeeChatDebrief = authedAction({
+  minRole: "analyst",
+  input: z.object({
+    coffeeChatId: z.string().uuid(),
+    happenedAt: z.coerce.date().optional(),
+    debrief: z.string().max(5000).optional(),
+    verdict: z.enum(COFFEE_CHAT_VERDICTS).optional(),
+  }),
+  handler: async (input, ctx) => {
+    const [chat] = await db
+      .select({
+        id: coffeeChat.id,
+        applicationId: coffeeChat.applicationId,
+        happenedAt: coffeeChat.happenedAt,
+        companyName: company.name,
+      })
+      .from(coffeeChat)
+      .innerJoin(application, eq(coffeeChat.applicationId, application.id))
+      .innerJoin(company, eq(application.companyId, company.id))
+      .where(and(eq(coffeeChat.id, input.coffeeChatId), eq(coffeeChat.orgId, ctx.org.id)))
+      .limit(1);
+    if (!chat) throw new ActionError("Coffee chat not found");
+
+    await db
+      .update(coffeeChat)
+      .set({
+        happenedAt: input.happenedAt ?? chat.happenedAt ?? new Date(),
+        ...(input.debrief !== undefined ? { debrief: input.debrief } : {}),
+        ...(input.verdict !== undefined ? { verdict: input.verdict } : {}),
+      })
+      .where(eq(coffeeChat.id, chat.id));
+
+    revalidatePath(`/pipeline/${chat.applicationId}`);
+    return {
+      data: { ok: true },
+      activity: {
+        verb: "coffee_chat.debriefed",
+        entityType: "application",
+        entityId: chat.applicationId,
+        entityLabel: chat.companyName,
+        summary: `${ctx.member.displayName} debriefed the ${chat.companyName} coffee chat`,
+      },
+    };
+  },
+});
+
+export const recordCoffeeChatVerdict = authedAction({
+  minRole: "analyst",
+  input: z.object({
+    coffeeChatId: z.string().uuid(),
+    verdict: z.enum(COFFEE_CHAT_VERDICTS),
+    note: z.string().max(1000).optional(),
+  }),
+  handler: async (input, ctx) => {
+    const [chat] = await db
+      .select({ id: coffeeChat.id, applicationId: coffeeChat.applicationId })
+      .from(coffeeChat)
+      .where(and(eq(coffeeChat.id, input.coffeeChatId), eq(coffeeChat.orgId, ctx.org.id)))
+      .limit(1);
+    if (!chat) throw new ActionError("Coffee chat not found");
+
+    const updated = await db
+      .update(coffeeChatAttendee)
+      .set({ verdict: input.verdict, ...(input.note !== undefined ? { note: input.note } : {}) })
+      .where(
+        and(
+          eq(coffeeChatAttendee.coffeeChatId, chat.id),
+          eq(coffeeChatAttendee.memberId, ctx.member.id)
+        )
+      )
+      .returning({ memberId: coffeeChatAttendee.memberId });
+    if (updated.length === 0) {
+      throw new ActionError("Only attendees of this chat can record a verdict");
+    }
+
+    revalidatePath(`/pipeline/${chat.applicationId}`);
+    // Deliberately no activity row: each attendee's verdict is individual
+    // judgement; the chat-level debrief carries the audit trail.
+    return { data: { ok: true } };
   },
 });
 
