@@ -496,6 +496,55 @@ export const recordCoffeeChatVerdict = authedAction({
   },
 });
 
+export const setNextStep = authedAction({
+  minRole: "analyst",
+  input: z.object({
+    applicationId: z.string().uuid(),
+    nextStep: z.string().max(200).nullable(),
+    nextStepDue: z.coerce.date().nullable().optional(),
+  }),
+  handler: async (input, ctx) => {
+    const [app] = await db
+      .select({
+        id: application.id,
+        nextStep: application.nextStep,
+        companyName: company.name,
+      })
+      .from(application)
+      .innerJoin(company, eq(application.companyId, company.id))
+      .where(and(eq(application.id, input.applicationId), eq(application.orgId, ctx.org.id)))
+      .limit(1);
+    if (!app) throw new ActionError("Application not found");
+
+    const nextStep = input.nextStep?.trim() || null;
+    await db
+      .update(application)
+      .set({
+        nextStep,
+        nextStepDue: nextStep ? (input.nextStepDue ?? null) : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(application.id, app.id));
+
+    revalidatePath(`/pipeline/${app.id}`);
+    revalidatePath("/pipeline");
+    revalidatePath("/");
+    return {
+      data: { ok: true },
+      activity: {
+        verb: "application.next_step_set",
+        entityType: "application",
+        entityId: app.id,
+        entityLabel: app.companyName,
+        summary: nextStep
+          ? `${ctx.member.displayName} set the next step on ${app.companyName}: ${nextStep}`
+          : `${ctx.member.displayName} cleared the next step on ${app.companyName}`,
+        diff: { nextStep: { from: app.nextStep, to: nextStep } },
+      },
+    };
+  },
+});
+
 export const addApplicationNote = authedAction({
   minRole: "analyst",
   input: z.object({

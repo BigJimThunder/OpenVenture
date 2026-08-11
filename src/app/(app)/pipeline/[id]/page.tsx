@@ -4,6 +4,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { GlobeIcon, MailIcon, UserIcon, GraduationCapIcon, MapPinIcon } from "lucide-react";
 import { requireCtx } from "@/lib/actions/context";
 import { getApplicationDetail } from "@/lib/queries/applications";
+import { isOverdue } from "@/lib/queries/dashboard";
 import { getPools } from "@/lib/queries/grants";
 import { NewGrantDialog } from "@/components/grants/new-grant-dialog";
 import { StartMemoButton } from "@/components/memos/start-memo-button";
@@ -20,6 +21,7 @@ import { EnrichButton } from "@/components/applications/enrich-button";
 import { Scorecard } from "@/components/applications/scorecard";
 import { CoffeeChatDialog } from "@/components/applications/coffee-chat-dialog";
 import { CoffeeChatCard } from "@/components/applications/coffee-chat-card";
+import { NextStepEditor } from "@/components/applications/next-step-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -230,6 +232,13 @@ export default async function ApplicationDetailPage({
               <Fact label="Owner">{owner?.displayName ?? "Unassigned"}</Fact>
               <Fact label="Applied">{format(app.appliedAt, "MMM d, yyyy")}</Fact>
               {app.teamSize && <Fact label="Team">{app.teamSize} people</Fact>}
+              <Separator />
+              <NextStepEditor
+                applicationId={app.id}
+                nextStep={app.nextStep}
+                nextStepDue={app.nextStepDue}
+                overdue={isOverdue(app.nextStepDue)}
+              />
               {(company.websiteUrl || company.domain) && (
                 <>
                   <Separator />
