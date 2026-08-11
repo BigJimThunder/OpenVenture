@@ -51,28 +51,34 @@ export type MemoStatus = (typeof MEMO_STATUSES)[number];
 export const MEMO_RECOMMENDATIONS = ["fund", "decline", "watch", "more_diligence"] as const;
 export type MemoRecommendation = (typeof MEMO_RECOMMENDATIONS)[number];
 
-export const memo = pgTable("memo", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  orgId: uuid("org_id")
-    .notNull()
-    .references(() => organization.id),
-  applicationId: uuid("application_id")
-    .notNull()
-    .references(() => application.id),
-  templateId: uuid("template_id").references(() => memoTemplate.id),
-  title: text("title").notNull(),
-  status: text("status").$type<MemoStatus>().notNull().default("draft"),
-  authorMemberId: uuid("author_member_id")
-    .notNull()
-    .references(() => member.id),
-  currentVersionNo: integer("current_version_no").notNull().default(0),
-  recommendation: text("recommendation").$type<MemoRecommendation>(),
-  proposedAmount: numeric("proposed_amount", { precision: 20, scale: 2 }),
-  circulatedAt: timestamp("circulated_at", { withTimezone: true }),
-  decidedAt: timestamp("decided_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const memo = pgTable(
+  "memo",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organization.id),
+    /** Per-org sequential number behind the human-readable ref (MEM-27). */
+    ref: integer("ref").notNull(),
+    applicationId: uuid("application_id")
+      .notNull()
+      .references(() => application.id),
+    templateId: uuid("template_id").references(() => memoTemplate.id),
+    title: text("title").notNull(),
+    status: text("status").$type<MemoStatus>().notNull().default("draft"),
+    authorMemberId: uuid("author_member_id")
+      .notNull()
+      .references(() => member.id),
+    currentVersionNo: integer("current_version_no").notNull().default(0),
+    recommendation: text("recommendation").$type<MemoRecommendation>(),
+    proposedAmount: numeric("proposed_amount", { precision: 20, scale: 2 }),
+    circulatedAt: timestamp("circulated_at", { withTimezone: true }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("memo_org_ref_idx").on(t.orgId, t.ref)]
+);
 
 export const memoVersion = pgTable(
   "memo_version",

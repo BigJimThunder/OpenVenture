@@ -21,7 +21,7 @@ import { sendEmail } from "@/lib/email";
 function revalidateVote(memoId: string | null, applicationId?: string) {
   revalidatePath("/memos");
   if (memoId) revalidatePath(`/memos/${memoId}`);
-  if (applicationId) revalidatePath(`/applications/${applicationId}`);
+  if (applicationId) revalidatePath(`/pipeline/${applicationId}`);
   revalidatePath("/");
 }
 

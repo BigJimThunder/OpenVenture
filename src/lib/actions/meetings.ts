@@ -14,6 +14,7 @@ import {
   AGENDA_ITEM_KINDS,
   ATTENDANCE_STATUSES,
 } from "@/db/schema";
+import { withRef } from "@/lib/refs-server";
 import { authedAction, ActionError } from "./safe-action";
 import { sendEmail } from "@/lib/email";
 import { format } from "date-fns";
@@ -38,18 +39,22 @@ export const createMeeting = authedAction({
     location: z.string().max(200).optional(),
   }),
   handler: async (input, ctx) => {
-    const [row] = await db
-      .insert(meeting)
-      .values({
-        orgId: ctx.org.id,
-        title: input.title,
-        kind: input.kind,
-        scheduledAt: input.scheduledAt,
-        durationMinutes: input.durationMinutes,
-        location: input.location,
-        createdByMemberId: ctx.member.id,
-      })
-      .returning();
+    const row = await withRef(meeting, meeting.orgId, meeting.ref, ctx.org.id, async (ref) => {
+      const [inserted] = await db
+        .insert(meeting)
+        .values({
+          orgId: ctx.org.id,
+          ref,
+          title: input.title,
+          kind: input.kind,
+          scheduledAt: input.scheduledAt,
+          durationMinutes: input.durationMinutes,
+          location: input.location,
+          createdByMemberId: ctx.member.id,
+        })
+        .returning();
+      return inserted;
+    });
     revalidatePath("/meetings");
     return {
       data: { meetingId: row.id },
@@ -156,19 +161,29 @@ export const createActionItem = authedAction({
     dueAt: z.coerce.date().optional(),
   }),
   handler: async (input, ctx) => {
-    const [row] = await db
-      .insert(actionItem)
-      .values({
-        orgId: ctx.org.id,
-        title: input.title,
-        meetingId: input.meetingId,
-        agendaItemId: input.agendaItemId,
-        applicationId: input.applicationId,
-        assigneeMemberId: input.assigneeMemberId ?? ctx.member.id,
-        createdByMemberId: ctx.member.id,
-        dueAt: input.dueAt,
-      })
-      .returning();
+    const row = await withRef(
+      actionItem,
+      actionItem.orgId,
+      actionItem.ref,
+      ctx.org.id,
+      async (ref) => {
+        const [inserted] = await db
+          .insert(actionItem)
+          .values({
+            orgId: ctx.org.id,
+            ref,
+            title: input.title,
+            meetingId: input.meetingId,
+            agendaItemId: input.agendaItemId,
+            applicationId: input.applicationId,
+            assigneeMemberId: input.assigneeMemberId ?? ctx.member.id,
+            createdByMemberId: ctx.member.id,
+            dueAt: input.dueAt,
+          })
+          .returning();
+        return inserted;
+      }
+    );
     if (input.meetingId) revalidatePath(`/meetings/${input.meetingId}`);
     revalidatePath("/");
     return { data: { actionItemId: row.id } };

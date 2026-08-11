@@ -185,7 +185,7 @@ export function RunMode({
               <div className="mt-2 flex items-center justify-center gap-2">
                 {current.applicationId && (
                   <Link
-                    href={`/applications/${current.applicationId}`}
+                    href={`/pipeline/${current.applicationId}`}
                     target="_blank"
                     className="flex items-center gap-1 text-xs text-accent hover:underline"
                   >

@@ -150,12 +150,14 @@ tooltip.
 
 ### Shell
 
-Fixed left sidebar (~240px) with the club name at top, grouped nav, and a theme toggle;
-a topbar with ⌘K command palette and the member avatar. Nav groups:
+Fixed left sidebar (220px) with a workspace switcher at top (which also holds Settings,
+Docs, Onboarding and sign-out), a "New application" button carrying its `C` hint, grouped
+nav, and the member name + theme toggle pinned at the bottom. There is no global topbar:
+each screen renders its own 44px header, and ⌘K is available everywhere. Nav groups:
 
-- **Operate** — Today, Applications, Memos, Grants, Meetings, Members, Onboarding
-- **Learn** — Insights, Outcomes, Cap Table Lab, LP Reports, Docs
-- Settings pinned at the bottom (admin only)
+- **Personal** — Inbox (unread badge), My work
+- **Operate** — Pipeline (open count), Memos, Grants, Meetings, Members
+- **Learn** — Insights, Outcomes, Cap Table Lab, LP Reports
 
 ---
 
@@ -165,17 +167,27 @@ Every route that exists today, what it's for, and where it's weak.
 
 ### Operate
 
-**`/` — Today.** The landing screen; answers "what needs me this week?" Cards for: things
-awaiting my action, applications breaching stage SLA, the next meeting, recent activity
-feed, pool remaining. *This screen decides whether members come back.*
+**`/` — Inbox.** The landing screen; answers "what needs me this week?" A 56px stat strip
+(budget remaining, open applications, votes open, next meeting) over a triage list: 36px
+rows grouped under Needs action / Open votes / Today, each row carrying a priority glyph,
+mono ref, stage dot, SLA breach, amount, age and owner. *This screen decides whether
+members come back.*
 
-**`/applications` — Kanban board.** Columns are pipeline stages: Applied → Screening →
-Coffee Chat → Pitched Group → Decision → Funded / Declined. Drag to move (dnd-kit). Cards
-show company name, one-liner, ask amount, owner avatar, days-in-stage. Stages carry rules
-that the UI must surface: Coffee Chat requires 2 attendees; Decision requires a memo and
-a vote. *Weak: unusable on a phone; no filtering or search on the board.*
+**`/my-work` — My work.** The same row vocabulary scoped to one member: applications they
+own, memos they're writing, action items assigned to them.
 
-**`/applications/[id]` — Application detail.** Two-column. Left: the ask (amount + use of
+**`/pipeline` — Kanban board.** (Renamed from `/applications`; the old paths permanently
+redirect.) Columns are pipeline stages: Applied → Screening → Coffee Chat → Pitched Group
+→ Decision → Funded / Declined, each header carrying its count and the sum requested. Drag
+to move (dnd-kit). Cards show mono ref, company name, one-liner, ask amount, owner avatar,
+and time-in-stage coloured against that stage's SLA. Selecting a card opens a 400px **peek
+panel** (`?peek=<id>`, so it is linkable): stage stepper, property stack with single-key
+hints, screening scores, activity, and vote/memo/decline actions. Space peeks, ↵ opens,
+Esc closes, ↑/↓ walk the board, and ⌘K acts on the selection. Stages carry rules that the
+UI must surface: Coffee Chat requires 2 attendees; Decision requires a memo and a vote.
+*Weak: still unusable on a phone; the filter bar is presentational.*
+
+**`/pipeline/[id]` — Application detail.** Two-column. Left: the ask (amount + use of
 funds narrative), screening scorecard (5 criteria × 1–5, averaged across scorers), coffee
 chat debriefs with per-attendee verdicts, notes thread. Right rail: Facts card (website,
 founder, email, department, class year, campus source, owner, applied date) with an

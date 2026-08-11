@@ -26,12 +26,15 @@ export async function getPipeline(orgId: string) {
     db
       .select({
         id: application.id,
+        ref: application.ref,
         stageId: application.stageId,
         position: application.position,
         status: application.status,
+        priority: application.priority,
         amountRequested: application.amountRequested,
         appliedAt: application.appliedAt,
         enteredStageAt: application.enteredStageAt,
+        declineReason: application.declineReason,
         companyId: company.id,
         companyName: company.name,
         companyDomain: company.domain,
@@ -51,6 +54,85 @@ export async function getPipeline(orgId: string) {
 
 export type PipelineData = Awaited<ReturnType<typeof getPipeline>>;
 export type PipelineApp = PipelineData["apps"][number];
+
+/**
+ * Everything the peek panel shows, and nothing else.
+ *
+ * Deliberately lighter than getApplicationDetail: the peek is opened by a
+ * keystroke while scanning a board, so it must not pull memo versions, notes
+ * and coffee-chat attendees for a panel that may be dismissed in 200ms.
+ */
+export async function getApplicationPeek(orgId: string, id: string) {
+  const [app] = await db
+    .select({
+      id: application.id,
+      ref: application.ref,
+      stageId: application.stageId,
+      status: application.status,
+      priority: application.priority,
+      amountRequested: application.amountRequested,
+      useOfFundsNarrative: application.useOfFundsNarrative,
+      pitchSummary: application.pitchSummary,
+      applicantName: application.applicantName,
+      applicantEmail: application.applicantEmail,
+      department: application.department,
+      classYear: application.classYear,
+      campusSource: application.campusSource,
+      appliedAt: application.appliedAt,
+      enteredStageAt: application.enteredStageAt,
+      declineReason: application.declineReason,
+      companyName: company.name,
+      companyOneLiner: company.oneLiner,
+      companyDomain: company.domain,
+      websiteUrl: company.websiteUrl,
+      ownerId: member.id,
+      ownerName: member.displayName,
+    })
+    .from(application)
+    .innerJoin(company, eq(application.companyId, company.id))
+    .leftJoin(member, eq(application.ownerMemberId, member.id))
+    .where(and(eq(application.id, id), eq(application.orgId, orgId)))
+    .limit(1);
+  if (!app) return null;
+
+  const [criteria, scores, activities] = await Promise.all([
+    db
+      .select()
+      .from(screeningCriterion)
+      .where(and(eq(screeningCriterion.orgId, orgId), isNull(screeningCriterion.archivedAt)))
+      .orderBy(asc(screeningCriterion.position)),
+    db
+      .select({ criterionId: screeningScore.criterionId, score: screeningScore.score })
+      .from(screeningScore)
+      .where(eq(screeningScore.applicationId, id)),
+    db
+      .select({
+        id: activity.id,
+        verb: activity.verb,
+        summary: activity.summary,
+        occurredAt: activity.occurredAt,
+        actorName: member.displayName,
+      })
+      .from(activity)
+      .leftJoin(member, eq(activity.actorMemberId, member.id))
+      .where(and(eq(activity.entityType, "application"), eq(activity.entityId, id)))
+      .orderBy(desc(activity.occurredAt))
+      .limit(8),
+  ]);
+
+  // Mean score per criterion, with the number of reviewers behind it — a 4.3
+  // from three people is a different fact than a 4.3 from one.
+  const scoring = criteria.map((c) => {
+    const mine = scores.filter((s) => s.criterionId === c.id);
+    const count = mine.length;
+    const mean = count ? mine.reduce((n, s) => n + s.score, 0) / count : null;
+    return { id: c.id, label: c.label, mean, count };
+  });
+
+  return { app, scoring, activities };
+}
+
+export type ApplicationPeek = NonNullable<Awaited<ReturnType<typeof getApplicationPeek>>>;
 
 export async function getApplicationDetail(orgId: string, id: string) {
   const [app] = await db
