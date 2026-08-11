@@ -29,30 +29,59 @@ export function PeekClose() {
 }
 
 /**
- * The peek's action bar. Every action here has a single-key equivalent handled
- * by the board, so the buttons double as the shortcut legend.
+ * The peek's action bar. The primary button reflects where the application
+ * actually is in the decision flow: vote if a round is live, memo if one
+ * exists, otherwise start on the full view.
  */
-export function PeekActions({ applicationId }: { applicationId: string }) {
+export function PeekActions({
+  applicationId,
+  memoId,
+  voteMemoId,
+  canDecline,
+}: {
+  applicationId: string;
+  memoId: string | null;
+  voteMemoId: string | null;
+  canDecline: boolean;
+}) {
+  const primary = voteMemoId
+    ? { href: `/memos/${voteMemoId}/vote`, label: "Open ballot", key: "V" }
+    : memoId
+      ? { href: `/memos/${memoId}`, label: "Open memo", key: "O" }
+      : { href: `/pipeline/${applicationId}`, label: "Open application", key: "↵" };
+
   return (
     <div className="flex shrink-0 items-center gap-2 border-t border-border px-3.5 py-2.5">
       <Link
-        href={`/pipeline/${applicationId}`}
+        href={primary.href}
         className="flex h-6.5 items-center gap-1.5 rounded-[5px] bg-accent px-2.5 text-xs font-medium text-accent-fg transition-colors hover:bg-accent-hover"
       >
-        Start blind vote
-        <Kbd tone="on-accent">V</Kbd>
+        {primary.label}
+        <Kbd tone="on-accent">{primary.key}</Kbd>
       </Link>
-      <Link
-        href={`/pipeline/${applicationId}`}
-        className="flex h-6.5 items-center gap-1.5 rounded-[5px] border border-border px-2.5 text-xs text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
-      >
-        Open memo
-        <Kbd>O</Kbd>
-      </Link>
-      <span className="ml-auto flex h-6.5 items-center gap-1.5 rounded-[5px] border border-border px-2.5 text-xs text-danger">
-        Decline…
-        <Kbd>D</Kbd>
-      </span>
+      {primary.href !== `/pipeline/${applicationId}` && (
+        <Link
+          href={`/pipeline/${applicationId}`}
+          className="flex h-6.5 items-center gap-1.5 rounded-[5px] border border-border px-2.5 text-xs text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
+        >
+          Open application
+          <Kbd>↵</Kbd>
+        </Link>
+      )}
+      {canDecline && (
+        <button
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent("peek-decline", { detail: { applicationId } })
+            )
+          }
+          className="ml-auto flex h-6.5 cursor-pointer items-center gap-1.5 rounded-[5px] border border-border px-2.5 text-xs text-danger transition-colors hover:border-danger/50"
+        >
+          Decline…
+          <Kbd>D</Kbd>
+        </button>
+      )}
     </div>
   );
 }

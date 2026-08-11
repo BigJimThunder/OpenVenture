@@ -343,6 +343,19 @@ export function Board({ data }: { data: PipelineData }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [flatOrder, selectedId, selected, peekId, setPeek, openFull, pendingDecline, data.stages]);
 
+  // The peek panel's Decline… button raises this; the board owns the dialog.
+  React.useEffect(() => {
+    function onPeekDecline(e: Event) {
+      const applicationId = (e as CustomEvent<{ applicationId: string }>).detail?.applicationId;
+      const app = apps.find((a) => a.id === applicationId);
+      const lost = data.stages.find((s) => s.kind === "lost");
+      if (!app || !lost || app.stageId === lost.id) return;
+      setPendingDecline({ app, toStageId: lost.id, stageName: lost.name });
+    }
+    window.addEventListener("peek-decline", onPeekDecline);
+    return () => window.removeEventListener("peek-decline", onPeekDecline);
+  }, [apps, data.stages]);
+
   // Publish the selection so ⌘K acts on it rather than only navigating.
   usePaletteContext(
     selected

@@ -27,7 +27,7 @@ export async function PeekPanel({
 }) {
   const peek = await getApplicationPeek(orgId, applicationId);
   if (!peek) return null;
-  const { app, scoring, activities } = peek;
+  const { app, scoring, activities, latestMemo, activeRound } = peek;
 
   const currentIdx = stages.findIndex((s) => s.id === app.stageId);
   const scored = scoring.filter((s) => s.mean != null);
@@ -223,7 +223,12 @@ export async function PeekPanel({
         )}
       </div>
 
-      <PeekActions applicationId={app.id} />
+      <PeekActions
+        applicationId={app.id}
+        memoId={latestMemo && latestMemo.status !== "archived" ? latestMemo.id : null}
+        voteMemoId={activeRound?.memoId ?? null}
+        canDecline={app.status === "open"}
+      />
     </aside>
   );
 }

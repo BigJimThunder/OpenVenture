@@ -12,6 +12,7 @@ import { formatPct } from "@/lib/utils";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { Kbd } from "@/components/patterns/kbd";
 import { InsightsCharts } from "@/components/insights/insights-charts";
+import { SectionNav } from "@/components/insights/section-nav";
 
 export const metadata: Metadata = { title: "Insights" };
 export const dynamic = "force-dynamic";
@@ -91,21 +92,7 @@ export default async function InsightsPage() {
         </Stat>
       </div>
 
-      <nav className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border px-3">
-        {SECTIONS.map(([id, label], i) => (
-          <a
-            key={id}
-            href={`#${id}`}
-            className={
-              i === 0
-                ? "flex h-9 items-center px-2.5 text-[12.5px] font-medium text-fg shadow-[inset_0_-2px_0_var(--accent)]"
-                : "flex h-9 items-center px-2.5 text-[12.5px] text-fg-muted transition-colors hover:text-fg"
-            }
-          >
-            {label}
-          </a>
-        ))}
-      </nav>
+      <SectionNav sections={SECTIONS.map(([id, label]) => [id, label])} />
 
       <main className="flex-1 overflow-y-auto px-4 pt-4 pb-12">
         <InsightsCharts
