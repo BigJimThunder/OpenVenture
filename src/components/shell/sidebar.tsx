@@ -10,6 +10,7 @@ import {
   BanknoteIcon,
   CalendarIcon,
   UsersIcon,
+  GraduationCapIcon,
   BarChart3Icon,
   FlaskConicalIcon,
   TrendingUpIcon,
@@ -32,6 +33,7 @@ const NAV = [
       { href: "/grants", label: "Grants", icon: BanknoteIcon },
       { href: "/meetings", label: "Meetings", icon: CalendarIcon },
       { href: "/members", label: "Members", icon: UsersIcon },
+      { href: "/onboarding", label: "Onboarding", icon: GraduationCapIcon },
     ],
   },
   {
