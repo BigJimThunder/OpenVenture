@@ -127,6 +127,14 @@ async function main() {
     })
     .returning();
 
+  // Per-org ref counters (APP-1, MEM-1, …). The seed is single-threaded and
+  // starts from an empty org, so plain counters give the same result as
+  // withRef() without the round-trip per insert.
+  let appRef = 0;
+  let memoRef = 0;
+  let meetingRef = 0;
+  let taskRef = 0;
+
   const stages = await db
     .insert(t.pipelineStage)
     .values(
@@ -267,9 +275,22 @@ async function main() {
       .insert(t.application)
       .values({
         orgId: org.id,
+        ref: ++appRef,
         companyId: co.id,
         stageId: finalStage.id,
         status: finalSlug === "funded" ? "funded" : finalSlug === "declined" ? "declined" : "open",
+        // Later-stage work skews urgent; most of the Applied column is untriaged.
+        priority: isTerminal
+          ? "none"
+          : finalSlug === "decision"
+            ? pick(["urgent", "high"] as const)
+            : finalSlug === "pitched-group"
+              ? pick(["high", "high", "medium"] as const)
+              : finalSlug === "coffee-chat"
+                ? pick(["high", "medium", "medium"] as const)
+                : finalSlug === "screening"
+                  ? pick(["medium", "medium", "low"] as const)
+                  : pick(["none", "none", "low"] as const),
         ownerMemberId: owner.id,
         sourcedByMemberId: rand() < 0.4 ? pick(members).id : null,
         sourceId: pick(sources).id,
@@ -502,6 +523,7 @@ async function main() {
       .insert(t.memo)
       .values({
         orgId: org.id,
+        ref: ++memoRef,
         applicationId: c.appId,
         templateId: template.id,
         title: `${c.companyName} — grant memo`,
@@ -653,6 +675,7 @@ async function main() {
       .insert(t.meeting)
       .values({
         orgId: org.id,
+        ref: ++meetingRef,
         title: w % 4 === 3 ? "Investment Committee" : "Weekly General Meeting",
         kind: w % 4 === 3 ? "ic" : "general",
         scheduledAt: when,
@@ -679,6 +702,7 @@ async function main() {
     .insert(t.meeting)
     .values({
       orgId: org.id,
+      ref: ++meetingRef,
       title: "Weekly General Meeting",
       kind: "general",
       scheduledAt: new Date(now + 3 * 86400000),
@@ -698,9 +722,9 @@ async function main() {
     { meetingId: upcomingMeeting.id, position: "4", title: "New-member onboarding progress", kind: "admin", durationMinutes: 5 },
   ]);
   await db.insert(t.actionItem).values([
-    { orgId: org.id, meetingId: upcomingMeeting.id, title: "Email the two coffee-chat founders with scheduling links", assigneeMemberId: members[3].id, createdByMemberId: members[0].id, dueAt: new Date(now + 2 * 86400000), status: "open" },
-    { orgId: org.id, title: "Post the grant application deadline on the club Instagram", assigneeMemberId: members[6].id, createdByMemberId: members[1].id, dueAt: new Date(now - 2 * 86400000), status: "open" },
-    { orgId: org.id, title: "Collect receipts from last semester's grantees", assigneeMemberId: members[4].id, createdByMemberId: members[0].id, status: "done", completedAt: new Date(now - 5 * 86400000) },
+    { orgId: org.id, ref: ++taskRef, meetingId: upcomingMeeting.id, title: "Email the two coffee-chat founders with scheduling links", assigneeMemberId: members[3].id, createdByMemberId: members[0].id, dueAt: new Date(now + 2 * 86400000), status: "open" },
+    { orgId: org.id, ref: ++taskRef, title: "Post the grant application deadline on the club Instagram", assigneeMemberId: members[6].id, createdByMemberId: members[1].id, dueAt: new Date(now - 2 * 86400000), status: "open" },
+    { orgId: org.id, ref: ++taskRef, title: "Collect receipts from last semester's grantees", assigneeMemberId: members[4].id, createdByMemberId: members[0].id, status: "done", completedAt: new Date(now - 5 * 86400000) },
   ]);
 
   // Onboarding: assign the default track to the 5 newest members with

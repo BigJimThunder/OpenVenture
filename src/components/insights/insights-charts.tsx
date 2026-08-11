@@ -69,10 +69,30 @@ type Props = {
   };
 };
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+/** Same hairline panel as ChartFrame, for the two blocks that aren't plots. */
+function Panel({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section id={id} className="mb-8 scroll-mt-16">
-      <h2 className="mb-3 text-md font-semibold tracking-tight">{title}</h2>
+    <div className="overflow-hidden rounded-md border border-border bg-panel">
+      <div className="flex items-baseline justify-between gap-3 border-b border-border px-3 py-2.5">
+        <span className="text-xs font-semibold">{title}</span>
+        {note && <span className="shrink-0 text-2xs text-fg-subtle">{note}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Section({ id, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section id={id} className="mb-6 scroll-mt-12">
       {children}
     </section>
   );
@@ -81,30 +101,11 @@ function Section({ id, title, children }: { id: string; title: string; children:
 export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition, portfolio }: Props) {
   return (
     <div>
-      {/* Anchor nav */}
-      <nav className="mb-6 flex flex-wrap gap-1.5">
-        {[
-          ["funnel", "Funnel"],
-          ["sourcing", "Sourcing"],
-          ["money", "Money"],
-          ["composition", "Composition"],
-          ["portfolio", "Portfolio"],
-        ].map(([id, label]) => (
-          <a
-            key={id}
-            href={`#${id}`}
-            className="rounded-full border border-border bg-panel px-3 py-1 text-xs text-fg-muted transition-colors hover:border-accent hover:text-accent"
-          >
-            {label}
-          </a>
-        ))}
-      </nav>
-
       <Section id="funnel" title="Funnel">
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-2">
           <ChartFrame
             title="Stage conversion"
-            description="Applications that ever reached each stage"
+            description="ever reached each stage"
             empty={funnel.stages.length === 0 && "No data yet."}
           >
             <BarChart data={funnel.stages} layout="vertical" margin={{ top: 4, right: 32, left: 8, bottom: 0 }}>
@@ -120,7 +121,7 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
               </Bar>
             </BarChart>
           </ChartFrame>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <ChartFrame
               title="Applications per month"
               height={150}
@@ -158,11 +159,15 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
       </Section>
 
       <Section id="sourcing" title="Sourcing">
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-2">
           <ChartFrame
             title="Applications by department"
-            description="Are we only pulling from CS?"
+            description="are we only pulling from CS?"
             empty={sourcing.byDepartment.length === 0 && "No data yet."}
+            legend={[
+              { label: "Applied", color: "var(--cat-2)" },
+              { label: "Funded", color: "var(--cat-4)" },
+            ]}
           >
             <BarChart
               data={sourcing.byDepartment.slice(0, 8)}
@@ -177,7 +182,7 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
               <Bar dataKey="funded" name="Funded" fill="var(--cat-4)" radius={[0, 3, 3, 0]} barSize={12} />
             </BarChart>
           </ChartFrame>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <ChartFrame
               title="Campus source"
               height={170}
@@ -198,33 +203,47 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
                 </Bar>
               </BarChart>
             </ChartFrame>
-            <div className="rounded-lg border border-border bg-panel p-4">
-              <div className="mb-2 text-sm font-semibold">Member sourcing attribution</div>
-              <div className="flex flex-col gap-1">
-                {sourcing.byMember.slice(0, 6).map((m) => (
-                  <div key={m.memberId} className="flex items-center justify-between text-sm">
-                    <span className="text-fg-muted">{m.memberName}</span>
-                    <span className="tnum text-xs">
-                      {m.sourced} sourced · {m.funded} funded
-                      {m.sourced > 0 ? ` (${Math.round((m.funded / m.sourced) * 100)}%)` : ""}
+            <Panel title="Member sourcing attribution" note="sourced · funded · conversion">
+              {sourcing.byMember.length === 0 ? (
+                <p className="px-3 py-3 text-xs text-fg-subtle">
+                  No member-sourced applications yet.
+                </p>
+              ) : (
+                sourcing.byMember.slice(0, 6).map((m) => (
+                  <div
+                    key={m.memberId}
+                    className="grid grid-cols-[1fr_60px_60px_60px] items-center gap-2 border-b border-border px-3 py-[7px] text-sm last:border-0"
+                  >
+                    <span className="truncate">{m.memberName}</span>
+                    <span className="tnum text-right text-xs text-fg-muted">{m.sourced}</span>
+                    <span className="tnum text-right text-xs text-fg-muted">{m.funded}</span>
+                    <span
+                      className={
+                        m.sourced > 0
+                          ? "tnum text-right text-xs text-success"
+                          : "tnum text-right text-xs text-fg-subtle"
+                      }
+                    >
+                      {m.sourced > 0 ? `${Math.round((m.funded / m.sourced) * 100)}%` : "—"}
                     </span>
                   </div>
-                ))}
-                {sourcing.byMember.length === 0 && (
-                  <p className="text-xs text-fg-subtle">No member-sourced applications yet.</p>
-                )}
-              </div>
-            </div>
+                ))
+              )}
+            </Panel>
           </div>
         </div>
       </Section>
 
       <Section id="money" title="Money">
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-2">
           <ChartFrame
             title="Sector mix: applicants vs funded"
-            description="The gap is the club's revealed preference vs. its stated thesis"
+            description="revealed preference vs stated thesis"
             empty={moneyMix.sectors.length === 0 && "No data yet."}
+            legend={[
+              { label: "Applicants", color: "var(--cat-10)" },
+              { label: "Funded", color: "var(--cat-4)" },
+            ]}
           >
             <BarChart data={moneyMix.sectors} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
               <CartesianGrid {...gridProps} />
@@ -237,7 +256,7 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
           </ChartFrame>
           <ChartFrame
             title="Check-size distribution"
-            description="Committed + deployed grants, $500 bins"
+            description="committed + deployed, $500 bins"
             empty={moneyMix.checkHistogram.length === 0 && "No grants yet."}
           >
             <BarChart data={moneyMix.checkHistogram} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
@@ -252,7 +271,7 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
       </Section>
 
       <Section id="composition" title="Applicant composition">
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-2">
           <ChartFrame title="Team shape" height={170} empty={composition.teamComposition.length === 0 && "No data yet."}>
             <BarChart
               data={[...composition.teamComposition, ...composition.studentMix]}
@@ -265,13 +284,11 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
               <Bar dataKey="count" name="Applications" fill="var(--cat-9)" radius={[0, 3, 3, 0]} barSize={12} />
             </BarChart>
           </ChartFrame>
-          <div className="rounded-lg border border-border bg-panel p-4">
-            <div className="mb-1 text-sm font-semibold">Founder demographics</div>
-            <p className="mb-3 text-2xs text-fg-subtle">
-              Self-reported and optional ({composition.respondents} respondents). Aggregate-only:
-              groups smaller than 5 are never shown, and cross-tabs are disabled by design.
-            </p>
-            <div className="flex flex-col gap-3">
+          <Panel
+            title="Founder demographics"
+            note={`${composition.respondents} respondents · k-anonymity ≥ 5`}
+          >
+            <div className="flex flex-col gap-2.5 p-3">
               {(
                 [
                   ["Gender", composition.gender],
@@ -280,10 +297,13 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
                   ["International", composition.international],
                 ] as const
               ).map(([label, buckets]) => (
-                <div key={label}>
-                  <div className="mb-1 text-2xs font-medium uppercase tracking-wide text-fg-subtle">
+                <div
+                  key={label}
+                  className="grid grid-cols-[110px_1fr] items-baseline gap-2"
+                >
+                  <span className="text-[10.5px] font-medium tracking-[0.06em] uppercase text-fg-subtle">
                     {label}
-                  </div>
+                  </span>
                   {buckets.length === 0 ? (
                     <p className="text-xs text-fg-subtle">All groups too small to show.</p>
                   ) : (
@@ -291,7 +311,7 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
                       {buckets.map((b) => (
                         <span
                           key={b.label}
-                          className="tnum rounded-full border border-border bg-bg-subtle px-2.5 py-0.5 text-xs capitalize text-fg-muted"
+                          className="tnum rounded-full border border-border bg-bg-subtle px-2.5 py-px text-[11.5px] capitalize text-fg-muted"
                         >
                           {b.label} · {b.count}
                         </span>
@@ -300,16 +320,20 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
                   )}
                 </div>
               ))}
+              <p className="text-[10.5px] text-fg-subtle">
+                Aggregate-only: groups smaller than 5 are never shown; cross-tabs disabled by
+                design.
+              </p>
             </div>
-          </div>
+          </Panel>
         </div>
       </Section>
 
       <Section id="portfolio" title="Portfolio construction">
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-2">
           <ChartFrame
             title="Outcome distribution"
-            description="The power-law lesson: most grants go nowhere, a few carry the portfolio"
+            description="the power-law lesson"
             empty={portfolio.totalCompanies === 0 && "No portfolio companies yet."}
           >
             <BarChart
@@ -333,7 +357,7 @@ export function InsightsCharts({ funnel, sourcing, money: moneyMix, composition,
           </ChartFrame>
           <ChartFrame
             title="Dollars by outcome"
-            description="Where the money ended up"
+            description="where the money ended up"
             empty={portfolio.distribution.every((d) => d.dollars === 0) && "No issued grants yet."}
           >
             <BarChart

@@ -119,7 +119,7 @@ export function GrantsTable({
                   <TableCell>
                     {g.applicationId ? (
                       <Link
-                        href={`/applications/${g.applicationId}`}
+                        href={`/pipeline/${g.applicationId}`}
                         className="font-medium hover:text-accent"
                       >
                         {g.companyName}

@@ -192,7 +192,7 @@ function OutcomeRecorder({
           </div>
           {outcome === "fund" && (
             <Button size="sm" asChild>
-              <Link href={`/applications/${applicationId}`}>Create the grant →</Link>
+              <Link href={`/pipeline/${applicationId}`}>Create the grant →</Link>
             </Button>
           )}
         </CardContent>
