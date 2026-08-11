@@ -145,6 +145,14 @@ export async function PeekPanel({
           <Row label="Applied">
             <span className="tnum text-xs">{format(app.appliedAt, "MMM d, yyyy")}</span>
           </Row>
+          {app.nextStep && (
+            <Row label="Next step">
+              <span className={app.nextStepOverdue ? "text-xs text-danger" : "text-xs"}>
+                {app.nextStep}
+                {app.nextStepDue ? ` · ${format(app.nextStepDue, "MMM d")}` : ""}
+              </span>
+            </Row>
+          )}
           {app.companyDomain && (
             <Row label="Website">
               <a

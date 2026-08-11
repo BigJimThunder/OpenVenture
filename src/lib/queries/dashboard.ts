@@ -113,6 +113,8 @@ export async function getDashboardData(orgId: string, memberId: string) {
           slaDays: pipelineStage.slaDays,
           enteredStageAt: application.enteredStageAt,
           amountRequested: application.amountRequested,
+          nextStep: application.nextStep,
+          nextStepDue: application.nextStepDue,
           ownerName: member.displayName,
         })
         .from(application)

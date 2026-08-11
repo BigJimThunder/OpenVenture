@@ -81,6 +81,8 @@ export async function getApplicationPeek(orgId: string, id: string) {
       appliedAt: application.appliedAt,
       enteredStageAt: application.enteredStageAt,
       declineReason: application.declineReason,
+      nextStep: application.nextStep,
+      nextStepDue: application.nextStepDue,
       companyName: company.name,
       companyOneLiner: company.oneLiner,
       companyDomain: company.domain,
@@ -94,6 +96,9 @@ export async function getApplicationPeek(orgId: string, id: string) {
     .where(and(eq(application.id, id), eq(application.orgId, orgId)))
     .limit(1);
   if (!app) return null;
+
+  // Computed server-side: client components can't call Date.now() in render.
+  const nextStepOverdue = app.nextStepDue != null && app.nextStepDue.getTime() < Date.now();
 
   const [criteria, scores, activities] = await Promise.all([
     db
@@ -129,7 +134,7 @@ export async function getApplicationPeek(orgId: string, id: string) {
     return { id: c.id, label: c.label, mean, count };
   });
 
-  return { app, scoring, activities };
+  return { app: { ...app, nextStepOverdue }, scoring, activities };
 }
 
 export type ApplicationPeek = NonNullable<Awaited<ReturnType<typeof getApplicationPeek>>>;
