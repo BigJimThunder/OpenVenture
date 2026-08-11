@@ -1,0 +1,141 @@
+import { and, eq, asc, desc, gte, lt, inArray, isNull } from "drizzle-orm";
+import { db } from "@/db";
+import {
+  meeting,
+  agendaItem,
+  attendance,
+  actionItem,
+  member,
+  application,
+  company,
+  pipelineStage,
+  voteRound,
+} from "@/db/schema";
+
+export async function getMeetingsList(orgId: string) {
+  const now = new Date();
+  const [upcoming, past] = await Promise.all([
+    db
+      .select()
+      .from(meeting)
+      .where(
+        and(eq(meeting.orgId, orgId), gte(meeting.scheduledAt, now), eq(meeting.status, "scheduled"))
+      )
+      .orderBy(asc(meeting.scheduledAt)),
+    db
+      .select()
+      .from(meeting)
+      .where(and(eq(meeting.orgId, orgId), lt(meeting.scheduledAt, now)))
+      .orderBy(desc(meeting.scheduledAt))
+      .limit(20),
+  ]);
+  return { upcoming, past };
+}
+
+export async function getMeetingDetail(orgId: string, meetingId: string) {
+  const [m] = await db
+    .select()
+    .from(meeting)
+    .where(and(eq(meeting.id, meetingId), eq(meeting.orgId, orgId)))
+    .limit(1);
+  if (!m) return null;
+
+  const [items, attendanceRows, actions, members] = await Promise.all([
+    db
+      .select({
+        item: agendaItem,
+        presenterName: member.displayName,
+        companyName: company.name,
+      })
+      .from(agendaItem)
+      .leftJoin(member, eq(agendaItem.presenterMemberId, member.id))
+      .leftJoin(application, eq(agendaItem.applicationId, application.id))
+      .leftJoin(company, eq(application.companyId, company.id))
+      .where(eq(agendaItem.meetingId, meetingId))
+      .orderBy(asc(agendaItem.position)),
+    db
+      .select({
+        memberId: attendance.memberId,
+        status: attendance.status,
+      })
+      .from(attendance)
+      .where(eq(attendance.meetingId, meetingId)),
+    db
+      .select({
+        id: actionItem.id,
+        title: actionItem.title,
+        status: actionItem.status,
+        dueAt: actionItem.dueAt,
+        assigneeName: member.displayName,
+        assigneeId: actionItem.assigneeMemberId,
+      })
+      .from(actionItem)
+      .leftJoin(member, eq(actionItem.assigneeMemberId, member.id))
+      .where(eq(actionItem.meetingId, meetingId))
+      .orderBy(asc(actionItem.createdAt)),
+    db
+      .select({ id: member.id, displayName: member.displayName })
+      .from(member)
+      .where(and(eq(member.orgId, orgId), inArray(member.status, ["active", "invited"])))
+      .orderBy(asc(member.displayName)),
+  ]);
+
+  return { meeting: m, items, attendanceRows, actions, members };
+}
+
+/** One-click agenda suggestions: late-stage applications, open votes, overdue actions. */
+export async function getAgendaSuggestions(orgId: string, meetingId: string) {
+  const existing = await db
+    .select({ applicationId: agendaItem.applicationId, voteRoundId: agendaItem.voteRoundId })
+    .from(agendaItem)
+    .where(eq(agendaItem.meetingId, meetingId));
+  const usedApps = new Set(existing.map((e) => e.applicationId).filter(Boolean));
+  const usedRounds = new Set(existing.map((e) => e.voteRoundId).filter(Boolean));
+
+  const [lateStage, openRounds, overdue] = await Promise.all([
+    db
+      .select({
+        applicationId: application.id,
+        companyName: company.name,
+        stageName: pipelineStage.name,
+      })
+      .from(application)
+      .innerJoin(company, eq(application.companyId, company.id))
+      .innerJoin(pipelineStage, eq(application.stageId, pipelineStage.id))
+      .where(
+        and(
+          eq(application.orgId, orgId),
+          eq(application.status, "open"),
+          isNull(application.archivedAt),
+          inArray(pipelineStage.slug, ["pitched-group", "decision"])
+        )
+      )
+      .limit(8),
+    db
+      .select({ id: voteRound.id, title: voteRound.title, memoId: voteRound.memoId })
+      .from(voteRound)
+      .where(and(eq(voteRound.orgId, orgId), eq(voteRound.status, "open"))),
+    db
+      .select({
+        id: actionItem.id,
+        title: actionItem.title,
+        assigneeName: member.displayName,
+      })
+      .from(actionItem)
+      .leftJoin(member, eq(actionItem.assigneeMemberId, member.id))
+      .where(
+        and(
+          eq(actionItem.orgId, orgId),
+          eq(actionItem.status, "open"),
+          lt(actionItem.dueAt, new Date())
+        )
+      )
+      .limit(8),
+  ]);
+
+  return {
+    applications: lateStage.filter((a) => !usedApps.has(a.applicationId)),
+    voteRounds: openRounds.filter((r) => !usedRounds.has(r.id)),
+    overdueActions: overdue,
+  };
+}
