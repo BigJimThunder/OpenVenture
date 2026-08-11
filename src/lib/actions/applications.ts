@@ -14,6 +14,8 @@ import {
   voteRound,
   coffeeChat,
   coffeeChatAttendee,
+  screeningCriterion,
+  screeningScore,
   DECLINE_REASONS,
 } from "@/db/schema";
 import { withRef } from "@/lib/refs-server";
@@ -272,6 +274,82 @@ export const reorderApplication = authedAction({
       .set({ position: String(input.position) })
       .where(and(eq(application.id, input.applicationId), eq(application.orgId, ctx.org.id)));
     return { data: { ok: true } };
+  },
+});
+
+export const upsertScreeningScores = authedAction({
+  minRole: "analyst",
+  input: z.object({
+    applicationId: z.string().uuid(),
+    scores: z
+      .array(
+        z.object({
+          criterionId: z.string().uuid(),
+          score: z.number().int().min(1).max(5),
+          note: z.string().max(500).optional(),
+        })
+      )
+      .min(1),
+  }),
+  handler: async (input, ctx) => {
+    const [app] = await db
+      .select({ id: application.id, companyName: company.name })
+      .from(application)
+      .innerJoin(company, eq(application.companyId, company.id))
+      .where(and(eq(application.id, input.applicationId), eq(application.orgId, ctx.org.id)))
+      .limit(1);
+    if (!app) throw new ActionError("Application not found");
+
+    const criterionIds = input.scores.map((s) => s.criterionId);
+    const validCriteria = await db
+      .select({ id: screeningCriterion.id })
+      .from(screeningCriterion)
+      .where(
+        and(
+          eq(screeningCriterion.orgId, ctx.org.id),
+          inArray(screeningCriterion.id, criterionIds),
+          isNull(screeningCriterion.archivedAt)
+        )
+      );
+    if (validCriteria.length !== new Set(criterionIds).size) {
+      throw new ActionError("Unknown screening criterion");
+    }
+
+    await db
+      .insert(screeningScore)
+      .values(
+        input.scores.map((s) => ({
+          applicationId: input.applicationId,
+          criterionId: s.criterionId,
+          scoredByMemberId: ctx.member.id,
+          score: s.score,
+          note: s.note,
+        }))
+      )
+      .onConflictDoUpdate({
+        target: [
+          screeningScore.applicationId,
+          screeningScore.criterionId,
+          screeningScore.scoredByMemberId,
+        ],
+        set: {
+          score: sql`excluded.score`,
+          note: sql`excluded.note`,
+        },
+      });
+
+    revalidatePath(`/pipeline/${input.applicationId}`);
+    revalidatePath("/pipeline");
+    return {
+      data: { ok: true },
+      activity: {
+        verb: "application.scored",
+        entityType: "application",
+        entityId: app.id,
+        entityLabel: app.companyName,
+        summary: `${ctx.member.displayName} scored ${app.companyName} across ${input.scores.length} ${input.scores.length === 1 ? "criterion" : "criteria"}`,
+      },
+    };
   },
 });
 
