@@ -13,6 +13,7 @@ import {
   screeningScore,
   activity,
   memo,
+  voteRound,
   grant,
 } from "@/db/schema";
 
@@ -100,7 +101,7 @@ export async function getApplicationPeek(orgId: string, id: string) {
   // Computed server-side: client components can't call Date.now() in render.
   const nextStepOverdue = app.nextStepDue != null && app.nextStepDue.getTime() < Date.now();
 
-  const [criteria, scores, activities] = await Promise.all([
+  const [criteria, scores, activities, latestMemoRows, latestRoundRows] = await Promise.all([
     db
       .select()
       .from(screeningCriterion)
@@ -123,6 +124,18 @@ export async function getApplicationPeek(orgId: string, id: string) {
       .where(and(eq(activity.entityType, "application"), eq(activity.entityId, id)))
       .orderBy(desc(activity.occurredAt))
       .limit(8),
+    db
+      .select({ id: memo.id, status: memo.status })
+      .from(memo)
+      .where(eq(memo.applicationId, id))
+      .orderBy(desc(memo.createdAt))
+      .limit(1),
+    db
+      .select({ id: voteRound.id, memoId: voteRound.memoId, status: voteRound.status })
+      .from(voteRound)
+      .where(and(eq(voteRound.applicationId, id), inArray(voteRound.status, ["open", "revealed"])))
+      .orderBy(desc(voteRound.createdAt))
+      .limit(1),
   ]);
 
   // Mean score per criterion, with the number of reviewers behind it — a 4.3
@@ -134,7 +147,13 @@ export async function getApplicationPeek(orgId: string, id: string) {
     return { id: c.id, label: c.label, mean, count };
   });
 
-  return { app: { ...app, nextStepOverdue }, scoring, activities };
+  return {
+    app: { ...app, nextStepOverdue },
+    scoring,
+    activities,
+    latestMemo: latestMemoRows[0] ?? null,
+    activeRound: latestRoundRows[0] ?? null,
+  };
 }
 
 export type ApplicationPeek = NonNullable<Awaited<ReturnType<typeof getApplicationPeek>>>;
