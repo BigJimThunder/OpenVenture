@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { StageStepper } from "@/components/applications/stage-stepper";
 import { NoteComposer } from "@/components/applications/note-composer";
 import { EnrichButton } from "@/components/applications/enrich-button";
+import { Scorecard } from "@/components/applications/scorecard";
 
 export const dynamic = "force-dynamic";
 
@@ -117,22 +118,25 @@ export default async function ApplicationDetailPage({
               <CardHeader>
                 <CardTitle>Screening</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-1.5">
-                {criteria.map((c) => {
-                  const myScores = scores.filter((s) => s.criterionId === c.id);
-                  const avg =
-                    myScores.length > 0
-                      ? myScores.reduce((n, s) => n + s.score, 0) / myScores.length
-                      : null;
-                  return (
-                    <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="min-w-0 truncate">{c.label}</span>
-                      <span className="tnum shrink-0 text-xs text-fg-muted">
-                        {avg != null ? `${avg.toFixed(1)} / 5 · ${myScores.length}` : "—"}
-                      </span>
-                    </div>
-                  );
-                })}
+              <CardContent>
+                <Scorecard
+                  applicationId={app.id}
+                  criteria={criteria.map((c) => {
+                    const rows = scores.filter((s) => s.criterionId === c.id);
+                    return {
+                      id: c.id,
+                      label: c.label,
+                      description: c.description,
+                      mean:
+                        rows.length > 0
+                          ? rows.reduce((n, s) => n + s.score, 0) / rows.length
+                          : null,
+                      count: rows.length,
+                      myScore:
+                        rows.find((s) => s.scoredByMemberId === ctx.member.id)?.score ?? null,
+                    };
+                  })}
+                />
               </CardContent>
             </Card>
           )}
