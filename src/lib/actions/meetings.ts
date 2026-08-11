@@ -225,6 +225,7 @@ export const toggleActionItem = authedAction({
       .where(eq(actionItem.id, row.id));
     if (row.meetingId) revalidatePath(`/meetings/${row.meetingId}`);
     revalidatePath("/");
+    revalidatePath("/my-work");
     return { data: { ok: true } };
   },
 });
