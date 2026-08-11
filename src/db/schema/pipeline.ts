@@ -175,58 +175,73 @@ export type DeclineReason = (typeof DECLINE_REASONS)[number];
 export const TEAM_COMPOSITIONS = ["solo", "cofounded"] as const;
 export const TEAM_STUDENT_MIX = ["all_students", "mixed", "non_students"] as const;
 
-export const application = pgTable("application", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  orgId: uuid("org_id")
-    .notNull()
-    .references(() => organization.id),
-  companyId: uuid("company_id")
-    .notNull()
-    .references(() => company.id),
-  stageId: uuid("stage_id")
-    .notNull()
-    .references(() => pipelineStage.id),
-  /** Fractional kanban position within the stage column. */
-  position: numeric("position", { precision: 12, scale: 6 }).notNull().default("0"),
-  status: text("status").$type<ApplicationStatus>().notNull().default("open"),
-  ownerMemberId: uuid("owner_member_id").references(() => member.id),
-  sourcedByMemberId: uuid("sourced_by_member_id").references(() => member.id),
-  sourceId: uuid("source_id").references(() => dealSource.id),
-  sourceDetail: text("source_detail"),
+/**
+ * Triage priority. Ordered most- to least-urgent so the UI can sort on the
+ * index; "none" is the default because an unscreened application hasn't been
+ * judged yet and a fake "medium" would be a lie the board reads as signal.
+ */
+export const APPLICATION_PRIORITIES = ["urgent", "high", "medium", "low", "none"] as const;
+export type ApplicationPriority = (typeof APPLICATION_PRIORITIES)[number];
 
-  // — grant ask, straight off the application form —
-  amountRequested: numeric("amount_requested", { precision: 20, scale: 2 }),
-  useOfFundsNarrative: text("use_of_funds_narrative"),
-  pitchSummary: text("pitch_summary"),
+export const application = pgTable(
+  "application",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organization.id),
+    /** Per-org sequential number behind the human-readable ref (APP-141). */
+    ref: integer("ref").notNull(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => company.id),
+    stageId: uuid("stage_id")
+      .notNull()
+      .references(() => pipelineStage.id),
+    /** Fractional kanban position within the stage column. */
+    position: numeric("position", { precision: 12, scale: 6 }).notNull().default("0"),
+    status: text("status").$type<ApplicationStatus>().notNull().default("open"),
+    priority: text("priority").$type<ApplicationPriority>().notNull().default("none"),
+    ownerMemberId: uuid("owner_member_id").references(() => member.id),
+    sourcedByMemberId: uuid("sourced_by_member_id").references(() => member.id),
+    sourceId: uuid("source_id").references(() => dealSource.id),
+    sourceDetail: text("source_detail"),
 
-  // — academic/team fields (analytics; low sensitivity, displayable) —
-  applicantName: text("applicant_name"),
-  applicantEmail: text("applicant_email"),
-  department: text("department"),
-  major: text("major"),
-  school: text("school"),
-  classYear: integer("class_year"),
-  teamSize: integer("team_size"),
-  teamComposition: text("team_composition"),
-  teamStudentMix: text("team_student_mix"),
-  /** Campus source: which org, event, dorm, class brought them in. */
-  campusSource: text("campus_source"),
-  howHeard: text("how_heard"),
+    // — grant ask, straight off the application form —
+    amountRequested: numeric("amount_requested", { precision: 20, scale: 2 }),
+    useOfFundsNarrative: text("use_of_funds_narrative"),
+    pitchSummary: text("pitch_summary"),
 
-  // — decision —
-  declineReason: text("decline_reason").$type<DeclineReason>(),
-  declineNote: text("decline_note"),
-  decidedAt: timestamp("decided_at", { withTimezone: true }),
-  nextStep: text("next_step"),
-  nextStepDue: timestamp("next_step_due", { withTimezone: true }),
+    // — academic/team fields (analytics; low sensitivity, displayable) —
+    applicantName: text("applicant_name"),
+    applicantEmail: text("applicant_email"),
+    department: text("department"),
+    major: text("major"),
+    school: text("school"),
+    classYear: integer("class_year"),
+    teamSize: integer("team_size"),
+    teamComposition: text("team_composition"),
+    teamStudentMix: text("team_student_mix"),
+    /** Campus source: which org, event, dorm, class brought them in. */
+    campusSource: text("campus_source"),
+    howHeard: text("how_heard"),
 
-  appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
-  enteredStageAt: timestamp("entered_stage_at", { withTimezone: true }).notNull().defaultNow(),
-  custom: jsonb("custom").$type<Record<string, unknown>>().notNull().default({}),
-  archivedAt: timestamp("archived_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+    // — decision —
+    declineReason: text("decline_reason").$type<DeclineReason>(),
+    declineNote: text("decline_note"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    nextStep: text("next_step"),
+    nextStepDue: timestamp("next_step_due", { withTimezone: true }),
+
+    appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
+    enteredStageAt: timestamp("entered_stage_at", { withTimezone: true }).notNull().defaultNow(),
+    custom: jsonb("custom").$type<Record<string, unknown>>().notNull().default({}),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("application_org_ref_idx").on(t.orgId, t.ref)]
+);
 
 /**
  * Optional self-reported founder demographics. Write-once, aggregate-read ONLY.

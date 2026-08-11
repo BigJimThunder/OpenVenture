@@ -12,6 +12,7 @@ import {
   stageHistory,
   activity,
 } from "@/db/schema";
+import { withRef } from "@/lib/refs-server";
 
 /**
  * Write-only application intake. The club's existing website form POSTs here —
@@ -142,28 +143,39 @@ export async function POST(req: NextRequest) {
     companyId = co.id;
   }
 
-  const [app] = await db
-    .insert(application)
-    .values({
-      orgId: org.id,
-      companyId,
-      stageId: entry.id,
-      pitchSummary: input.pitchSummary,
-      amountRequested: input.amountRequested != null ? String(input.amountRequested) : null,
-      useOfFundsNarrative: input.useOfFunds,
-      applicantName: input.applicantName,
-      applicantEmail: input.applicantEmail,
-      department: input.department,
-      major: input.major,
-      school: input.school,
-      classYear: input.classYear,
-      teamSize: input.teamSize,
-      teamComposition: input.teamComposition,
-      teamStudentMix: input.teamStudentMix,
-      campusSource: input.campusSource,
-      howHeard: input.howHeard,
-    })
-    .returning();
+  const app = await withRef(
+    application,
+    application.orgId,
+    application.ref,
+    org.id,
+    async (ref) => {
+      const [inserted] = await db
+        .insert(application)
+        .values({
+          orgId: org.id,
+          ref,
+          companyId,
+          stageId: entry.id,
+          pitchSummary: input.pitchSummary,
+          amountRequested:
+            input.amountRequested != null ? String(input.amountRequested) : null,
+          useOfFundsNarrative: input.useOfFunds,
+          applicantName: input.applicantName,
+          applicantEmail: input.applicantEmail,
+          department: input.department,
+          major: input.major,
+          school: input.school,
+          classYear: input.classYear,
+          teamSize: input.teamSize,
+          teamComposition: input.teamComposition,
+          teamStudentMix: input.teamStudentMix,
+          campusSource: input.campusSource,
+          howHeard: input.howHeard,
+        })
+        .returning();
+      return inserted;
+    }
+  );
 
   await db.insert(stageHistory).values({
     orgId: org.id,
@@ -204,7 +216,7 @@ export async function POST(req: NextRequest) {
         text: `🆕 New application: *${input.companyName}*${
           input.amountRequested ? ` — asking $${input.amountRequested.toLocaleString()}` : ""
         }${input.pitchSummary ? `\n> ${input.pitchSummary.slice(0, 280)}` : ""}${
-          base ? `\n<${base}/applications/${app.id}|Open in OpenVenture>` : ""
+          base ? `\n<${base}/pipeline/${app.id}|Open in OpenVenture>` : ""
         }`,
       }),
     }).catch(() => {});

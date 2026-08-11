@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ApplicationDetailPage({
   params,
-}: PageProps<"/applications/[id]">) {
+}: PageProps<"/pipeline/[id]">) {
   const ctx = await requireCtx();
   const { id } = await params;
   const detail = await getApplicationDetail(ctx.org.id, id);

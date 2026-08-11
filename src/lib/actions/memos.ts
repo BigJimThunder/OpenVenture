@@ -16,6 +16,7 @@ import {
   member,
   MEMO_RECOMMENDATIONS,
 } from "@/db/schema";
+import { withRef } from "@/lib/refs-server";
 import { authedAction, ActionError } from "./safe-action";
 import { sendEmail } from "@/lib/email";
 import { formatMoney } from "@/lib/utils";
@@ -59,16 +60,20 @@ export const createMemo = authedAction({
       templateId = t?.id;
     }
 
-    const [row] = await db
-      .insert(memo)
-      .values({
-        orgId: ctx.org.id,
-        applicationId: app.id,
-        templateId: templateId ?? null,
-        title: `${app.companyName} — grant memo`,
-        authorMemberId: ctx.member.id,
-      })
-      .returning();
+    const row = await withRef(memo, memo.orgId, memo.ref, ctx.org.id, async (ref) => {
+      const [inserted] = await db
+        .insert(memo)
+        .values({
+          orgId: ctx.org.id,
+          ref,
+          applicationId: app.id,
+          templateId: templateId ?? null,
+          title: `${app.companyName} — grant memo`,
+          authorMemberId: ctx.member.id,
+        })
+        .returning();
+      return inserted;
+    });
 
     // Instantiate the template's sections as the live draft (versionId NULL).
     if (templateId) {
@@ -90,7 +95,7 @@ export const createMemo = authedAction({
     }
 
     revalidatePath("/memos");
-    revalidatePath(`/applications/${app.id}`);
+    revalidatePath(`/pipeline/${app.id}`);
     return {
       data: { memoId: row.id, existed: false as boolean },
       activity: {

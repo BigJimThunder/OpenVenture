@@ -8,6 +8,13 @@
       "when": 1786404257746,
       "tag": "0000_silent_rockslide",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786439528384,
+      "tag": "0001_overrated_dark_beast",
+      "breakpoints": true
     }
   ]
 }

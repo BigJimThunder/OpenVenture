@@ -19,11 +19,33 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-/** Fast add — must take under 10 seconds for the common case. */
-export function NewApplicationDialog() {
+/**
+ * Fast add — must take under 10 seconds for the common case.
+ *
+ * Renders its own button by default. Pass `open`/`onOpenChange` to drive it
+ * from elsewhere (the sidebar button, the `C` shortcut, the command palette);
+ * in that mode the trigger is omitted.
+ */
+export function NewApplicationDialog({
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+} = {}) {
   const router = useRouter();
-  const [open, setOpen] = React.useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+
+  const controlled = controlledOpen !== undefined;
+  const open = controlled ? controlledOpen : uncontrolledOpen;
+  const setOpen = React.useCallback(
+    (next: boolean) => {
+      if (controlled) onOpenChange?.(next);
+      else setUncontrolledOpen(next);
+    },
+    [controlled, onOpenChange]
+  );
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -47,18 +69,20 @@ export function NewApplicationDialog() {
     if (res.data.duplicate) {
       toast.info("That company already has an open application — opening it.");
     }
-    router.push(`/applications/${res.data.applicationId}`);
+    router.push(`/pipeline/${res.data.applicationId}`);
     router.refresh();
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <PlusIcon />
-          New application
-        </Button>
-      </DialogTrigger>
+      {!controlled && (
+        <DialogTrigger asChild>
+          <Button size="sm">
+            <PlusIcon />
+            New application
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New application</DialogTitle>

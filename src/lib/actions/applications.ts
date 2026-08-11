@@ -12,6 +12,7 @@ import {
   applicationNote,
   DECLINE_REASONS,
 } from "@/db/schema";
+import { withRef } from "@/lib/refs-server";
 import { authedAction, ActionError } from "./safe-action";
 
 export const createApplication = authedAction({
@@ -74,20 +75,30 @@ export const createApplication = authedAction({
       })
       .returning();
 
-    const [app] = await db
-      .insert(application)
-      .values({
-        orgId: ctx.org.id,
-        companyId: co.id,
-        stageId: entry.id,
-        ownerMemberId: ctx.member.id,
-        sourcedByMemberId: ctx.member.id,
-        applicantName: input.applicantName,
-        applicantEmail: input.applicantEmail || null,
-        amountRequested: input.amountRequested != null ? String(input.amountRequested) : null,
-        pitchSummary: input.pitchSummary,
-      })
-      .returning();
+    const app = await withRef(
+      application,
+      application.orgId,
+      application.ref,
+      ctx.org.id,
+      async (ref) => {
+        const [row] = await db
+          .insert(application)
+          .values({
+            orgId: ctx.org.id,
+            ref,
+            companyId: co.id,
+            stageId: entry.id,
+            ownerMemberId: ctx.member.id,
+            sourcedByMemberId: ctx.member.id,
+            applicantName: input.applicantName,
+            applicantEmail: input.applicantEmail || null,
+            amountRequested: input.amountRequested != null ? String(input.amountRequested) : null,
+            pitchSummary: input.pitchSummary,
+          })
+          .returning();
+        return row;
+      }
+    );
 
     await db.insert(stageHistory).values({
       orgId: ctx.org.id,
@@ -96,7 +107,7 @@ export const createApplication = authedAction({
       movedByMemberId: ctx.member.id,
     });
 
-    revalidatePath("/applications");
+    revalidatePath("/pipeline");
     return {
       data: { applicationId: app.id, duplicate: false as boolean },
       activity: {
@@ -174,8 +185,8 @@ export const moveApplicationStage = authedAction({
       note: input.note,
     });
 
-    revalidatePath("/applications");
-    revalidatePath(`/applications/${app.id}`);
+    revalidatePath("/pipeline");
+    revalidatePath(`/pipeline/${app.id}`);
     return {
       data: { ok: true },
       activity: {
@@ -228,7 +239,7 @@ export const addApplicationNote = authedAction({
       })
       .returning();
 
-    revalidatePath(`/applications/${input.applicationId}`);
+    revalidatePath(`/pipeline/${input.applicationId}`);
     return {
       data: { noteId: note.id },
       activity: {

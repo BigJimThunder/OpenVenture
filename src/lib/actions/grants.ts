@@ -23,7 +23,7 @@ function revalidateGrants(applicationId?: string | null) {
   revalidatePath("/grants");
   revalidatePath("/grants/budget");
   revalidatePath("/");
-  if (applicationId) revalidatePath(`/applications/${applicationId}`);
+  if (applicationId) revalidatePath(`/pipeline/${applicationId}`);
 }
 
 async function loadGrant(orgId: string, grantId: string) {
