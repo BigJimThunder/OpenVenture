@@ -20,23 +20,29 @@ export type MeetingKind = (typeof MEETING_KINDS)[number];
 export const MEETING_STATUSES = ["scheduled", "in_progress", "completed", "cancelled"] as const;
 export type MeetingStatus = (typeof MEETING_STATUSES)[number];
 
-export const meeting = pgTable("meeting", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  orgId: uuid("org_id")
-    .notNull()
-    .references(() => organization.id),
-  title: text("title").notNull(),
-  kind: text("kind").$type<MeetingKind>().notNull().default("general"),
-  scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
-  durationMinutes: integer("duration_minutes").notNull().default(60),
-  location: text("location"),
-  videoUrl: text("video_url"),
-  status: text("status").$type<MeetingStatus>().notNull().default("scheduled"),
-  notes: text("notes"),
-  recapSentAt: timestamp("recap_sent_at", { withTimezone: true }),
-  createdByMemberId: uuid("created_by_member_id").references(() => member.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const meeting = pgTable(
+  "meeting",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organization.id),
+    /** Per-org sequential number behind the human-readable ref (MTG-12). */
+    ref: integer("ref").notNull(),
+    title: text("title").notNull(),
+    kind: text("kind").$type<MeetingKind>().notNull().default("general"),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
+    durationMinutes: integer("duration_minutes").notNull().default(60),
+    location: text("location"),
+    videoUrl: text("video_url"),
+    status: text("status").$type<MeetingStatus>().notNull().default("scheduled"),
+    notes: text("notes"),
+    recapSentAt: timestamp("recap_sent_at", { withTimezone: true }),
+    createdByMemberId: uuid("created_by_member_id").references(() => member.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("meeting_org_ref_idx").on(t.orgId, t.ref)]
+);
 
 export const AGENDA_ITEM_KINDS = [
   "application_review",
@@ -92,23 +98,29 @@ export const attendance = pgTable(
 export const ACTION_ITEM_STATUSES = ["open", "done", "cancelled"] as const;
 export type ActionItemStatus = (typeof ACTION_ITEM_STATUSES)[number];
 
-export const actionItem = pgTable("action_item", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  orgId: uuid("org_id")
-    .notNull()
-    .references(() => organization.id),
-  meetingId: uuid("meeting_id").references(() => meeting.id, { onDelete: "set null" }),
-  agendaItemId: uuid("agenda_item_id").references(() => agendaItem.id, { onDelete: "set null" }),
-  applicationId: uuid("application_id").references(() => application.id, { onDelete: "set null" }),
-  title: text("title").notNull(),
-  description: text("description"),
-  assigneeMemberId: uuid("assignee_member_id").references(() => member.id),
-  createdByMemberId: uuid("created_by_member_id").references(() => member.id),
-  dueAt: timestamp("due_at", { withTimezone: true }),
-  status: text("status").$type<ActionItemStatus>().notNull().default("open"),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const actionItem = pgTable(
+  "action_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organization.id),
+    /** Per-org sequential number behind the human-readable ref (TSK-84). */
+    ref: integer("ref").notNull(),
+    meetingId: uuid("meeting_id").references(() => meeting.id, { onDelete: "set null" }),
+    agendaItemId: uuid("agenda_item_id").references(() => agendaItem.id, { onDelete: "set null" }),
+    applicationId: uuid("application_id").references(() => application.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    assigneeMemberId: uuid("assignee_member_id").references(() => member.id),
+    createdByMemberId: uuid("created_by_member_id").references(() => member.id),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    status: text("status").$type<ActionItemStatus>().notNull().default("open"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("action_item_org_ref_idx").on(t.orgId, t.ref)]
+);
 
 // ——— Onboarding ———
 

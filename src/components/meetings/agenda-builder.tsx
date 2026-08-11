@@ -94,7 +94,7 @@ export function AgendaBuilder({
               <div className="flex items-center gap-2">
                 <span className={cn("truncate text-sm", item.status === "done" && "line-through")}>
                   {item.applicationId ? (
-                    <Link href={`/applications/${item.applicationId}`} className="hover:text-accent">
+                    <Link href={`/pipeline/${item.applicationId}`} className="hover:text-accent">
                       {item.title}
                     </Link>
                   ) : (

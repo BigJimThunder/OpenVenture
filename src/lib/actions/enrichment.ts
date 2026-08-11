@@ -120,8 +120,8 @@ export const enrichCompany = authedAction({
         .where(eq(company.id, c.id));
     }
 
-    revalidatePath("/applications");
-    if (input.applicationId) revalidatePath(`/applications/${input.applicationId}`);
+    revalidatePath("/pipeline");
+    if (input.applicationId) revalidatePath(`/pipeline/${input.applicationId}`);
 
     return {
       data: { filled, skippedLocked, sectorGuess, title: meta.title },

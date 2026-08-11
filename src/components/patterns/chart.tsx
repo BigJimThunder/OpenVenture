@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { ResponsiveContainer } from "recharts";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 /**
@@ -68,11 +67,17 @@ export function ChartTooltip({
   );
 }
 
+/**
+ * Hairline panel: title on the left, the chart's question on the right. The
+ * caption is deliberately a question ("are we only pulling from CS?") — these
+ * charts exist to teach members what to ask, not just to report.
+ */
 export function ChartFrame({
   title,
   description,
   height = 260,
   empty,
+  legend,
   children,
   className,
 }: {
@@ -81,18 +86,29 @@ export function ChartFrame({
   height?: number;
   /** When set, renders the empty message instead of the chart. */
   empty?: string | false;
+  /** Required for two or more series — identity is never colour alone. */
+  legend?: { label: string; color: string }[];
   children: React.ReactElement;
   className?: string;
 }) {
   return (
-    <Card className={cn("overflow-hidden", className)}>
-      {(title || description) && (
-        <CardHeader>
-          {title && <CardTitle>{title}</CardTitle>}
-          {description && <CardDescription>{description}</CardDescription>}
-        </CardHeader>
+    <div
+      className={cn(
+        "flex flex-col overflow-hidden rounded-md border border-border bg-panel",
+        className
       )}
-      <div className="px-2 pb-3 pt-1" style={{ height }}>
+    >
+      {(title || description) && (
+        <div className="flex items-baseline justify-between gap-3 border-b border-border px-3 py-2.5">
+          {title && <span className="text-xs font-semibold">{title}</span>}
+          {description && (
+            <span className="shrink-0 text-2xs text-fg-subtle">{description}</span>
+          )}
+        </div>
+      )}
+      {/* Grows to fill the grid row so panels never end in dead space; `height`
+          is the floor, not a fixed size. */}
+      <div className="flex-1 px-1 pt-2" style={{ minHeight: height }}>
         {empty ? (
           <div className="flex h-full items-center justify-center text-xs text-fg-muted">
             {empty}
@@ -103,6 +119,16 @@ export function ChartFrame({
           </ResponsiveContainer>
         )}
       </div>
-    </Card>
+      {legend && !empty && (
+        <div className="flex flex-wrap gap-3 px-3 pt-1 pb-2.5 text-2xs text-fg-muted">
+          {legend.map((l) => (
+            <span key={l.label} className="inline-flex items-center gap-1.5">
+              <span className="size-2 rounded-[2px]" style={{ background: l.color }} />
+              {l.label}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
