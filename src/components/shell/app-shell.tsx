@@ -73,7 +73,11 @@ export function AppShell({
           onNewApplication={() => setComposerOpen(true)}
         />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col print:block">{children}</div>
+      {/* The one scroll container: document-style pages overflow here; screen-style
+          pages (h-full roots) fit exactly and manage their own inner scroll. */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto print:block print:overflow-visible">
+        {children}
+      </div>
       <div className="print:hidden">
         <CommandPalette
           open={paletteOpen}

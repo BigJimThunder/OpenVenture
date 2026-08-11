@@ -545,6 +545,83 @@ export const setNextStep = authedAction({
   },
 });
 
+export const updateApplicationFacts = authedAction({
+  minRole: "analyst",
+  input: z.object({
+    applicationId: z.string().uuid(),
+    applicantName: z.string().max(120).nullable(),
+    applicantEmail: z.string().email("Invalid email").max(200).nullable(),
+    department: z.string().max(120).nullable(),
+    classYear: z.coerce.number().int().min(1950).max(2100).nullable(),
+    campusSource: z.string().max(120).nullable(),
+    teamSize: z.coerce.number().int().min(1).max(200).nullable(),
+    ownerMemberId: z.string().uuid().nullable(),
+  }),
+  handler: async (input, ctx) => {
+    const [app] = await db
+      .select({
+        id: application.id,
+        companyName: company.name,
+        applicantName: application.applicantName,
+        applicantEmail: application.applicantEmail,
+        department: application.department,
+        classYear: application.classYear,
+        campusSource: application.campusSource,
+        teamSize: application.teamSize,
+        ownerMemberId: application.ownerMemberId,
+      })
+      .from(application)
+      .innerJoin(company, eq(application.companyId, company.id))
+      .where(and(eq(application.id, input.applicationId), eq(application.orgId, ctx.org.id)))
+      .limit(1);
+    if (!app) throw new ActionError("Application not found");
+
+    if (input.ownerMemberId) {
+      const [owner] = await db
+        .select({ id: member.id })
+        .from(member)
+        .where(and(eq(member.id, input.ownerMemberId), eq(member.orgId, ctx.org.id)))
+        .limit(1);
+      if (!owner) throw new ActionError("Owner is not a member of this club");
+    }
+
+    const next = {
+      applicantName: input.applicantName?.trim() || null,
+      applicantEmail: input.applicantEmail?.trim() || null,
+      department: input.department?.trim() || null,
+      classYear: input.classYear,
+      campusSource: input.campusSource?.trim() || null,
+      teamSize: input.teamSize,
+      ownerMemberId: input.ownerMemberId,
+    };
+
+    const diff: Record<string, { from: unknown; to: unknown }> = {};
+    for (const key of Object.keys(next) as (keyof typeof next)[]) {
+      if ((app[key] ?? null) !== next[key]) diff[key] = { from: app[key] ?? null, to: next[key] };
+    }
+    if (Object.keys(diff).length === 0) return { data: { ok: true } };
+
+    await db
+      .update(application)
+      .set({ ...next, updatedAt: new Date() })
+      .where(eq(application.id, app.id));
+
+    revalidatePath(`/pipeline/${app.id}`);
+    revalidatePath("/pipeline");
+    return {
+      data: { ok: true },
+      activity: {
+        verb: "application.facts_updated",
+        entityType: "application",
+        entityId: app.id,
+        entityLabel: app.companyName,
+        summary: `${ctx.member.displayName} updated ${Object.keys(diff).join(", ")} on ${app.companyName}`,
+        diff,
+      },
+    };
+  },
+});
+
 export const addApplicationNote = authedAction({
   minRole: "analyst",
   input: z.object({
