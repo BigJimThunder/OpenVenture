@@ -91,6 +91,28 @@ describe("pre-reveal (blind)", () => {
   });
 });
 
+describe("viewer flags", () => {
+  it("flags a recused viewer pre-reveal and post-reveal", () => {
+    const pre = redactVoteResults(openRound, ballots, eligibility, "r");
+    expect(pre.viewerIsRecused).toBe(true);
+    expect(pre.viewerIsEligible).toBe(true);
+    const post = redactVoteResults(revealedRound, ballots, eligibility, "r");
+    expect(post.viewerIsRecused).toBe(true);
+  });
+
+  it("a non-recused voter is eligible, not recused", () => {
+    const r = redactVoteResults(openRound, ballots, eligibility, "a");
+    expect(r.viewerIsRecused).toBe(false);
+    expect(r.viewerIsEligible).toBe(true);
+  });
+
+  it("a viewer outside the eligibility list is neither", () => {
+    const r = redactVoteResults(openRound, ballots, eligibility, "stranger");
+    expect(r.viewerIsRecused).toBe(false);
+    expect(r.viewerIsEligible).toBe(false);
+  });
+});
+
 describe("post-reveal", () => {
   it("exposes ballots sorted by conviction (outliers first) and the missing list", () => {
     const r = redactVoteResults(revealedRound, ballots, eligibility, "c");

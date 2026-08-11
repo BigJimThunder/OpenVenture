@@ -31,7 +31,7 @@ export default async function RunMeetingPage({ params }: PageProps<"/meetings/[i
         notes: i.item.notes,
         applicationId: i.item.applicationId,
         voteRoundId: i.item.voteRoundId,
-        memoIdForVote: null,
+        memoIdForVote: i.voteMemoId,
       }))}
       members={detail.members}
       attendance={Object.fromEntries(detail.attendanceRows.map((a) => [a.memberId, a.status]))}

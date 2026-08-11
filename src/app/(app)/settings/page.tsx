@@ -1,50 +1,143 @@
+import { and, asc, isNull, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { pipelineStage } from "@/db/schema";
 import { requireCtx } from "@/lib/actions/context";
 import { calendarToken } from "@/lib/calendar";
+import { currentFiscalQuarter } from "@/lib/queries/reports";
+import { getPools } from "@/lib/queries/grants";
+import { formatMoney } from "@/lib/utils";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { NewPoolDialog } from "@/components/grants/new-pool-dialog";
+import { StageManager } from "@/components/settings/stage-manager";
+import {
+  CriteriaManager,
+  SectorManager,
+  DealSourceManager,
+} from "@/components/settings/lookup-sections";
+import { getLookups } from "@/lib/queries/lookups";
 import { IngestSettings } from "./ingest-settings";
+import { ClubSettings } from "./club-settings";
 
 export const metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const ctx = await requireCtx("admin");
+  const [pools, stages, lookups] = await Promise.all([
+    getPools(ctx.org.id),
+    db
+      .select()
+      .from(pipelineStage)
+      .where(and(eq(pipelineStage.orgId, ctx.org.id), isNull(pipelineStage.archivedAt)))
+      .orderBy(asc(pipelineStage.position)),
+    getLookups(ctx.org.id),
+  ]);
+  const { fiscalYear } = currentFiscalQuarter(ctx.org.fiscalYearStartMonth);
 
   return (
     <div className="pb-10">
-      <PageHeader
-        title="Settings"
-        description="Club configuration. Stages, criteria, templates, and members UIs land with their modules."
-      />
+      <PageHeader title="Settings" description="Club configuration." />
       <div className="flex max-w-2xl flex-col gap-3 px-6">
         <Card>
           <CardHeader>
             <CardTitle>Club</CardTitle>
           </CardHeader>
+          <CardContent>
+            <ClubSettings
+              org={{
+                name: ctx.org.name,
+                schoolName: ctx.org.schoolName,
+                allowedEmailDomains: ctx.org.allowedEmailDomains,
+                fiscalYearStartMonth: ctx.org.fiscalYearStartMonth,
+                timezone: ctx.org.timezone,
+              }}
+              timezones={Intl.supportedValuesOf("timeZone")}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <CardTitle>Grant pools</CardTitle>
+              <CardDescription>One pool per fiscal year; rollover carries what&apos;s left.</CardDescription>
+            </div>
+            <NewPoolDialog defaultFiscalYear={pools.some((p) => p.fiscalYear === fiscalYear) ? fiscalYear + 1 : fiscalYear} />
+          </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-fg-muted">Name</span>
-              <span>{ctx.org.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-fg-muted">School</span>
-              <span>{ctx.org.schoolName ?? "—"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-fg-muted">Sign-in restricted to</span>
-              <span>
-                {ctx.org.allowedEmailDomains.length > 0 ? (
-                  ctx.org.allowedEmailDomains.map((d) => (
-                    <Badge key={d} variant="neutral" className="ml-1">
-                      @{d}
-                    </Badge>
-                  ))
-                ) : (
-                  "any domain"
-                )}
-              </span>
-            </div>
+            {pools.length === 0 ? (
+              <p className="text-fg-muted">No pools yet — create the fiscal-year pool to start granting.</p>
+            ) : (
+              pools.map((p) => (
+                <div key={p.id} className="flex items-center justify-between">
+                  <span>
+                    {p.name}
+                    <span className="ml-2 text-xs text-fg-muted">FY{p.fiscalYear}</span>
+                  </span>
+                  <span className="tnum text-xs text-fg-muted">
+                    {formatMoney(p.totalBudget)}
+                    {Number(p.rolloverFromPrior) > 0
+                      ? ` + ${formatMoney(p.rolloverFromPrior)} rollover`
+                      : ""}
+                  </span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Pipeline stages</CardTitle>
+            <CardDescription>
+              Rename, reorder, and set the gates an application must clear to advance. Funnel
+              metrics group by stage kind, so renames never break analytics.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StageManager stages={stages} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Screening criteria</CardTitle>
+            <CardDescription>
+              The 1–5 scorecard every member fills during Screening. Archiving keeps old scores.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CriteriaManager
+              items={lookups.criteria.map((c) => ({
+                id: c.id,
+                label: c.label,
+                hint: c.description,
+              }))}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Sectors</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SectorManager
+              items={lookups.sectors.map((s) => ({ id: s.id, label: s.name }))}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Deal sources</CardTitle>
+            <CardDescription>Where applications come from — powers sourcing analytics.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DealSourceManager
+              items={lookups.sources.map((s) => ({ id: s.id, label: s.name, hint: s.kind }))}
+            />
           </CardContent>
         </Card>
 

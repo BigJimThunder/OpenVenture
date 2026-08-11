@@ -51,6 +51,7 @@ export const openVoteRound = authedAction({
     closesInHours: z.coerce.number().min(1).max(24 * 14).default(48),
     recusedMemberIds: z.array(z.string().uuid()).default([]),
     quorum: z.coerce.number().int().min(1).optional(),
+    meetingId: z.string().uuid().optional(),
   }),
   handler: async (input, ctx) => {
     const [m] = await db
@@ -88,6 +89,7 @@ export const openVoteRound = authedAction({
         orgId: ctx.org.id,
         applicationId: m.applicationId,
         memoId: m.memo.id,
+        meetingId: input.meetingId,
         title: `IC vote: ${m.companyName}`,
         opensAt: now,
         closesAt,

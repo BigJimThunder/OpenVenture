@@ -27,7 +27,7 @@ export async function PeekPanel({
 }) {
   const peek = await getApplicationPeek(orgId, applicationId);
   if (!peek) return null;
-  const { app, scoring, activities } = peek;
+  const { app, scoring, activities, latestMemo, activeRound } = peek;
 
   const currentIdx = stages.findIndex((s) => s.id === app.stageId);
   const scored = scoring.filter((s) => s.mean != null);
@@ -145,6 +145,14 @@ export async function PeekPanel({
           <Row label="Applied">
             <span className="tnum text-xs">{format(app.appliedAt, "MMM d, yyyy")}</span>
           </Row>
+          {app.nextStep && (
+            <Row label="Next step">
+              <span className={app.nextStepOverdue ? "text-xs text-danger" : "text-xs"}>
+                {app.nextStep}
+                {app.nextStepDue ? ` · ${format(app.nextStepDue, "MMM d")}` : ""}
+              </span>
+            </Row>
+          )}
           {app.companyDomain && (
             <Row label="Website">
               <a
@@ -215,7 +223,12 @@ export async function PeekPanel({
         )}
       </div>
 
-      <PeekActions applicationId={app.id} />
+      <PeekActions
+        applicationId={app.id}
+        memoId={latestMemo && latestMemo.status !== "archived" ? latestMemo.id : null}
+        voteMemoId={activeRound?.memoId ?? null}
+        canDecline={app.status === "open"}
+      />
     </aside>
   );
 }

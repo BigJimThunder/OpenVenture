@@ -31,6 +31,19 @@ export function formatCompact(n: number) {
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 }
 
+/**
+ * Academic-year season (Jul–Jun) — the club's unit of time, not the calendar
+ * year. A date in Oct 2025 and one in Mar 2026 are both season 2025.
+ */
+export function seasonStartYear(date: Date) {
+  return date.getMonth() >= 6 ? date.getFullYear() : date.getFullYear() - 1;
+}
+
+/** e.g. 2025 → "2025–26" */
+export function seasonLabel(startYear: number) {
+  return `${startYear}–${String(startYear + 1).slice(2)}`;
+}
+
 export function initials(name: string) {
   return name
     .split(/\s+/)

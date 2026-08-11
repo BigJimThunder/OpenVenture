@@ -47,12 +47,9 @@ export default async function VotePage({ params }: PageProps<"/memos/[id]/vote">
   if (!results) notFound();
   const { round } = results;
   const isPartnerPlus = ctx.member.role === "admin" || ctx.member.role === "partner";
-  const isEligible =
-    !!results.myBallot ||
-    (round.status === "open" &&
-      // eligibility check happens server-side on submit; the form shows for
-      // any non-read-only member and errors cleanly if recused
-      ctx.member.role !== "read_only");
+  // Eligibility comes from the round's own list — no role-based guessing, and
+  // a recused member sees a notice instead of a form that errors on submit.
+  const isEligible = results.viewerIsEligible && !results.viewerIsRecused;
 
   return (
     <div className="pb-10">
@@ -118,6 +115,18 @@ export default async function VotePage({ params }: PageProps<"/memos/[id]/vote">
             </div>
           </CardContent>
         </Card>
+
+        {results.viewerIsRecused && (
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4 text-sm">
+              <EyeOffIcon className="size-4 shrink-0 text-fg-subtle" />
+              <span>
+                You&apos;re recused from this vote. Participation counts stay visible;
+                ballots don&apos;t.
+              </span>
+            </CardContent>
+          </Card>
+        )}
 
         {round.status === "open" && isEligible && (
           <VoteForm

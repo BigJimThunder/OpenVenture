@@ -2,7 +2,7 @@ import Link from "next/link";
 import { formatDistanceToNowStrict, format } from "date-fns";
 import { ChevronDownIcon, VoteIcon, CalendarIcon, CircleDashedIcon } from "lucide-react";
 import { requireCtx } from "@/lib/actions/context";
-import { getDashboardData, slaBreachDays } from "@/lib/queries/dashboard";
+import { getDashboardData, isOverdue, slaBreachDays } from "@/lib/queries/dashboard";
 import { formatMoney, initials, cn } from "@/lib/utils";
 import { formatRef } from "@/lib/refs";
 import { ScreenHeader, ScreenFooter } from "@/components/shell/screen-header";
@@ -101,6 +101,11 @@ export default async function InboxPage() {
                 </span>
                 {breach && (
                   <span className="shrink-0 text-[11.5px] text-danger">SLA {breach}d breached</span>
+                )}
+                {a.nextStep && isOverdue(a.nextStepDue) && (
+                  <span className="shrink-0 truncate text-[11.5px] text-danger">
+                    overdue: {a.nextStep}
+                  </span>
                 )}
                 <span className="tnum ml-auto shrink-0 text-xs text-fg-muted">
                   {a.amountRequested ? formatMoney(a.amountRequested) : ""}
