@@ -1,3 +1,6 @@
+import { and, asc, isNull, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { pipelineStage } from "@/db/schema";
 import { requireCtx } from "@/lib/actions/context";
 import { calendarToken } from "@/lib/calendar";
 import { currentFiscalQuarter } from "@/lib/queries/reports";
@@ -6,6 +9,7 @@ import { formatMoney } from "@/lib/utils";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NewPoolDialog } from "@/components/grants/new-pool-dialog";
+import { StageManager } from "@/components/settings/stage-manager";
 import { IngestSettings } from "./ingest-settings";
 import { ClubSettings } from "./club-settings";
 
@@ -14,7 +18,14 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const ctx = await requireCtx("admin");
-  const pools = await getPools(ctx.org.id);
+  const [pools, stages] = await Promise.all([
+    getPools(ctx.org.id),
+    db
+      .select()
+      .from(pipelineStage)
+      .where(and(eq(pipelineStage.orgId, ctx.org.id), isNull(pipelineStage.archivedAt)))
+      .orderBy(asc(pipelineStage.position)),
+  ]);
   const { fiscalYear } = currentFiscalQuarter(ctx.org.fiscalYearStartMonth);
 
   return (
@@ -66,6 +77,19 @@ export default async function SettingsPage() {
                 </div>
               ))
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Pipeline stages</CardTitle>
+            <CardDescription>
+              Rename, reorder, and set the gates an application must clear to advance. Funnel
+              metrics group by stage kind, so renames never break analytics.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StageManager stages={stages} />
           </CardContent>
         </Card>
 
