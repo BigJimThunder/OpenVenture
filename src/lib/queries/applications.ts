@@ -1,4 +1,4 @@
-import { and, eq, asc, desc, isNull } from "drizzle-orm";
+import { and, eq, asc, desc, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   application,
@@ -205,18 +205,26 @@ export async function getApplicationDetail(orgId: string, id: string) {
     ]);
 
   const chatIds = chats.map((c) => c.id);
-  const attendees = chatIds.length
-    ? await db
-        .select({
-          coffeeChatId: coffeeChatAttendee.coffeeChatId,
-          verdict: coffeeChatAttendee.verdict,
-          note: coffeeChatAttendee.note,
-          memberName: member.displayName,
-        })
-        .from(coffeeChatAttendee)
-        .innerJoin(member, eq(coffeeChatAttendee.memberId, member.id))
-        .where(eq(coffeeChatAttendee.coffeeChatId, chatIds[0]))
-    : [];
+  const [attendees, activeMembers] = await Promise.all([
+    chatIds.length
+      ? db
+          .select({
+            coffeeChatId: coffeeChatAttendee.coffeeChatId,
+            memberId: coffeeChatAttendee.memberId,
+            verdict: coffeeChatAttendee.verdict,
+            note: coffeeChatAttendee.note,
+            memberName: member.displayName,
+          })
+          .from(coffeeChatAttendee)
+          .innerJoin(member, eq(coffeeChatAttendee.memberId, member.id))
+          .where(inArray(coffeeChatAttendee.coffeeChatId, chatIds))
+      : Promise.resolve([]),
+    db
+      .select({ id: member.id, displayName: member.displayName })
+      .from(member)
+      .where(and(eq(member.orgId, orgId), eq(member.status, "active")))
+      .orderBy(asc(member.displayName)),
+  ]);
 
   return {
     app,
@@ -226,6 +234,7 @@ export async function getApplicationDetail(orgId: string, id: string) {
     notes,
     chats,
     attendees,
+    activeMembers,
     criteria,
     scores,
     activities,

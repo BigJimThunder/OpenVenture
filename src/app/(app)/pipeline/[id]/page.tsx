@@ -18,6 +18,8 @@ import { StageStepper } from "@/components/applications/stage-stepper";
 import { NoteComposer } from "@/components/applications/note-composer";
 import { EnrichButton } from "@/components/applications/enrich-button";
 import { Scorecard } from "@/components/applications/scorecard";
+import { CoffeeChatDialog } from "@/components/applications/coffee-chat-dialog";
+import { CoffeeChatCard } from "@/components/applications/coffee-chat-card";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +31,7 @@ export default async function ApplicationDetailPage({
   const detail = await getApplicationDetail(ctx.org.id, id);
   if (!detail) notFound();
 
-  const { app, company, stages, history, notes, chats, criteria, scores, memos, grants, owner } = detail;
+  const { app, company, stages, history, notes, chats, attendees, activeMembers, criteria, scores, memos, grants, owner } = detail;
   const currentStage = stages.find((s) => s.id === app.stageId);
 
   // Grant CTA: late-stage or funded, and no live grant yet.
@@ -141,42 +143,36 @@ export default async function ApplicationDetailPage({
             </Card>
           )}
 
-          {chats.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Coffee chats</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                {chats.map((c) => (
-                  <div key={c.id} className="rounded-md border border-border p-3">
-                    <div className="flex items-center justify-between text-xs text-fg-muted">
-                      <span>
-                        {c.happenedAt
-                          ? format(c.happenedAt, "MMM d, yyyy")
-                          : c.scheduledAt
-                            ? `Scheduled ${format(c.scheduledAt, "MMM d, p")}`
-                            : "Unscheduled"}
-                      </span>
-                      {c.verdict && (
-                        <Badge
-                          variant={
-                            c.verdict === "advance"
-                              ? "success"
-                              : c.verdict === "decline"
-                                ? "danger"
-                                : "neutral"
-                          }
-                        >
-                          {c.verdict}
-                        </Badge>
-                      )}
-                    </div>
-                    {c.debrief && <p className="mt-2 text-sm leading-relaxed">{c.debrief}</p>}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle>Coffee chats</CardTitle>
+              {app.status === "open" && (
+                <CoffeeChatDialog
+                  applicationId={app.id}
+                  members={activeMembers}
+                  viewerMemberId={ctx.member.id}
+                />
+              )}
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {chats.length === 0 && (
+                <p className="text-sm text-fg-muted">
+                  No coffee chats yet
+                  {currentStage?.minAttendees
+                    ? ` — ${currentStage.minAttendees} recorded verdicts are needed to advance past ${currentStage.name}.`
+                    : "."}
+                </p>
+              )}
+              {chats.map((c) => (
+                <CoffeeChatCard
+                  key={c.id}
+                  chat={c}
+                  attendees={attendees.filter((a) => a.coffeeChatId === c.id)}
+                  viewerMemberId={ctx.member.id}
+                />
+              ))}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
