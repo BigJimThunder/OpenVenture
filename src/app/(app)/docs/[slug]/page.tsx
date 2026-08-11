@@ -7,6 +7,7 @@ import { requireCtx, roleAtLeast } from "@/lib/actions/context";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Badge } from "@/components/ui/badge";
 import { DocEditor } from "@/components/docs/doc-editor";
+import { PinButton } from "@/components/docs/pin-button";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,11 @@ export default async function DocPage({ params }: PageProps<"/docs/[slug]">) {
           </span>
         }
         description={`Updated ${format(d.updatedAt, "MMM d, yyyy")} · edits autosave`}
+        actions={
+          roleAtLeast(ctx.member.role, "partner") ? (
+            <PinButton docId={d.id} pinned={d.isPinned} />
+          ) : undefined
+        }
       />
       <div className="max-w-3xl px-6">
         <DocEditor
