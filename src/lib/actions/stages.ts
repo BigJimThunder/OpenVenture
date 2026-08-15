@@ -10,7 +10,7 @@ import { authedAction, ActionError } from "./safe-action";
 function revalidateStages() {
   revalidatePath("/settings");
   revalidatePath("/pipeline");
-  revalidatePath("/");
+  revalidatePath("/inbox");
 }
 
 async function loadStage(orgId: string, stageId: string) {

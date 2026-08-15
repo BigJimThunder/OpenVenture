@@ -201,7 +201,7 @@ export const createActionItem = authedAction({
       }
     );
     if (input.meetingId) revalidatePath(`/meetings/${input.meetingId}`);
-    revalidatePath("/");
+    revalidatePath("/inbox");
     return { data: { actionItemId: row.id } };
   },
 });
@@ -224,7 +224,7 @@ export const toggleActionItem = authedAction({
       })
       .where(eq(actionItem.id, row.id));
     if (row.meetingId) revalidatePath(`/meetings/${row.meetingId}`);
-    revalidatePath("/");
+    revalidatePath("/inbox");
     revalidatePath("/my-work");
     return { data: { ok: true } };
   },
