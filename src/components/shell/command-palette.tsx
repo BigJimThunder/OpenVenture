@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/command";
 
 const PAGES: { href: Route; label: string; icon: React.ComponentType; shortcut?: string }[] = [
-  { href: "/", label: "Inbox", icon: InboxIcon, shortcut: "g h" },
+  { href: "/inbox", label: "Inbox", icon: InboxIcon, shortcut: "g h" },
   { href: "/my-work", label: "My work", icon: CheckSquareIcon, shortcut: "g w" },
   { href: "/pipeline", label: "Pipeline", icon: KanbanIcon, shortcut: "g a" },
   { href: "/memos", label: "Memos", icon: FileTextIcon, shortcut: "g m" },

@@ -24,7 +24,7 @@ import { formatMoney } from "@/lib/utils";
 function revalidateGrants(applicationId?: string | null) {
   revalidatePath("/grants");
   revalidatePath("/grants/budget");
-  revalidatePath("/");
+  revalidatePath("/inbox");
   if (applicationId) revalidatePath(`/pipeline/${applicationId}`);
 }
 

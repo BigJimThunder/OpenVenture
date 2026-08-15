@@ -22,7 +22,7 @@ function revalidateVote(memoId: string | null, applicationId?: string) {
   revalidatePath("/memos");
   if (memoId) revalidatePath(`/memos/${memoId}`);
   if (applicationId) revalidatePath(`/pipeline/${applicationId}`);
-  revalidatePath("/");
+  revalidatePath("/inbox");
 }
 
 async function loadRound(orgId: string, roundId: string) {

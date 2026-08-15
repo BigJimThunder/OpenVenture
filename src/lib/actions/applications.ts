@@ -528,7 +528,7 @@ export const setNextStep = authedAction({
 
     revalidatePath(`/pipeline/${app.id}`);
     revalidatePath("/pipeline");
-    revalidatePath("/");
+    revalidatePath("/inbox");
     return {
       data: { ok: true },
       activity: {

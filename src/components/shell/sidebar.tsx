@@ -45,7 +45,7 @@ type NavItem = {
 };
 
 const PERSONAL: NavItem[] = [
-  { href: "/", label: "Inbox", icon: InboxIcon },
+  { href: "/inbox", label: "Inbox", icon: InboxIcon },
   { href: "/my-work", label: "My work", icon: CheckSquareIcon },
 ];
 
@@ -148,7 +148,7 @@ export function Sidebar({
         <NavGroup>
           {PERSONAL.map((item) => (
             <NavLink key={item.href} item={item} active={isActive(item.href)}>
-              {item.href === "/" && inboxCount > 0 && (
+              {item.href === "/inbox" && inboxCount > 0 && (
                 <span className="tnum ml-auto flex h-4 min-w-[18px] items-center justify-center rounded-full bg-accent-subtle px-1.5 text-[10.5px] font-semibold text-accent">
                   {inboxCount}
                 </span>
