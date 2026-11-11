@@ -9,6 +9,7 @@ import {
   annualProgress,
   currentFiscalYear,
   fiscalYearLabel,
+  fiscalYearPhase,
   fiscalYearWindow,
   parseAnnualContent,
 } from "@/lib/reports/annual";
@@ -61,7 +62,7 @@ export default async function AnnualReportsPage() {
         <ul className="flex max-w-3xl flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-panel shadow-xs">
           {rows.map(({ fiscalYear, report, window, progress }) => {
             const lastDay = new Date(window.end.getTime() - 86_400_000);
-            const running = window.end.getTime() > Date.now();
+            const running = fiscalYearPhase(fiscalYear, startMonth) === "running";
             const readable = report && (report.status !== "draft" || canContribute);
             const href =
               report && report.status !== "draft"

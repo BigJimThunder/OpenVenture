@@ -31,7 +31,7 @@ const THESIS = [
 ].join("\n\n");
 
 const SUMMARY =
-  "Most of what we do for founders is not the check. Every applicant who reaches a coffee chat leaves with written feedback, and this year four of the founders we declined asked to meet again. We count that as the work going well.";
+  "Most of what we do for founders is not the check. Every applicant who reaches a coffee chat leaves with written feedback, and this year two of the founders we declined asked to meet again. We count that as the work going well.";
 
 const TEAM_STATEMENT =
   "We are fifteen undergraduates who meet every Friday at six. Nobody is paid, and nobody votes on a company they have a stake in. Half of us joined in the last two years, so we write things down: every decision in this report has a memo and a recorded vote behind it.";
@@ -99,7 +99,7 @@ const ESSAYS: Record<string, { essay: string; state: "edited" | "ai"; reviewed: 
 
 const LOOKING_FORWARD = [
   "We were slower than we wanted to be. Our median decision took longer than the three weeks we promise founders, and two applications sat in screening past their deadline because the member who owned them was in midterms. Next year every application gets a second owner on the day it arrives.",
-  "We also said no to things we could have helped. Most of our declines were for being too early, and for those founders a decline letter is not much use. We have started offering a coffee chat to every declined applicant, and we want to turn that into a standing office hour.",
+  "We also said no to founders we could have helped. For a student whose idea is not ready, a decline letter is not much use. We have started offering a coffee chat to every declined applicant, and we want to turn that into a standing office hour.",
   "The pool is not yet fully committed, and we would rather carry money into the spring than fund a company to hit a number.",
 ].join("\n\n");
 
@@ -194,7 +194,15 @@ export async function seedExampleAnnualReport(orgId: string, memberId: string) {
     .values(values)
     .onConflictDoUpdate({
       target: [report.orgId, report.kind, report.periodKey],
-      set: { content: values.content, status: "draft", snapshot: null, updatedAt: new Date() },
+      set: {
+        content: values.content,
+        status: "draft",
+        snapshot: null,
+        finalizedAt: null,
+        sentAt: null,
+        sentTo: null,
+        updatedAt: new Date(),
+      },
     });
   return example;
 }

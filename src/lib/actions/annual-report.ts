@@ -24,6 +24,7 @@ import {
   opAllowedForAuthor,
   parseAnnualContent,
   parseAnnualSnapshot,
+  parseRecipients,
   syncAnnualContent,
   type AnnualContent,
   type AnnualOp,
@@ -295,14 +296,6 @@ export const reopenAnnualReport = authedAction({
   },
 });
 
-function recipients(raw: string): string[] {
-  const emails = raw
-    .split(/[\s,;]+/)
-    .map((e) => e.trim().toLowerCase())
-    .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
-  return [...new Set(emails)];
-}
-
 /** Email the club's supporters a link and a short summary. Only a final report can go out. */
 export const sendAnnualReport = authedAction({
   minRole: "partner",
@@ -310,7 +303,7 @@ export const sendAnnualReport = authedAction({
   handler: async ({ reportId, note }, ctx) => {
     const row = await loadAnnual(ctx, reportId);
     if (row.status === "draft") throw new ActionError("Finalize the report before sending it.");
-    const to = recipients(orgSettings(ctx.org).reports.lpEmails);
+    const to = parseRecipients(orgSettings(ctx.org).reports.lpEmails);
     if (to.length === 0) {
       throw new ActionError("No supporter emails are set. An admin adds them in Settings, under Reports.");
     }

@@ -7,7 +7,7 @@ import { requireCtx } from "@/lib/actions/context";
 import { orgSettings } from "@/lib/org-settings";
 import { can } from "@/lib/permissions";
 import { getAnnualReportView } from "@/lib/queries/annual-report";
-import { annualSummary, buildPublication } from "@/lib/reports/annual";
+import { annualSummary, buildPublication, parseRecipients } from "@/lib/reports/annual";
 import { NoAccess } from "@/components/patterns/no-access";
 import { Badge } from "@/components/ui/badge";
 import { Publication } from "@/components/reports/annual/publication";
@@ -37,14 +37,7 @@ export default async function AnnualReportReaderPage({ params }: { params: Promi
   }
 
   const pub = buildPublication(content, derived);
-  const recipients = [
-    ...new Set(
-      orgSettings(ctx.org)
-        .reports.lpEmails.split(/[\s,;]+/)
-        .map((e) => e.trim().toLowerCase())
-        .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
-    ),
-  ];
+  const recipients = parseRecipients(orgSettings(ctx.org).reports.lpEmails);
 
   return (
     <div className="min-h-full bg-bg-subtle pb-16 print:min-h-0 print:bg-transparent print:pb-0">

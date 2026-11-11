@@ -230,7 +230,7 @@ export function ReaderActions({
               Cancel
             </Button>
             <Button className="max-sm:h-10" onClick={send} disabled={busy || recipients.length === 0}>
-              {busy ? "Sending…" : `Send to ${recipients.length || "nobody"}`}
+              {busy ? "Sending…" : recipients.length > 0 ? `Send to ${recipients.length}` : "Send"}
             </Button>
           </DialogFooter>
         </DialogContent>

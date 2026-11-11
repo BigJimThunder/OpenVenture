@@ -652,7 +652,7 @@ export function LookingForwardEditor({ reportId, content, derived, apply, canEdi
         />
         {derived.facts.length > 0 && (
           <div className="mt-3">
-            <p className="text-xs font-medium text-fg-muted">Facts from this year's records</p>
+            <p className="text-xs font-medium text-fg-muted">Facts from this year&apos;s records</p>
             <ul className="mt-1.5 flex flex-col gap-1.5">
               {derived.facts.map((fact) => {
                 const used = bodyText.includes(fact.text);

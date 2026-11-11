@@ -5,7 +5,7 @@ import { aiConfigured } from "@/lib/ai";
 import { orgSettings } from "@/lib/org-settings";
 import { can } from "@/lib/permissions";
 import { getAnnualMaterials, getAnnualReportView } from "@/lib/queries/annual-report";
-import { fiscalYearLabel, fiscalYearWindow } from "@/lib/reports/annual";
+import { fiscalYearLabel, fiscalYearPhase } from "@/lib/reports/annual";
 import { AnnualBuilder } from "@/components/reports/annual/builder";
 import { StartAnnualReport } from "@/components/reports/annual/start-report";
 
@@ -24,13 +24,13 @@ export default async function AnnualReportBuilderPage({ params }: { params: Prom
   }
 
   if (!view) {
-    const window = fiscalYearWindow(fiscalYear, ctx.org.fiscalYearStartMonth);
+    const phase = fiscalYearPhase(fiscalYear, ctx.org.fiscalYearStartMonth);
     return (
       <StartAnnualReport
         fiscalYear={fiscalYear}
         label={fiscalYearLabel(fiscalYear, ctx.org.fiscalYearStartMonth)}
-        inProgress={window.end.getTime() > Date.now()}
-        notStarted={window.start.getTime() > Date.now()}
+        inProgress={phase === "running"}
+        notStarted={phase === "upcoming"}
       />
     );
   }

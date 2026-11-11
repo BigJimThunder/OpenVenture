@@ -11,15 +11,16 @@ import {
   countPrompts,
   currentFiscalYear,
   fiscalYearLabel,
+  fiscalYearPhase,
   fiscalYearWindow,
   isImageUrl,
   meetingsAsStats,
   opAllowedForAuthor,
   parseAnnualContent,
+  parseRecipients,
   progressFromOutcomes,
   publicationToMarkdown,
   spreadStatus,
-  starterEssay,
   syncAnnualContent,
   type ActivityRows,
   type AnnualDerived,
@@ -40,6 +41,12 @@ describe("fiscal year", () => {
     expect(currentFiscalYear(7, d("2026-06-30"))).toBe(2025);
     expect(currentFiscalYear(7, d("2026-07-01"))).toBe(2026);
     expect(currentFiscalYear(1, d("2026-03-01"))).toBe(2026);
+  });
+
+  it("knows whether a year is ahead, running or closed", () => {
+    expect(fiscalYearPhase(2026, 7, d("2026-06-30"))).toBe("upcoming");
+    expect(fiscalYearPhase(2026, 7, d("2026-11-11"))).toBe("running");
+    expect(fiscalYearPhase(2026, 7, d("2027-07-01"))).toBe("ended");
   });
 
   it("labels a straddling year with both years and a calendar year with one", () => {
@@ -330,6 +337,14 @@ describe("content parsing", () => {
     });
     expect(reordered.sections.map((s) => s.id)).toEqual(["mission", "team", "companies", "programs", "looking_forward"]);
     expect(reordered.sections[0].included).toBe(false);
+  });
+
+  it("reads supporter emails however they were typed", () => {
+    expect(parseRecipients("Dean@Example.edu, donor@example.com;\n donor@example.com not-an-email")).toEqual([
+      "dean@example.edu",
+      "donor@example.com",
+    ]);
+    expect(parseRecipients("")).toEqual([]);
   });
 
   it("accepts only http(s) image links", () => {

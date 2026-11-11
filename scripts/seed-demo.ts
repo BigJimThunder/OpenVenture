@@ -1058,6 +1058,12 @@ async function main() {
     occurredAt: daysAgo(5),
   });
 
+  // ——— Annual report ———
+  // A half-finished report for the current fiscal year, so the builder opens
+  // on real work: two essays reviewed, one drafted, one not started, one bio missing.
+  const { seedExampleAnnualReport } = await import("./annual-report-example");
+  await seedExampleAnnualReport(org.id, members[0].id);
+
   console.log(`Seeded: ${COMPANIES.length} applications, ${fundedCount} funded, ${members.length} members.`);
   console.log("Log in as demo@example.com (magic link prints to the server console in dev).");
   process.exit(0);

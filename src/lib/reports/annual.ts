@@ -44,6 +44,17 @@ export function fiscalYearLabel(fiscalYear: number, startMonth: number): string 
   return `${fiscalYear}–${String((fiscalYear + 1) % 100).padStart(2, "0")}`;
 }
 
+/** Where a fiscal year stands today: not begun, still running, or closed. */
+export function fiscalYearPhase(
+  fiscalYear: number,
+  startMonth: number,
+  now: Date = new Date()
+): "upcoming" | "running" | "ended" {
+  const window = fiscalYearWindow(fiscalYear, startMonth);
+  if (now.getTime() < window.start.getTime()) return "upcoming";
+  return now.getTime() < window.end.getTime() ? "running" : "ended";
+}
+
 export function inWindow(date: Date | string | null | undefined, window: FiscalWindow): boolean {
   if (!date) return false;
   const t = new Date(date).getTime();
@@ -391,7 +402,6 @@ const statSchema = z.object({
   /** Custom stats only — things the app does not track ("17"). */
   value: z.string().max(40).nullable().default(null),
 });
-export type AnnualStat = z.infer<typeof statSchema>;
 
 export const annualContentSchema = z.object({
   version: z.literal(1).default(1),
@@ -479,8 +489,6 @@ export const annualContentSchema = z.object({
 });
 export type AnnualContent = z.infer<typeof annualContentSchema>;
 export type AnnualTeamMember = AnnualContent["team"]["members"][number];
-export type AnnualProgram = AnnualContent["programs"][number];
-export type AnnualUnfunded = AnnualContent["lookingForward"]["unfunded"][number];
 
 /**
  * Stored content → current shape. Never throws: unknown or malformed content
@@ -1047,6 +1055,15 @@ export function publicationToMarkdown(pub: Publication): string {
     }
   }
   return out.filter(Boolean).join("\n\n");
+}
+
+/** Supporter emails as typed in Settings (commas, spaces or new lines) → a clean, de-duplicated list. */
+export function parseRecipients(raw: string): string[] {
+  const emails = raw
+    .split(/[\s,;]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+  return [...new Set(emails)];
 }
 
 /** Two sentences for the email that announces the report. */
