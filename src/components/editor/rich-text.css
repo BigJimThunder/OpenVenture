@@ -1,0 +1,232 @@
+/* Typography shared by RichTextEditor and RichTextView, so what a member
+   writes is exactly what readers (and the printer) get. Tokens only. */
+
+.rt {
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.rt > :first-child,
+.rt .ProseMirror > :first-child {
+  margin-top: 0;
+}
+.rt > :last-child,
+.rt .ProseMirror > :last-child {
+  margin-bottom: 0;
+}
+.rt p {
+  margin: 0.7em 0;
+}
+.rt :is(h1, h2, h3) {
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+  margin: 1.5em 0 0.4em;
+  break-after: avoid;
+}
+.rt :is(ul, ol) {
+  margin: 0.7em 0;
+  padding-left: 1.5em;
+}
+.rt ul {
+  list-style: disc;
+}
+.rt ol {
+  list-style: decimal;
+}
+.rt ul ul {
+  list-style: circle;
+}
+.rt li {
+  margin: 0.2em 0;
+  padding-left: 0.15em;
+}
+.rt li::marker {
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.rt li > p {
+  margin: 0;
+}
+.rt li > :is(ul, ol) {
+  margin: 0.2em 0;
+}
+.rt blockquote {
+  margin: 1em 0;
+  padding-left: 1em;
+  border-left: 3px solid var(--border-strong);
+  color: var(--fg-muted);
+}
+.rt hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.8em 0;
+}
+.rt a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, var(--accent) 40%, transparent);
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+.rt a:hover {
+  text-decoration-color: currentColor;
+}
+.rt strong {
+  font-weight: 650;
+}
+.rt code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.08em 0.3em;
+}
+.rt pre {
+  margin: 1em 0;
+  padding: 0.75em 1em;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+.rt pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Document: the page-like serif surface (pairs with .prose-surface). */
+.rt-document {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+.rt-document h1 {
+  font-size: 1.625rem;
+}
+.rt-document h2 {
+  font-size: 1.3125rem;
+}
+.rt-document h3 {
+  font-size: 1.0625rem;
+}
+.rt-document :is(h1, h2, h3) {
+  font-family: var(--font-display);
+}
+
+/* Field: compact sans for comments, notes and short commentary. */
+.rt-field {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.rt-field h1 {
+  font-size: 1.125rem;
+}
+.rt-field h2 {
+  font-size: 1rem;
+}
+.rt-field h3 {
+  font-size: 0.875rem;
+}
+.rt-field p,
+.rt-field :is(ul, ol) {
+  margin: 0.5em 0;
+}
+
+/* ——— Editor chrome ——— */
+.rt-editor {
+  position: relative;
+}
+.rt-editor .ProseMirror {
+  outline: none;
+  min-height: var(--rt-min-h, 5rem);
+  white-space: pre-wrap;
+}
+.rt-editor.rt-document .ProseMirror {
+  min-height: var(--rt-min-h, 8rem);
+}
+.rt-editor.rt-field {
+  border: 1px solid var(--border-strong);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--panel);
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color 120ms,
+    box-shadow 120ms;
+  cursor: text;
+}
+.rt-editor.rt-field .ProseMirror {
+  padding: 0.5rem 0.75rem;
+}
+.rt-editor.rt-field:hover {
+  border-color: color-mix(in oklch, var(--fg-subtle) 70%, var(--border-strong));
+}
+.rt-editor.rt-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 22%, transparent);
+}
+@media (pointer: coarse) {
+  /* Below 16px, phones zoom the page when the caret lands. */
+  .rt-editor.rt-field {
+    font-size: 1rem;
+  }
+}
+
+/* Placeholders. The first one teaches; later empty lines whisper the slash hint. */
+.rt-editor .ProseMirror :is(p, h1, h2, h3).is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--fg-subtle);
+}
+.rt-editor .ProseMirror :is(p, h1, h2, h3).is-empty:not(.is-editor-empty)::before {
+  opacity: 0;
+}
+.rt-editor.rt-document .ProseMirror.ProseMirror-focused > p.is-empty:not(.is-editor-empty)::before {
+  opacity: 0.75;
+}
+.rt-editor .ProseMirror ::selection {
+  background: color-mix(in oklch, var(--accent) 24%, transparent);
+}
+.rt-editor .ProseMirror-gapcursor::after {
+  border-top-color: var(--fg);
+}
+.rt-editor hr.ProseMirror-selectednode {
+  border-top-color: var(--accent);
+  box-shadow: 0 1px 0 var(--accent);
+}
+
+@media print {
+  .rt {
+    color: #000;
+  }
+  .rt a {
+    color: inherit;
+  }
+  .rt :is(blockquote, pre, li) {
+    break-inside: avoid;
+  }
+  .rt p {
+    orphans: 3;
+    widows: 3;
+  }
+  .rt-editor.rt-field {
+    border: 0;
+    box-shadow: none;
+  }
+  .rt-editor.rt-field .ProseMirror {
+    padding: 0;
+  }
+  .rt-editor .ProseMirror {
+    min-height: 0;
+  }
+  .rt-editor .ProseMirror .is-empty::before {
+    content: none;
+  }
+}

@@ -1,22 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
+import type { JSONContent } from "@tiptap/react";
 import { SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { updateMemoSection } from "@/lib/actions/memos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RichTextEditor } from "@/components/editor/rich-text";
+import { docToText, isDocEmpty } from "@/lib/rich-text";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
-const PROSE =
-  "prose-surface min-h-20 outline-none [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_h1]:text-md [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_blockquote]:border-l-2 [&_blockquote]:border-border-strong [&_blockquote]:pl-3 [&_blockquote]:text-fg-muted [&_.is-editor-empty]:before:content-[attr(data-placeholder)] [&_.is-editor-empty]:before:text-fg-subtle [&_.is-editor-empty]:before:float-left [&_.is-editor-empty]:before:h-0 [&_.is-editor-empty]:before:pointer-events-none";
-
 /**
- * One memo section: Tiptap with debounced autosave (800ms), flushed if the
+ * One memo section: the shared rich-text editor with debounced autosave (800ms), flushed if the
  * member navigates away mid-debounce. Content is stored as Tiptap JSON plus a
  * plain-text mirror for search and diffing.
  *
@@ -53,35 +50,37 @@ export function SectionEditor({
     [onSaveState, sectionId]
   );
 
-  const editor = useEditor({
-    editable,
-    immediatelyRender: false,
-    extensions: [StarterKit, Placeholder.configure({ placeholder: guidance ?? "Write…" })],
-    content: (initialContent as object) ?? "",
-    editorProps: { attributes: { class: PROSE, "aria-label": title } },
-    onUpdate: ({ editor }) => {
-      setIsAiDraft(false);
-      report("saving");
-      const save = async () => {
-        pending.current = null;
-        const res = await updateMemoSection({
-          sectionId,
-          contentJson: editor.getJSON() as unknown as Record<string, unknown>,
-          contentText: editor.getText(),
-        });
-        if (!res.ok) {
-          report("error");
-          toast.error(`“${title}” didn't save: ${res.error}`);
-          return;
-        }
-        report("saved");
-        onWordCount?.(sectionId, res.data.wordCount);
-      };
-      pending.current = save;
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(save, 800);
-    },
-  });
+  const [doc, setDoc] = React.useState<JSONContent | null>(initialContent as JSONContent | null);
+
+  const persist = React.useCallback(
+    (next: JSONContent) =>
+      updateMemoSection({
+        sectionId,
+        contentJson: next as Record<string, unknown>,
+        contentText: docToText(next),
+      }),
+    [sectionId]
+  );
+
+  function onChange(next: JSONContent) {
+    setDoc(next);
+    setIsAiDraft(false);
+    report("saving");
+    const save = async () => {
+      pending.current = null;
+      const res = await persist(next);
+      if (!res.ok) {
+        report("error");
+        toast.error(`“${title}” didn't save: ${res.error}`);
+        return;
+      }
+      report("saved");
+      onWordCount?.(sectionId, res.data.wordCount);
+    };
+    pending.current = save;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(save, 800);
+  }
 
   // Leaving the page inside the debounce window must not lose the last sentence.
   React.useEffect(() => {
@@ -92,12 +91,8 @@ export function SectionEditor({
   }, []);
 
   async function keepAsWritten() {
-    if (!editor) return;
-    const res = await updateMemoSection({
-      sectionId,
-      contentJson: editor.getJSON() as unknown as Record<string, unknown>,
-      contentText: editor.getText(),
-    });
+    if (!doc) return;
+    const res = await persist(doc);
     if (!res.ok) {
       toast.error(res.error);
       return;
@@ -128,7 +123,18 @@ export function SectionEditor({
           )}
         </div>
       )}
-      <EditorContent editor={editor} />
+      {!editable && isDocEmpty(doc) ? (
+        <p className="text-sm text-fg-subtle">Not written yet.</p>
+      ) : (
+        <RichTextEditor
+          value={doc}
+          onChange={onChange}
+          editable={editable}
+          placeholder={guidance ?? "Type / for blocks, or just start writing"}
+          ariaLabel={title}
+          className="[--rt-min-h:4.5rem]"
+        />
+      )}
     </section>
   );
 }
