@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AI_MODEL } from "@/lib/ai";
 
 /**
  * Optional LLM enrichment pass — strictly additive on top of the deterministic
@@ -40,7 +41,7 @@ export async function llmExtract(input: {
 
   const client = new Anthropic();
   const response = await client.messages.parse({
-    model: "claude-opus-5",
+    model: AI_MODEL,
     max_tokens: 2000,
     messages: [
       {
@@ -60,7 +61,7 @@ export async function llmExtract(input: {
         ].join("\n"),
       },
     ],
-    output_config: { format: zodOutputFormat(ExtractionSchema) },
+    output_config: { effort: "low", format: zodOutputFormat(ExtractionSchema) },
   });
 
   const parsed = response.parsed_output;

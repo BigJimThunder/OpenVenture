@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * The 44px per-screen header. Replaces the old global topbar: chrome is
+ * The 48px per-screen header. Replaces the old global topbar: chrome is
  * suppressed and each screen states its own title, a quiet count/meta line,
  * and whatever view controls it owns on the right.
  */
@@ -19,7 +19,7 @@ export function ScreenHeader({
   return (
     <header
       className={cn(
-        "flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border px-4",
+        "flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4 md:px-5",
         className
       )}
     >
@@ -33,7 +33,7 @@ export function ScreenHeader({
 }
 
 /**
- * Bottom hint rail. Costs 28px and teaches the keyboard path — which matters
+ * Bottom hint rail. Desktop only (phones have no keyboard). Costs 32px and teaches the keyboard path — which matters
  * here because nobody is trained and officers hand the app over in a
  * 20-minute conversation.
  */
@@ -45,7 +45,7 @@ export function ScreenFooter({
   children?: React.ReactNode;
 }) {
   return (
-    <footer className="flex h-7 shrink-0 items-center gap-3.5 border-t border-border px-4 text-2xs text-fg-subtle">
+    <footer className="hidden h-8 shrink-0 items-center gap-3.5 border-t border-border px-4 text-2xs text-fg-subtle md:flex md:px-5">
       {note && <span className="truncate">{note}</span>}
       <span className="ml-auto flex items-center gap-3.5">{children}</span>
     </footer>

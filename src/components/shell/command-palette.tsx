@@ -4,20 +4,13 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import {
-  InboxIcon,
-  CheckSquareIcon,
   KanbanIcon,
   FileTextIcon,
-  BanknoteIcon,
   CalendarIcon,
-  UsersIcon,
-  BarChart3Icon,
-  TrendingUpIcon,
-  FlaskConicalIcon,
-  ScrollTextIcon,
+  UserIcon,
   BookOpenIcon,
   PlusIcon,
-  SettingsIcon,
+  LoaderIcon,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -29,22 +22,25 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
+import { searchEverything, type SearchHit } from "@/lib/actions/search";
+import { NAV_ITEMS } from "./nav";
+import { useCan } from "./viewer";
 
-const PAGES: { href: Route; label: string; icon: React.ComponentType; shortcut?: string }[] = [
-  { href: "/inbox", label: "Inbox", icon: InboxIcon, shortcut: "g h" },
-  { href: "/my-work", label: "My work", icon: CheckSquareIcon, shortcut: "g w" },
-  { href: "/pipeline", label: "Pipeline", icon: KanbanIcon, shortcut: "g a" },
-  { href: "/memos", label: "Memos", icon: FileTextIcon, shortcut: "g m" },
-  { href: "/grants", label: "Grants", icon: BanknoteIcon, shortcut: "g g" },
-  { href: "/meetings", label: "Meetings", icon: CalendarIcon, shortcut: "g e" },
-  { href: "/members", label: "Members", icon: UsersIcon },
-  { href: "/insights", label: "Insights", icon: BarChart3Icon, shortcut: "g i" },
-  { href: "/outcomes", label: "Outcomes", icon: TrendingUpIcon },
-  { href: "/lab", label: "Cap Table Lab", icon: FlaskConicalIcon },
-  { href: "/reports", label: "LP Reports", icon: ScrollTextIcon },
-  { href: "/docs", label: "Docs", icon: BookOpenIcon },
-  { href: "/settings", label: "Settings", icon: SettingsIcon },
-];
+const HIT_ICON: Record<SearchHit["kind"], React.ComponentType> = {
+  application: KanbanIcon,
+  memo: FileTextIcon,
+  member: UserIcon,
+  meeting: CalendarIcon,
+  doc: BookOpenIcon,
+};
+
+const HIT_GROUP: Record<SearchHit["kind"], string> = {
+  application: "Applications",
+  memo: "Memos",
+  member: "Members",
+  meeting: "Meetings",
+  doc: "Docs",
+};
 
 export type PaletteAction = {
   id: string;
@@ -108,17 +104,93 @@ export function CommandPalette({
   onNewApplication?: () => void;
 }) {
   const router = useRouter();
+  const isAdmin = useCan("manageClub");
+  const [query, setQuery] = React.useState("");
+  const [hits, setHits] = React.useState<SearchHit[]>([]);
+  const [searching, setSearching] = React.useState(false);
 
-  function go(href: Route) {
-    onOpenChange(false);
-    router.push(href);
+  // Debounced server search. A sequence guard drops stale responses so fast
+  // typing can't show results for an older query.
+  const seq = React.useRef(0);
+  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
+
+  function onQueryChange(next: string) {
+    setQuery(next);
+    if (timer.current) clearTimeout(timer.current);
+    const q = next.trim();
+    const mine = ++seq.current;
+    if (q.length < 2) {
+      setHits([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    timer.current = setTimeout(async () => {
+      const res = await searchEverything(q).catch(() => []);
+      if (seq.current === mine) {
+        setHits(res);
+        setSearching(false);
+      }
+    }, 140);
   }
 
+  // Always open clean: reset as the palette closes.
+  function handleOpenChange(next: boolean) {
+    if (!next) onQueryChange("");
+    onOpenChange(next);
+  }
+
+  function go(href: string) {
+    handleOpenChange(false);
+    router.push(href as Route);
+  }
+
+  const grouped = (Object.keys(HIT_GROUP) as SearchHit["kind"][])
+    .map((kind) => ({ kind, items: hits.filter((h) => h.kind === kind) }))
+    .filter((g) => g.items.length > 0);
+
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Type a command or search…" />
+    <CommandDialog open={open} onOpenChange={handleOpenChange}>
+      <CommandInput
+        value={query}
+        onValueChange={onQueryChange}
+        placeholder="Search companies, founders, memos, members…"
+      />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>
+          {searching ? (
+            <span className="inline-flex items-center gap-2 text-fg-subtle">
+              <LoaderIcon className="size-3.5 animate-spin" /> Searching…
+            </span>
+          ) : (
+            <>Nothing matches “{query.trim()}”.</>
+          )}
+        </CommandEmpty>
+
+        {grouped.map((g) => {
+          const Icon = HIT_ICON[g.kind];
+          return (
+            <CommandGroup key={g.kind} heading={HIT_GROUP[g.kind]}>
+              {g.items.map((h) => (
+                <CommandItem
+                  key={`${h.kind}-${h.id}`}
+                  // cmdk filters on `value`; include the query so server hits
+                  // matched on a field we don't display (email, domain) stay.
+                  value={`${h.title} ${h.ref ?? ""} ${h.subtitle ?? ""} ${query}`}
+                  onSelect={() => go(h.href)}
+                >
+                  <Icon />
+                  <span className="max-w-[55%] shrink-0 truncate font-medium">{h.title}</span>
+                  {h.subtitle && (
+                    <span className="truncate text-xs text-fg-subtle">{h.subtitle}</span>
+                  )}
+                  {h.ref && <CommandShortcut>{h.ref}</CommandShortcut>}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          );
+        })}
 
         {context && context.actions.length > 0 && (
           <>
@@ -127,7 +199,7 @@ export function CommandPalette({
                 <CommandItem
                   key={a.id}
                   onSelect={() => {
-                    onOpenChange(false);
+                    handleOpenChange(false);
                     a.run();
                   }}
                 >
@@ -141,25 +213,29 @@ export function CommandPalette({
           </>
         )}
 
-        <CommandGroup heading="Create">
-          <CommandItem
-            onSelect={() => {
-              onOpenChange(false);
-              onNewApplication?.();
-            }}
-          >
-            <PlusIcon />
-            New application
-            <CommandShortcut>C</CommandShortcut>
-          </CommandItem>
-        </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="Navigate">
-          {PAGES.map((p) => (
+        {onNewApplication && (
+          <>
+            <CommandGroup heading="Create">
+              <CommandItem
+                onSelect={() => {
+                  handleOpenChange(false);
+                  onNewApplication();
+                }}
+              >
+                <PlusIcon />
+                New application
+                <CommandShortcut>C</CommandShortcut>
+              </CommandItem>
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        )}
+        <CommandGroup heading="Go to">
+          {NAV_ITEMS.filter((p) => !p.adminOnly || isAdmin).map((p) => (
             <CommandItem key={p.href} onSelect={() => go(p.href)}>
               <p.icon />
               {p.label}
-              {p.shortcut && <CommandShortcut>{p.shortcut}</CommandShortcut>}
+              {p.chord && <CommandShortcut>G {p.chord.toUpperCase()}</CommandShortcut>}
             </CommandItem>
           ))}
         </CommandGroup>

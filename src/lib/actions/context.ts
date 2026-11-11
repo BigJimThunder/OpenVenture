@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { headers } from "next/headers";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, inArray, isNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { member, organization, type MemberRole } from "@/db/schema";
@@ -92,7 +92,17 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
     const pending = await db
       .select()
       .from(member)
-      .where(and(eq(member.email, session.user.email.toLowerCase()), isNull(member.userId)))
+      .where(
+        and(
+          eq(member.email, session.user.email.toLowerCase()),
+          isNull(member.userId),
+          // Only a live row links. One that was offboarded or marked
+          // alumni/removed before its first sign-in must not come back to life.
+          // ("active" with no user only occurs for demo-seeded members.)
+          inArray(member.status, ["invited", "active"]),
+          isNull(member.offboardedAt)
+        )
+      )
       .limit(1);
     if (pending[0]) {
       const updated = await db

@@ -5,112 +5,124 @@
 
 /* ————————————————————————————————————————————————————————————————
    OpenVenture design tokens.
-   Single source of truth for both themes. Components consume semantic
+   Single source of truth for both themes. See DESIGN_BRIEF.md §4. Components consume semantic
    tokens only — never raw palette values. OKLCH throughout.
    ———————————————————————————————————————————————————————————————— */
 
 :root {
-  /* Neutral ramp (light) — warm stone, archival paper. Trace chroma only:
-     this must read as white with warmth, never cream. */
-  --bg: oklch(0.982 0.004 80);
-  --bg-subtle: oklch(0.964 0.005 80);
-  --panel: oklch(0.995 0.002 80);
+  /* Neutral ramp (light) — cool graphite. The app canvas (--chrome) is a
+     half-step darker than the working surface (--bg) so the main panel
+     reads as a sheet lifted off the desk. */
+  --chrome: oklch(0.967 0.003 264);
+  --bg: oklch(0.995 0.001 264);
+  --bg-subtle: oklch(0.966 0.003 264);
+  --panel: oklch(1 0 0);
   --panel-raised: oklch(1 0 0);
-  --border: oklch(0.908 0.008 75);
-  --border-strong: oklch(0.84 0.012 70);
-  --fg: oklch(0.245 0.015 40);
-  --fg-muted: oklch(0.48 0.02 40);
-  --fg-subtle: oklch(0.62 0.018 50);
+  --border: oklch(0.922 0.004 264);
+  --border-strong: oklch(0.86 0.006 264);
+  --fg: oklch(0.205 0.012 264);
+  --fg-muted: oklch(0.45 0.012 264);
+  --fg-subtle: oklch(0.6 0.01 264);
 
-  /* Single accent — garnet: collegiate crimson aged toward wine.
-     Primary actions + focus rings only. Kept darker and lower-chroma than
-     --danger so destructive vs. primary never blur. */
-  --accent: oklch(0.46 0.14 15);
-  --accent-hover: oklch(0.41 0.145 15);
-  --accent-fg: oklch(0.985 0.008 60);
-  --accent-subtle: oklch(0.945 0.022 20);
+  /* Single accent — cobalt. Primary actions, selection, focus rings. */
+  --accent: oklch(0.52 0.2 264);
+  --accent-hover: oklch(0.46 0.2 264);
+  --accent-fg: oklch(0.99 0.005 264);
+  --accent-subtle: oklch(0.955 0.025 264);
 
-  /* Semantic — danger sits at vermilion (h32), a full step off the garnet
-     accent and always more chromatic. */
-  --success: oklch(0.55 0.13 150);
-  --success-bg: oklch(0.955 0.035 150);
-  --success-border: oklch(0.86 0.07 150);
-  --warning: oklch(0.6 0.13 80);
-  --warning-bg: oklch(0.96 0.045 85);
-  --warning-border: oklch(0.86 0.08 85);
-  --danger: oklch(0.56 0.19 32);
-  --danger-bg: oklch(0.955 0.03 32);
-  --danger-border: oklch(0.87 0.07 32);
-  --info: oklch(0.55 0.11 245);
-  --info-bg: oklch(0.95 0.03 245);
-  --info-border: oklch(0.86 0.06 245);
+  --success: oklch(0.52 0.13 155);
+  --success-bg: oklch(0.96 0.035 155);
+  --success-border: oklch(0.87 0.07 155);
+  --warning: oklch(0.58 0.13 70);
+  --warning-bg: oklch(0.965 0.045 85);
+  --warning-border: oklch(0.87 0.08 85);
+  --danger: oklch(0.56 0.2 25);
+  --danger-bg: oklch(0.96 0.028 25);
+  --danger-border: oklch(0.88 0.065 25);
+  --info: oklch(0.55 0.12 235);
+  --info-bg: oklch(0.955 0.028 235);
+  --info-border: oklch(0.87 0.06 235);
 
   /* Categorical set — stages, sectors, outcome tiers, chart series.
-     Pinned lightness/chroma; ordered warm/cool alternating so adjacent
-     series (cat-1 vs cat-2 vs cat-3…) stay separable. */
-  --cat-1: oklch(0.5 0.15 15);   /* garnet     */
-  --cat-2: oklch(0.58 0.11 195); /* teal       */
-  --cat-3: oklch(0.66 0.13 90);  /* gold       */
-  --cat-4: oklch(0.55 0.13 275); /* indigo     */
-  --cat-5: oklch(0.56 0.12 150); /* forest     */
-  --cat-6: oklch(0.58 0.15 345); /* magenta    */
-  --cat-7: oklch(0.58 0.12 240); /* blue       */
-  --cat-8: oklch(0.6 0.13 55);   /* copper     */
-  --cat-9: oklch(0.53 0.13 310); /* plum       */
-  --cat-10: oklch(0.55 0.03 60); /* warm slate */
+     Pinned lightness/chroma; ordered so adjacent series stay separable. */
+  --cat-1: oklch(0.55 0.19 264); /* cobalt   */
+  --cat-2: oklch(0.62 0.12 195); /* teal     */
+  --cat-3: oklch(0.7 0.14 80);   /* amber    */
+  --cat-4: oklch(0.56 0.17 300); /* violet   */
+  --cat-5: oklch(0.6 0.14 155);  /* green    */
+  --cat-6: oklch(0.62 0.18 350); /* pink     */
+  --cat-7: oklch(0.64 0.13 235); /* sky      */
+  --cat-8: oklch(0.65 0.16 45);  /* orange   */
+  --cat-9: oklch(0.5 0.13 325);  /* plum     */
+  --cat-10: oklch(0.58 0.02 264); /* slate   */
 
-  --radius: 0.375rem;
+  --radius: 0.5rem;
 
-  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
-  --font-display: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --shadow-xs: 0 1px 2px oklch(0.2 0.02 264 / 0.05);
+  --shadow-sm: 0 1px 2px oklch(0.2 0.02 264 / 0.06), 0 1px 1px oklch(0.2 0.02 264 / 0.03);
+  --shadow-md: 0 4px 12px -2px oklch(0.2 0.02 264 / 0.08), 0 2px 4px -2px oklch(0.2 0.02 264 / 0.05);
+  --shadow-lg: 0 16px 40px -8px oklch(0.2 0.02 264 / 0.16), 0 4px 12px -4px oklch(0.2 0.02 264 / 0.08);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Documents only (memos, docs, LP letters) — the tool itself is all sans. */
+  --font-display: var(--font-source-serif), Georgia, "Times New Roman", serif;
 }
 
 .dark {
-  /* Warm charcoal — reading room after hours, not blue-black. */
-  --bg: oklch(0.165 0.006 50);
-  --bg-subtle: oklch(0.195 0.007 50);
-  --panel: oklch(0.21 0.008 50);
-  --panel-raised: oklch(0.245 0.009 50);
-  --border: oklch(0.29 0.01 50);
-  --border-strong: oklch(0.375 0.012 50);
-  --fg: oklch(0.93 0.008 70);
-  --fg-muted: oklch(0.72 0.012 60);
-  --fg-subtle: oklch(0.56 0.014 55);
+  --chrome: oklch(0.145 0.004 264);
+  --bg: oklch(0.178 0.005 264);
+  --bg-subtle: oklch(0.212 0.006 264);
+  --panel: oklch(0.2 0.006 264);
+  --panel-raised: oklch(0.235 0.007 264);
+  --border: oklch(0.265 0.007 264);
+  --border-strong: oklch(0.35 0.009 264);
+  --fg: oklch(0.95 0.004 264);
+  --fg-muted: oklch(0.72 0.008 264);
+  --fg-subtle: oklch(0.56 0.01 264);
 
-  /* Rose-garnet: muted next to the vivid scarlet of --danger. */
-  --accent: oklch(0.71 0.115 15);
-  --accent-hover: oklch(0.76 0.105 15);
-  --accent-fg: oklch(0.17 0.03 15);
-  --accent-subtle: oklch(0.27 0.05 15);
+  --accent: oklch(0.67 0.16 264);
+  --accent-hover: oklch(0.73 0.14 264);
+  --accent-fg: oklch(0.15 0.03 264);
+  --accent-subtle: oklch(0.27 0.06 264);
 
-  --success: oklch(0.7 0.13 150);
-  --success-bg: oklch(0.24 0.04 150);
-  --success-border: oklch(0.35 0.07 150);
-  --warning: oklch(0.75 0.12 85);
-  --warning-bg: oklch(0.25 0.04 85);
-  --warning-border: oklch(0.37 0.07 85);
-  --danger: oklch(0.66 0.17 32);
-  --danger-bg: oklch(0.24 0.045 32);
-  --danger-border: oklch(0.37 0.08 32);
-  --info: oklch(0.7 0.11 245);
-  --info-bg: oklch(0.24 0.04 245);
-  --info-border: oklch(0.35 0.06 245);
+  --success: oklch(0.72 0.14 155);
+  --success-bg: oklch(0.24 0.04 155);
+  --success-border: oklch(0.35 0.07 155);
+  --warning: oklch(0.77 0.13 80);
+  --warning-bg: oklch(0.25 0.04 80);
+  --warning-border: oklch(0.37 0.07 80);
+  --danger: oklch(0.68 0.18 25);
+  --danger-bg: oklch(0.24 0.05 25);
+  --danger-border: oklch(0.37 0.09 25);
+  --info: oklch(0.72 0.11 235);
+  --info-bg: oklch(0.24 0.04 235);
+  --info-border: oklch(0.35 0.06 235);
 
-  --cat-1: oklch(0.68 0.12 15);
-  --cat-2: oklch(0.7 0.1 195);
-  --cat-3: oklch(0.76 0.12 90);
-  --cat-4: oklch(0.67 0.12 275);
-  --cat-5: oklch(0.7 0.11 150);
-  --cat-6: oklch(0.7 0.13 345);
-  --cat-7: oklch(0.7 0.11 240);
-  --cat-8: oklch(0.72 0.12 55);
-  --cat-9: oklch(0.66 0.12 310);
-  --cat-10: oklch(0.65 0.025 60);
+  --cat-1: oklch(0.68 0.15 264);
+  --cat-2: oklch(0.72 0.11 195);
+  --cat-3: oklch(0.78 0.13 80);
+  --cat-4: oklch(0.7 0.14 300);
+  --cat-5: oklch(0.72 0.13 155);
+  --cat-6: oklch(0.72 0.15 350);
+  --cat-7: oklch(0.74 0.11 235);
+  --cat-8: oklch(0.74 0.14 45);
+  --cat-9: oklch(0.67 0.12 325);
+  --cat-10: oklch(0.66 0.02 264);
+
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.3);
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.35);
+  --shadow-md: 0 4px 12px -2px oklch(0 0 0 / 0.45);
+  --shadow-lg: 0 16px 40px -8px oklch(0 0 0 / 0.6);
 }
 
 @theme inline {
+  --color-chrome: var(--chrome);
   --color-bg: var(--bg);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
   --color-bg-subtle: var(--bg-subtle);
   --color-panel: var(--panel);
   --color-panel-raised: var(--panel-raised);
@@ -178,13 +190,20 @@
   }
   h1, h2, h3, h4 {
     line-height: 1.2;
-    letter-spacing: -0.011em;
+    letter-spacing: -0.014em;
   }
-  /* Page and section titles carry the editorial voice; h3/h4 stay sans so
-     dense card headers don't pick up the serif. */
-  h1, h2 {
-    font-family: var(--font-display);
-    letter-spacing: -0.005em;
+  body {
+    font-feature-settings: "ss01", "cv11";
+  }
+  /* Phones zoom the page when an input is under 16px — keep the dense type
+     on desktop, give touch devices the size they need. */
+  @media (pointer: coarse) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+  :focus-visible {
+    outline-color: var(--accent);
   }
   ::selection {
     background: var(--accent-subtle);
@@ -200,8 +219,21 @@
      documents read like documents; the tool around them stays sans. */
   .prose-surface {
     font-family: var(--font-display);
-    font-size: 1rem;
+    font-size: 1.0625rem;
     line-height: 1.7;
     max-width: 68ch;
+  }
+  .prose-surface :is(h1, h2, h3) {
+    font-family: var(--font-display);
+    letter-spacing: -0.005em;
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }

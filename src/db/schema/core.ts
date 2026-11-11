@@ -6,6 +6,7 @@ import {
   integer,
   uuid,
   jsonb,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -168,3 +169,27 @@ export const activity = pgTable("activity", {
   /** {field: {from, to}} for changed fields only. Keep student PII out. */
   diff: jsonb("diff").$type<Record<string, { from: unknown; to: unknown }>>(),
 });
+
+// ——— Notification log: what the app has already sent on its own.
+//     Scheduled jobs run daily and must be idempotent — a (kind, key) pair is
+//     claimed here before sending, so a retried or overlapping run never
+//     double-emails. Also the audit trail behind Settings → Automations. ———
+
+export const notificationLog = pgTable(
+  "notification_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organization.id),
+    /** e.g. 'weekly_digest', 'sla_nudge', 'vote_reminder', 'founder_received' */
+    kind: text("kind").notNull(),
+    /** Dedupe key within the kind, e.g. `${memberId}:2026-W46` or an application id. */
+    key: text("key").notNull(),
+    /** Who it went to (email or 'slack'); null for jobs with no recipient. */
+    recipient: text("recipient"),
+    summary: text("summary"),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("notification_log_unique").on(t.orgId, t.kind, t.key)]
+);

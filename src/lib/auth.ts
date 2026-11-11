@@ -4,6 +4,7 @@ import { magicLink, emailOTP } from "better-auth/plugins";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { sendEmail, magicLinkEmail } from "@/lib/email";
+import { appUrl } from "@/lib/notify";
 
 /**
  * Magic link + email OTP. The OTP is the escape hatch for university mail
@@ -12,7 +13,9 @@ import { sendEmail, magicLinkEmail } from "@/lib/email";
  * member row, and member rows are invite-only (see ensureMember()).
  */
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  // BETTER_AUTH_URL when set (custom domain); otherwise the Vercel production
+  // URL, so a fresh deploy sends working sign-in links with no configuration.
+  baseURL: appUrl(),
   secret: process.env.BETTER_AUTH_SECRET ?? "dev-secret-do-not-use-in-prod",
   database: drizzleAdapter(db, {
     provider: "pg",

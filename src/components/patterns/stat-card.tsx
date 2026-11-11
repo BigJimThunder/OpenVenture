@@ -1,22 +1,36 @@
 import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
 
+/**
+ * One headline number. `tone` colours the value only when the number itself
+ * is the warning (an overdrawn pool, a breached SLA count).
+ */
 export function StatCard({
   label,
   value,
   hint,
+  tone = "default",
   className,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: React.ReactNode;
+  tone?: "default" | "success" | "warning" | "danger";
   className?: string;
 }) {
   return (
-    <Card className={cn("p-4", className)}>
-      <div className="text-2xs font-medium uppercase tracking-wide text-fg-subtle">{label}</div>
-      <div className="tnum mt-1 text-xl font-semibold tracking-tight">{value}</div>
-      {hint && <div className="mt-0.5 text-xs text-fg-muted">{hint}</div>}
-    </Card>
+    <div className={cn("rounded-lg border border-border bg-panel p-4 shadow-xs", className)}>
+      <div className="text-xs text-fg-muted">{label}</div>
+      <div
+        className={cn(
+          "tnum mt-1.5 text-xl font-semibold tracking-tight",
+          tone === "success" && "text-success",
+          tone === "warning" && "text-warning",
+          tone === "danger" && "text-danger"
+        )}
+      >
+        {value}
+      </div>
+      {hint && <div className="mt-1 text-xs text-fg-subtle">{hint}</div>}
+    </div>
   );
 }
