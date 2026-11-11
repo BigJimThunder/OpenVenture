@@ -664,26 +664,33 @@
     margin: 0;
     overflow: visible;
   }
-  /* Bands and the sidebar bleed to the paper edge; the page box supplies the margins. */
+  /* Chrome clips painting to the page's content box, so nothing can bleed to
+     the paper edge: on paper the bands and the sidebar are inset panels. */
   .band {
-    margin: calc(-1 * var(--page-top)) calc(-1 * var(--page-side)) 9mm;
-    padding: calc(var(--page-top) + 2mm) var(--page-side) 8mm;
+    margin: 0 0 9mm;
+    padding: 9mm 9mm 7mm;
+    border: 0;
+    border-radius: 3mm;
   }
   .companyHead {
-    padding-top: 14mm;
-    padding-bottom: 8mm;
+    padding: 7mm 9mm;
   }
   .sidebar {
-    margin: calc(-1 * var(--page-top)) 0 0 calc(-1 * var(--page-side));
-    padding: calc(var(--page-top) + 1mm) 6mm 8mm var(--page-side);
-    width: calc(11.5rem + var(--page-side));
+    margin: 0;
+    padding: 7mm 6mm 6mm;
+    width: auto;
+    border: 0;
+    border-radius: 3mm;
   }
   .split {
-    grid-template-columns: 11.5rem 1fr;
-    gap: 9mm;
+    grid-template-columns: 10.5rem 1fr;
+    gap: 10mm;
+  }
+  .split > .main {
+    padding-left: 0;
   }
   .cover {
-    width: 8.5in;
+    width: auto;
     height: 11in;
     aspect-ratio: auto;
     background: var(--bg-subtle);

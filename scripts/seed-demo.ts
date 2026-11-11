@@ -168,6 +168,7 @@ async function main() {
 
   // Wipe in FK order.
   for (const table of [
+    t.report, t.apiToken,
     t.receipt, t.grant, t.grantPool,
     t.vote, t.voteEligibility, t.voteRound,
     t.memoComment, t.memoSection, t.memoVersion, t.memo,
@@ -202,6 +203,15 @@ async function main() {
           enabled: true,
           intro:
             "Cardinal Ventures gives grants of $200 to $4,000 to student founders at Example University. We fund the specific thing standing between you and your next milestone: a filing fee, API credits, a prototype run.",
+        },
+        reports: {
+          approverName: "Dana Whitfield",
+          approverEmail: "dana.whitfield@example.edu",
+          lpEmails: "dana.whitfield@example.edu, alumni-board@example.org",
+          mission:
+            "We give small grants to student founders at Example University so the first real experiment does not wait on money.",
+          thesis:
+            "A founder who has already talked to the people with the problem, a specific thing the money buys, and a check small enough that we can say yes within two weeks.",
         },
       },
     })
@@ -954,6 +964,41 @@ async function main() {
       updatedByMemberId: members[1].id,
     },
   ]);
+
+  // One funding request in progress, so Reports shows what a draft looks like:
+  // line items that add up to the ask, and the written parts a member still owes.
+  const requestFor = fundedCandidates[1] ?? fundedCandidates[0];
+  if (requestFor) {
+    const trays = Math.round(requestFor.ask * 0.5);
+    const sensors = Math.round(requestFor.ask * 0.3);
+    const askedItems = [
+      { id: "a1", name: "Materials for the prototype run", amount: trays.toFixed(2) },
+      { id: "a2", name: "Sensors and a test rig", amount: sensors.toFixed(2) },
+      { id: "a3", name: "Printing and signage for the pilot", amount: (requestFor.ask - trays - sensors).toFixed(2) },
+    ];
+    await db.insert(t.report).values({
+      orgId: org.id,
+      kind: "funding_request",
+      periodKey: requestFor.appId,
+      applicationId: requestFor.appId,
+      title: `Funding request: ${requestFor.companyName}`,
+      content: {
+        askedItems,
+        approvedItems: askedItems.slice(0, 2).map((item, i) => ({ ...item, id: `p${i + 1}` })),
+        rationaleFunding:
+          "The founders had already run the pilot by hand for a month before they asked us for anything. The money replaces the parts they were borrowing.",
+        rationaleCuts: "We left out printing and signage. The pilot sites print their own.",
+        summary: `${requestFor.companyName}: ${requestFor.oneLiner}. The first version runs at two sites on campus; the founders want to offer it to other universities once the numbers hold for a full term.`,
+        team: "",
+        upside: [
+          "The team has already done the unglamorous part - they ran the pilot by hand before building anything.",
+        ],
+        concerns: [],
+      },
+      createdByMemberId: requestFor.ownerId,
+      updatedByMemberId: requestFor.ownerId,
+    });
+  }
 
   console.log(`Seeded: ${COMPANIES.length} applications, ${fundedCount} funded, ${members.length} members.`);
   console.log("Log in as demo@example.com (magic link prints to the server console in dev).");

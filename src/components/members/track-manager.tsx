@@ -7,6 +7,7 @@ import {
   ArchiveRestoreIcon,
   ArrowDownIcon,
   ArrowUpIcon,
+  EyeIcon,
   PencilIcon,
   PlusIcon,
   StarIcon,
@@ -16,24 +17,28 @@ import {
 import { toast } from "sonner";
 import {
   addOnboardingTask,
-  assignOnboardingTrack,
   createOnboardingTrack,
   deleteOnboardingTask,
   moveOnboardingTask,
   setDefaultOnboardingTrack,
   setOnboardingTrackArchived,
+  suggestOnboardingResource,
   updateOnboardingTask,
   updateOnboardingTrack,
 } from "@/lib/actions/onboarding";
-import { ONBOARDING_TASK_KINDS, type OnboardingTaskKind } from "@/db/schema";
+import type { OnboardingTaskKind } from "@/db/schema";
+import { detectKind, KIND_META, KIND_ORDER, linkHost, videoEmbed } from "@/lib/onboarding/resource";
+import { cn } from "@/lib/utils";
+import { EnrolDialog } from "@/components/onboarding/enrol-dialog";
+import { ItemStep } from "@/components/onboarding/start-steps";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -48,21 +53,41 @@ import {
 import { ConfirmDialog } from "@/components/patterns/form-confirm-dialog";
 import { Field } from "@/components/patterns/field";
 
-const KIND_LABEL: Record<OnboardingTaskKind, string> = {
-  read: "Read",
-  watch: "Watch",
-  do: "Do",
-  meet: "Meet",
-  submit: "Submit",
-};
-
 type Task = {
   id: string;
   title: string;
   kind: OnboardingTaskKind;
+  description: string | null;
   resourceUrl: string | null;
+  docId: string | null;
   required: boolean;
+  estimatedMinutes: number | null;
 };
+
+type DocOption = { id: string; title: string };
+
+const ACK_TEMPLATE = `What founders tell us stays inside the club. I won't share applications, memos, financials or anything said in a coffee chat with anyone outside it.
+
+Votes are blind. I won't ask how anyone voted, or say how I did, before a partner reveals the round.
+
+If I know a founder personally, or have any stake in their company, I'll say so and recuse myself from the vote.`;
+
+/** What a task row says under its title. */
+function taskMeta(task: Task, docs: DocOption[]): string {
+  const source = task.docId
+    ? `doc: ${docs.find((d) => d.id === task.docId)?.title ?? "no longer available"}`
+    : task.resourceUrl
+      ? (videoEmbed(task.resourceUrl)?.provider ?? linkHost(task.resourceUrl))
+      : null;
+  return [
+    KIND_META[task.kind].label,
+    task.required ? "required" : "optional",
+    task.estimatedMinutes ? `${task.estimatedMinutes} min` : null,
+    source,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 export type TrackRow = {
   id: string;
@@ -80,12 +105,22 @@ type Result = { ok: true } | { ok: false; error: string };
 type Member = { id: string; displayName: string };
 
 /** Admin editor for onboarding tracks: tasks, order, default, who is on them. */
-export function TrackManager({ tracks, members }: { tracks: TrackRow[]; members: Member[] }) {
+export function TrackManager({
+  tracks,
+  members,
+  docs,
+}: {
+  tracks: TrackRow[];
+  members: Member[];
+  /** Docs every member can open — the only ones a track may link to. */
+  docs: DocOption[];
+}) {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
   const [trackDialog, setTrackDialog] = React.useState<TrackRow | "new" | null>(null);
   const [taskDialog, setTaskDialog] = React.useState<{ trackId: string; task: Task | null } | null>(null);
   const [assigning, setAssigning] = React.useState<TrackRow | null>(null);
+  const [previewing, setPreviewing] = React.useState<TrackRow | null>(null);
   const [removing, setRemoving] = React.useState<Task | null>(null);
   const [archiving, setArchiving] = React.useState<TrackRow | null>(null);
 
@@ -121,9 +156,19 @@ export function TrackManager({ tracks, members }: { tracks: TrackRow[]; members:
               {t.description && <p className="mt-0.5 text-xs text-fg-muted">{t.description}</p>}
             </div>
             <div className="flex shrink-0 flex-wrap gap-1">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="max-md:h-10"
+                disabled={t.tasks.length === 0}
+                onClick={() => setPreviewing(t)}
+              >
+                <EyeIcon />
+                Preview
+              </Button>
               <Button variant="secondary" size="sm" className="max-md:h-10" onClick={() => setAssigning(t)}>
                 <UserPlusIcon />
-                Assign
+                Enrol
               </Button>
               {!t.isDefault && (
                 <Button
@@ -162,7 +207,8 @@ export function TrackManager({ tracks, members }: { tracks: TrackRow[]; members:
           <ol className="divide-y divide-border">
             {t.tasks.length === 0 && (
               <li className="px-4 py-3 text-sm text-fg-muted">
-                No tasks yet. Add the handful of things a new member should do in their first two weeks.
+                Nothing here yet. Paste a link to a video or an article, or add the confidentiality
+                acknowledgement. Required items come before the member gets into the app.
               </li>
             )}
             {t.tasks.map((task, i) => (
@@ -170,11 +216,7 @@ export function TrackManager({ tracks, members }: { tracks: TrackRow[]; members:
                 <span className="tnum w-4 shrink-0 text-xs text-fg-subtle">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm">{task.title}</div>
-                  <div className="text-xs text-fg-subtle">
-                    {KIND_LABEL[task.kind]}
-                    {!task.required && " · optional"}
-                    {task.resourceUrl && " · has a link"}
-                  </div>
+                  <div className="tnum truncate text-xs text-fg-subtle">{taskMeta(task, docs)}</div>
                 </div>
                 <div className="flex shrink-0">
                   <Button
@@ -227,7 +269,7 @@ export function TrackManager({ tracks, members }: { tracks: TrackRow[]; members:
               onClick={() => setTaskDialog({ trackId: t.id, task: null })}
             >
               <PlusIcon />
-              Add task
+              Add an item
             </Button>
           </div>
         </div>
@@ -283,28 +325,31 @@ export function TrackManager({ tracks, members }: { tracks: TrackRow[]; members:
           key={taskDialog.task?.id ?? `new-${taskDialog.trackId}`}
           trackId={taskDialog.trackId}
           task={taskDialog.task}
+          docs={docs}
           onClose={() => setTaskDialog(null)}
           onSaved={() => router.refresh()}
         />
       )}
       {assigning && (
-        <AssignDialog
+        <EnrolDialog
           key={assigning.id}
-          track={assigning}
+          tracks={[{ id: assigning.id, name: assigning.name, assignedMemberIds: assigning.assignedMemberIds }]}
+          initialTrackId={assigning.id}
           members={members}
           onClose={() => setAssigning(null)}
           onSaved={() => router.refresh()}
         />
       )}
+      {previewing && <PreviewDialog key={previewing.id} track={previewing} onClose={() => setPreviewing(null)} />}
       {removing && (
         <ConfirmDialog
           open
           onOpenChange={(o) => !o && setRemoving(null)}
           title={`Remove “${removing.title}”?`}
-          description="The task comes off the track for everyone, and any ticks members made against it are removed with it. This can't be undone."
-          confirmLabel="Remove task"
+          description="The item comes off the track for everyone, and any ticks members made against it are removed with it. This can't be undone."
+          confirmLabel="Remove item"
           tone="danger"
-          onConfirm={() => run(() => deleteOnboardingTask({ taskId: removing.id }), "Task removed")}
+          onConfirm={() => run(() => deleteOnboardingTask({ taskId: removing.id }), "Item removed")}
         />
       )}
       {archiving && (
@@ -402,29 +447,70 @@ function TrackDialog({
   );
 }
 
+/**
+ * Add or edit one item. Built so that the common case — "everyone has to watch
+ * this" — is: paste the link, glance at the title, press Add.
+ */
 function TaskDialog({
   trackId,
   task,
+  docs,
   onClose,
   onSaved,
 }: {
   trackId: string;
   task: Task | null;
+  docs: DocOption[];
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [busy, setBusy] = React.useState(false);
-  const [kind, setKind] = React.useState<OnboardingTaskKind>(task?.kind ?? "do");
+  const [kind, setKind] = React.useState<OnboardingTaskKind>(task?.kind ?? "read");
+  const [url, setUrl] = React.useState(task?.resourceUrl ?? "");
+  const [docId, setDocId] = React.useState<string | null>(task?.docId ?? null);
+  const [title, setTitle] = React.useState(task?.title ?? "");
+  const [description, setDescription] = React.useState(task?.description ?? "");
+  const [minutes, setMinutes] = React.useState(task?.estimatedMinutes ? String(task.estimatedMinutes) : "");
   const [required, setRequired] = React.useState(task?.required ?? true);
+  const [looking, setLooking] = React.useState(false);
+
+  const detected = url.trim() ? detectKind(url) : null;
+  const usesLink = kind === "read" || kind === "watch" || kind === "do" || kind === "meet";
+  const usesDoc = kind === "read" && docs.length > 0;
+
+  // A pasted link picks the type and offers a title; nothing the admin already typed is overwritten.
+  async function onLink(next: string) {
+    setUrl(next);
+    const found = detectKind(next);
+    if (!found) return;
+    if (kind === "read" || kind === "watch") setKind(found.kind);
+    setDocId(null);
+    if (title.trim()) return;
+    setLooking(true);
+    const res = await suggestOnboardingResource({ url: next.trim() });
+    setLooking(false);
+    if (res.ok && res.data.title) setTitle((current) => current || res.data.title || "");
+  }
+
+  function pickKind(next: OnboardingTaskKind) {
+    setKind(next);
+    if (next === "submit") {
+      if (!description.trim()) setDescription(ACK_TEMPLATE);
+      if (!title.trim()) setTitle("Blind votes and confidentiality");
+    }
+    if (next !== "read") setDocId(null);
+  }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
     const fields = {
-      title: String(fd.get("title") ?? ""),
+      title,
       kind,
-      resourceUrl: String(fd.get("resourceUrl") ?? "").trim() || null,
+      description: description.trim() || null,
+      resourceUrl: usesLink && !docId ? url.trim() || null : null,
+      docId: kind === "read" ? docId : null,
       required,
+      estimatedMinutes: minutes ? Number(minutes) : null,
     };
     setBusy(true);
     const res = task
@@ -432,7 +518,7 @@ function TaskDialog({
       : await addOnboardingTask({ trackId, ...fields });
     setBusy(false);
     if (!res.ok) {
-      toast.error(res.code === "validation" ? "Check the link — it needs to be a full https:// URL." : res.error);
+      toast.error(res.code === "validation" ? "Check the link. It needs to be a full https:// address." : res.error);
       return;
     }
     onSaved();
@@ -443,63 +529,140 @@ function TaskDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{task ? "Edit task" : "Add a task"}</DialogTitle>
+          <DialogTitle>{task ? "Edit item" : "Add to the track"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <Field label="Task">
-            <Input
-              id="task-title"
-              name="title"
-              required
-              maxLength={160}
-              autoFocus
-              placeholder="Shadow a coffee chat"
-              defaultValue={task?.title ?? ""}
-            />
+          <Field label="Type" hint={KIND_META[kind].hint}>
+            {(field) => (
+              <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Type" aria-describedby={field["aria-describedby"]}>
+                {KIND_ORDER.map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="radio"
+                    aria-checked={kind === k}
+                    onClick={() => pickKind(k)}
+                    className={cn(
+                      "flex h-8 cursor-pointer items-center rounded-full border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent/40 max-md:h-10",
+                      kind === k
+                        ? "border-accent bg-accent-subtle font-medium text-accent"
+                        : "border-border text-fg-muted hover:border-border-strong hover:text-fg"
+                    )}
+                  >
+                    {KIND_META[k].label}
+                  </button>
+                ))}
+              </div>
+            )}
           </Field>
-          <div className="grid grid-cols-[8rem_1fr] gap-3">
-            <Field label="Type">
-              {(control) => (
-                <Select value={kind} onValueChange={(v) => setKind(v as OnboardingTaskKind)}>
-                  <SelectTrigger {...control}>
+
+          {usesLink && !docId && (
+            <Field
+              label="Link"
+              optional={kind === "do" || kind === "meet"}
+              hint={
+                detected && (kind === "read" || kind === "watch")
+                  ? detected.kind === "watch"
+                    ? `${detected.provider} video. It plays inside the flow.`
+                    : kind === "watch"
+                      ? "We can't embed this one, so it opens in a new tab."
+                      : `Article on ${linkHost(url)}. It opens in a new tab and the member confirms they read it.`
+                  : undefined
+              }
+            >
+              <Input
+                type="url"
+                inputMode="url"
+                maxLength={500}
+                autoFocus={!task}
+                placeholder="Paste a YouTube, Vimeo, Loom or article link"
+                value={url}
+                onChange={(e) => onLink(e.target.value)}
+                className="max-md:h-10"
+              />
+            </Field>
+          )}
+
+          {usesDoc && (
+            <Field
+              label={docId ? "Club doc" : "Or one of the club's docs"}
+              hint={docId ? "The doc is shown inside the flow, and the member confirms at the end of it." : undefined}
+            >
+              {(field) => (
+                <Select value={docId ?? "none"} onValueChange={(v) => setDocId(v === "none" ? null : v)}>
+                  <SelectTrigger className="max-md:h-10" {...field}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ONBOARDING_TASK_KINDS.map((k) => (
-                      <SelectItem key={k} value={k}>
-                        {KIND_LABEL[k]}
+                    <SelectItem value="none">Use the link above</SelectItem>
+                    {docs.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.title}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             </Field>
-            <Field label="Link (optional)">
+          )}
+
+          <Field label="Title">
+            <Input
+              required
+              maxLength={160}
+              placeholder={looking ? "Looking up the title…" : "How we decide: the pipeline in five minutes"}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="max-md:h-10"
+            />
+          </Field>
+
+          <Field label={kind === "submit" ? "What they agree to" : "Note to the member"} optional={kind !== "submit"}>
+            <Textarea
+              rows={kind === "submit" ? 6 : 2}
+              maxLength={4000}
+              required={kind === "submit"}
+              placeholder={
+                kind === "submit"
+                  ? "The policy, in plain words."
+                  : "Why it matters, or what to look for."
+              }
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </Field>
+
+          <div className="grid grid-cols-[minmax(0,1fr)_7rem] items-start gap-3">
+            <label className="flex min-h-10 cursor-pointer items-start gap-2.5 text-sm">
+              <Checkbox checked={required} onCheckedChange={(c) => setRequired(c === true)} className="mt-0.5" />
+              <span>
+                Required
+                <span className="block text-xs text-fg-muted">
+                  {required && (kind === "do" || kind === "meet")
+                    ? "Required items come before the member gets into the app. If this needs the app, make it optional."
+                    : "Members can't use the rest of the app until every required item is done."}
+                </span>
+              </span>
+            </label>
+            <Field label="Minutes">
               <Input
-                id="task-url"
-                name="resourceUrl"
-                type="url"
-                maxLength={500}
-                placeholder="https://…"
-                defaultValue={task?.resourceUrl ?? ""}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={600}
+                placeholder="5"
+                value={minutes}
+                onChange={(e) => setMinutes(e.target.value)}
+                className="tnum max-md:h-10"
               />
             </Field>
           </div>
-          <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-            <Checkbox checked={required} onCheckedChange={(c) => setRequired(c === true)} className="mt-0.5" />
-            <span>
-              Required
-              <span className="block text-xs text-fg-muted">
-                Onboarding counts as complete once every required task is ticked.
-              </span>
-            </span>
-          </label>
           <DialogFooter>
             <Button type="button" variant="secondary" className="max-sm:h-10" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
             <Button type="submit" className="max-sm:h-10" disabled={busy}>
-              {busy ? "Saving…" : task ? "Save task" : "Add task"}
+              {busy ? "Saving…" : task ? "Save" : "Add to track"}
             </Button>
           </DialogFooter>
         </form>
@@ -508,87 +671,71 @@ function TaskDialog({
   );
 }
 
-function AssignDialog({
-  track,
-  members,
-  onClose,
-  onSaved,
-}: {
-  track: TrackRow;
-  members: Member[];
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [busy, setBusy] = React.useState(false);
-  const [picked, setPicked] = React.useState<Set<string>>(new Set());
-  const already = new Set(track.assignedMemberIds);
-  const available = members.filter((m) => !already.has(m.id));
-
-  async function submit() {
-    setBusy(true);
-    const res = await assignOnboardingTrack({ trackId: track.id, memberIds: [...picked] });
-    setBusy(false);
-    if (!res.ok) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success(`${res.data.assigned} member${res.data.assigned === 1 ? "" : "s"} added to ${track.name}`);
-    onSaved();
-    onClose();
-  }
+/** Step through the required items exactly as a new member meets them. Nothing is saved. */
+function PreviewDialog({ track, onClose }: { track: TrackRow; onClose: () => void }) {
+  const required = track.tasks.filter((t) => t.required);
+  const optional = track.tasks.length - required.length;
+  const [index, setIndex] = React.useState(0);
+  const task = required[index];
+  const minutes = required.reduce((n, t) => n + (t.estimatedMinutes ?? 0), 0);
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Assign {track.name}</DialogTitle>
-          <DialogDescription>
-            New invites get the default track on their own. Use this for members who joined before it
-            existed, or for an extra track.
-          </DialogDescription>
+          <DialogTitle>What a new member sees</DialogTitle>
         </DialogHeader>
-        {available.length === 0 ? (
-          <p className="text-sm text-fg-muted">Every current member is already on this track.</p>
+        {!task ? (
+          <p className="text-sm text-fg-muted">
+            {required.length === 0
+              ? `No required items, so a new member confirms their details and goes straight into the app.${optional > 0 ? ` The ${optional} optional item${optional === 1 ? "" : "s"} are offered on a last “Also worth doing” screen.` : ""}`
+              : `That's the end of it. After the last required item${optional > 0 ? ` they are offered the ${optional} optional item${optional === 1 ? "" : "s"}, then` : ""} they land in the app.`}
+          </p>
         ) : (
-          <>
-            <div className="flex max-h-72 flex-col overflow-y-auto rounded-md border border-border p-1">
-              {available.map((m) => (
-                <label
-                  key={m.id}
-                  className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-sm px-2 text-sm hover:bg-bg-subtle max-md:min-h-11"
-                >
-                  <Checkbox
-                    checked={picked.has(m.id)}
-                    onCheckedChange={(c) => {
-                      const next = new Set(picked);
-                      if (c) next.add(m.id);
-                      else next.delete(m.id);
-                      setPicked(next);
-                    }}
-                  />
-                  {m.displayName}
-                </label>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="cursor-pointer self-start text-xs text-accent underline-offset-2 hover:underline"
-              onClick={() =>
-                setPicked(picked.size === available.length ? new Set() : new Set(available.map((m) => m.id)))
+          <div className="flex flex-col">
+            <p className="tnum text-xs font-medium text-fg-subtle">
+              After their details · item {index + 1} of {required.length}
+              {minutes > 0 && ` · about ${minutes + 1} min in all`}
+            </p>
+            <p className="tnum mt-3 text-xs font-medium text-fg-subtle">
+              {KIND_META[task.kind].label}
+              {task.estimatedMinutes ? ` · ${task.estimatedMinutes} min` : ""} · Required
+            </p>
+            <h3 className="mt-1 mb-4 text-lg leading-tight font-semibold tracking-tight">{task.title}</h3>
+            <ItemStep
+              key={task.id}
+              backKey=""
+              nextKey=""
+              item={{
+                id: task.id,
+                assignmentId: "",
+                title: task.title,
+                description: task.description,
+                kind: task.kind,
+                resourceUrl: task.resourceUrl,
+                done: false,
+              }}
+              reader={
+                task.docId ? (
+                  <p className="text-sm text-fg-muted">The doc is shown here in full, and they confirm at the end of it.</p>
+                ) : undefined
               }
-            >
-              {picked.size === available.length ? "Clear selection" : `Select all ${available.length}`}
-            </button>
-          </>
+              onPreviewContinue={() => setIndex((i) => i + 1)}
+            />
+          </div>
         )}
-        <DialogFooter>
-          <Button variant="secondary" className="max-sm:h-10" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button className="max-sm:h-10" onClick={submit} disabled={busy || picked.size === 0}>
-            {busy ? "Assigning…" : picked.size === 0 ? "Assign" : `Assign ${picked.size}`}
-          </Button>
-        </DialogFooter>
+        {!task && (
+          <DialogFooter>
+            {required.length > 0 && (
+              <Button variant="secondary" className="max-sm:h-10" onClick={() => setIndex(0)}>
+                Start again
+              </Button>
+            )}
+            <Button className="max-sm:h-10" onClick={onClose}>
+              Close
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

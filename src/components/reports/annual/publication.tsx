@@ -23,6 +23,8 @@ function pageCss(pub: PublicationData, footers: { page: string; text: string }[]
   const footer = (text: string) =>
     `@bottom-right { content: ${cssString(text)}; font: 600 8pt ui-sans-serif, system-ui, sans-serif; color: #5b6070; padding-bottom: 9mm; }`;
   return [
+    // Paper is white whatever theme is on screen; the app canvas must not print as a tint.
+    `@media print { :root, .dark { --bg: #fff; --chrome: #fff; color-scheme: light; } html, body { background: #fff; } }`,
     `@page { size: Letter; margin: ${PAGE_TOP} ${PAGE_SIDE} 22mm; @bottom-left { content: counter(page); font: 500 8pt ui-sans-serif, system-ui, sans-serif; color: #8b90a0; padding-bottom: 9mm; } ${footer(`${pub.orgName} · ${pub.cover.title}`)} }`,
     `@page ov-cover { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }`,
     ...footers.map((f) => `@page ${f.page} { ${footer(f.text)} }`),

@@ -543,7 +543,8 @@ function firstSentences(text: string, max: number, limit = 480): string {
   return (out || clean.slice(0, limit)).trim();
 }
 
-const FOUNDER_SECTION = /founder|team|people|why|thesis|recommend/i;
+const FOUNDER_SECTION = /founder|team|people|why|thesis/i;
+const DECISION_SECTION = /recommend|ask|budget|use of funds|risk/i;
 
 /**
  * A starting point for "Our thesis on X", stitched from what the club wrote
@@ -554,10 +555,14 @@ export function starterEssay(material: EssayMaterial): string {
   const founder = firstName(material.founders[0]?.name ?? "") || "the founder";
   const paragraphs: string[] = [`[add: how you first met ${founder}, and what you noticed]`];
 
-  const what = material.pitchSummary?.trim() || material.oneLiner?.trim();
-  if (what) paragraphs.push(firstSentences(what, 3));
+  // The one-liner is already in the spread's header; only a fuller pitch earns a paragraph.
+  const pitch = material.pitchSummary?.trim();
+  if (pitch && pitch.replace(/[.]+$/, "") !== material.oneLiner?.trim().replace(/[.]+$/, "")) {
+    paragraphs.push(firstSentences(pitch, 3));
+  }
 
-  const sections = material.memoSections.filter((s) => s.text.trim());
+  // Never the recommendation or the budget: an essay is not the place for the award arithmetic.
+  const sections = material.memoSections.filter((s) => s.text.trim() && !DECISION_SECTION.test(s.title));
   const preferred = sections.filter((s) => FOUNDER_SECTION.test(s.title));
   const fromMemo = (preferred.length > 0 ? preferred : sections).slice(0, 2);
   for (const s of fromMemo) paragraphs.push(firstSentences(s.text, 3));
@@ -597,9 +602,8 @@ export function progressFromOutcomes(company: DerivedCompany): string {
 }
 
 export function unfundedNote(candidate: DerivedUnfunded): string {
-  const what = candidate.oneLiner?.trim().replace(/[.!?]+$/, "");
-  const lead = what ? `${candidate.name}: ${what}.` : `${candidate.name}.`;
-  return `${lead} [add: how we helped, and where they are now]`;
+  const what = candidate.oneLiner?.trim().replace(/[.]+$/, "");
+  return `${what ? `${what}. ` : ""}[add: how we helped, and where they are now]`;
 }
 
 const DEFAULT_BLOCKS = [

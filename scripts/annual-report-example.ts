@@ -164,7 +164,7 @@ export async function buildExampleAnnualReport(org: typeof organization.$inferSe
     ops.push({
       op: "set",
       path: ["lookingForward", "unfunded", u.applicationId, "note"],
-      value: `${u.name}: ${(u.oneLiner ?? "a student company").replace(/[.]+$/, "")}. We met the founder twice and introduced them to two students who had run a similar pilot. They are testing with one residence hall this term and plan to reapply in the spring.`,
+      value: `${(u.oneLiner ?? "A student company").replace(/[.]+$/, "")}. We met the founder twice and introduced them to two students who had run a similar pilot. They are testing with one residence hall this term and plan to reapply in the spring.`,
     });
   });
 

@@ -145,6 +145,11 @@ describe("composeRecommendation", () => {
       composeRecommendation({ ...base, decision: "fund", useOfFundsNarrative: "Materials for lab experiments." })
     ).toBe("Receive $1,370 for materials for lab experiments");
   });
+  it("keeps an acronym's capital", () => {
+    expect(
+      composeRecommendation({ ...base, decision: "fund", useOfFundsNarrative: "API credits and hosting." })
+    ).toBe("Receive $1,370 for API credits and hosting");
+  });
   it("falls back to the category, then to the bare amount", () => {
     expect(composeRecommendation({ ...base, decision: "fund" })).toBe("Receive $1,370 for hardware");
     expect(composeRecommendation({ ...base, decision: "fund", useOfFundsLabel: "Other" })).toBe("Receive $1,370");

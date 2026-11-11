@@ -190,6 +190,54 @@ break-glass admin hatch.
 Both paths do the same thing: the application lands in the pipeline with an owner, the
 founder hears back, and Slack gets a ping.
 
+## Connect your AI (MCP)
+
+Any member can plug their own assistant — Claude Code, Claude Desktop, Cursor, anything that
+speaks the [Model Context Protocol](https://modelcontextprotocol.io) — into their account.
+The assistant acts **as that member, with that member's role**: it can answer "what needs me
+this week", brief them on an application before a coffee chat, log the chat afterwards, draft
+a memo section, start a funding request, or email them their digest.
+
+1. In the app: account menu → **Connect your AI** → **New token**. Pick *read only* or
+   *read and write*, and an expiry (90 days by default). The token is shown once.
+2. Give the assistant the endpoint and the token:
+
+   ```bash
+   claude mcp add --transport http openventure https://your-site/api/mcp \
+     --header "Authorization: Bearer ov_pat_…"
+   ```
+
+   Other clients take the same thing as config:
+   `{"mcpServers": {"openventure": {"type": "http", "url": "https://your-site/api/mcp", "headers": {"Authorization": "Bearer ov_pat_…"}}}}`.
+   The Connect page has copy-paste setup for each, and lists the tools your role gets.
+
+**What it can do** (35 tools; `tools/list` only returns the ones the token's role and scope allow):
+
+| | Tools | Needs |
+|---|---|---|
+| Look things up | `whoami`, `get_club`, `get_inbox`, `list_applications`, `get_application`, `search`, `list_memos`, `get_memo`, `get_budget`, `list_grants`, `list_meetings`, `get_meeting`, `list_action_items`, `get_vote_status`, `list_reports`, `get_report`, `send_me_digest` | any member, read token |
+| Work the pipeline | `add_note`, `set_next_step`, `set_priority`, `assign_owner`, `move_stage`, `create_application`, `score_application`, `log_coffee_chat`, `record_outcome_checkin` | analyst+, write token |
+| Memos, meetings, reports | `update_memo_section`, `create_action_item`, `complete_action_item`, `draft_funding_request`, `email_me` | analyst+, write token |
+| | `draft_quarterly_letter`, `draft_annual_report`, `email_member` | partner+, write token |
+| | `run_daily_automations` | admin, write token |
+
+**What it can't do, on purpose.** The assistant reads text that founders wrote, and that text
+could try to steer it. So there is no tool that casts, changes or reveals a vote (the ballot is
+the member's own judgement, and blind votes stay blind: no tallies, no "who hasn't voted" before
+the reveal); none that emails a founder or anyone outside the club (`move_stage` can decline an
+application but never sends the decline email); none that approves or issues money, changes
+roles or settings, deletes anything, or creates tokens. Founder demographics are never returned.
+
+**How it's built.** `/api/mcp` is Streamable HTTP in its stateless form: one JSON-RPC request
+in, one JSON response out, no session and no SSE, so it runs on serverless. The protocol layer
+is a small hand-written handler (`src/lib/mcp/protocol.ts`), not an SDK. The tool catalog
+(`src/lib/mcp/catalog.ts`) is the contract; every write tool calls the same `authedAction` the
+matching screen calls, so stage gates, role checks and the activity log apply without being
+restated. Tokens are stored as SHA-256 hashes, carry the member's role and never more, stop
+working when the member is offboarded, and cannot be used to create or revoke tokens. The
+endpoint accepts a token only — never a browser session — which is what makes it safe to call
+from anywhere. To turn the whole thing off, set `MCP_DISABLED=1`.
+
 ## Local development
 
 ```bash

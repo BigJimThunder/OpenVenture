@@ -313,7 +313,10 @@ export function composeRecommendation(input: {
   // A short narrative reads as the purpose; a long one belongs in the details below.
   const purpose =
     narrative && narrative.length <= 90 && !narrative.includes(". ")
-      ? narrative[0].toLowerCase() + narrative.slice(1)
+      ? // Mid-sentence casing; an acronym ("API credits") keeps its capital.
+        /^[A-Z]{2,}/.test(narrative)
+        ? narrative
+        : narrative[0].toLowerCase() + narrative.slice(1)
       : input.useOfFundsLabel && input.useOfFundsLabel !== "Other"
         ? input.useOfFundsLabel.toLowerCase()
         : null;

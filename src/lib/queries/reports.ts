@@ -538,6 +538,7 @@ export async function getQuarterlyFigures(
           .at(-1);
         return {
           companyName: u.companyName,
+          tier: u.tier,
           tierLabel: tierLabel(u.tier),
           note: u.note,
           // The first recorded tier counts as a move: it is news to the reader.
@@ -550,7 +551,7 @@ export async function getQuarterlyFigures(
           (a, b) =>
             Object.keys(TIER_META).indexOf(b.tier as string) - Object.keys(TIER_META).indexOf(a.tier as string)
         )
-        .map((s) => ({ tierLabel: tierLabel(s.tier), count: s.count })),
+        .map((s) => ({ tier: s.tier as string, tierLabel: tierLabel(s.tier), count: s.count })),
     },
   };
 }

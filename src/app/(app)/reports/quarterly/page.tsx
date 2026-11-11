@@ -41,7 +41,8 @@ export default async function QuarterlyLetterPage({ searchParams }: PageProps<"/
 
   return (
     <div className="print:pb-0">
-      <style>{`@media print { @page { margin: 20mm 22mm; } }`}</style>
+      {/* Page margins for the PDF; a toast still on screen must not print over the page. */}
+      <style>{`@media print { @page { margin: 20mm 22mm; } [data-sonner-toaster] { display: none !important; } }`}</style>
       <div className="print:hidden">
         <PageHeader
           eyebrow={

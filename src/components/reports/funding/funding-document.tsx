@@ -179,23 +179,40 @@ function Items({ items }: { items: LineItem[] }) {
 }
 
 function Numbered({ title, items, missing }: { title: string; items: string[]; missing: string }) {
-  return (
-    <section className="min-w-0">
-      <p>
-        <strong>{title}:</strong>
-      </p>
-      {items.length > 0 ? (
-        <ol className="mt-1 list-decimal pl-6">
-          {items.map((item, i) => (
-            <li key={i} className="mt-1 break-inside-avoid pl-1 whitespace-pre-line">
-              {item.trim()}
-            </li>
-          ))}
-        </ol>
-      ) : (
+  const heading = (
+    <p>
+      <strong>{title}:</strong>
+    </p>
+  );
+  if (items.length === 0) {
+    return (
+      <section className="min-w-0 break-inside-avoid">
+        {heading}
         <p className="mt-1">
           <Missing>{missing}</Missing>
         </p>
+      </section>
+    );
+  }
+  const [first, ...rest] = items;
+  const item = "mt-1 break-inside-avoid pl-1 whitespace-pre-line";
+  return (
+    <section className="min-w-0">
+      {/* The heading travels with its first entry, so a page never ends on a bare label. */}
+      <div className="break-inside-avoid">
+        {heading}
+        <ol className="mt-1 list-decimal pl-6">
+          <li className={item}>{first.trim()}</li>
+        </ol>
+      </div>
+      {rest.length > 0 && (
+        <ol start={2} className="list-decimal pl-6">
+          {rest.map((entry, i) => (
+            <li key={i} className={item}>
+              {entry.trim()}
+            </li>
+          ))}
+        </ol>
       )}
     </section>
   );

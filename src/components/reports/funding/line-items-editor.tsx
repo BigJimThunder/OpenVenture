@@ -229,7 +229,7 @@ export function LineItemsEditor({
   canExtract: boolean;
 }) {
   return (
-    <div className="grid gap-x-6 gap-y-6 xl:grid-cols-2">
+    <div className="flex flex-col gap-6">
       <Column
         title="Asked"
         total={askedTotal}

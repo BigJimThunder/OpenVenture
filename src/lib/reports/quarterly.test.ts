@@ -49,12 +49,12 @@ const figures = (over: Partial<QuarterlyFigures> = {}): QuarterlyFigures => ({
   },
   portfolio: {
     updates: [
-      { companyName: "AquaSense", tierLabel: "Revenue", note: "First paying lab signed in October", changed: true },
-      { companyName: "SplitStay", tierLabel: "Launched", note: null, changed: false },
+      { companyName: "AquaSense", tier: "revenue", tierLabel: "Revenue", note: "First paying lab signed in October", changed: true },
+      { companyName: "SplitStay", tier: "launched", tierLabel: "Launched", note: null, changed: false },
     ],
     standing: [
-      { tierLabel: "Revenue", count: 1 },
-      { tierLabel: "Launched", count: 3 },
+      { tier: "revenue", tierLabel: "Revenue", count: 1 },
+      { tier: "launched", tierLabel: "Launched", count: 3 },
     ],
   },
   ...over,
@@ -102,6 +102,7 @@ describe("grantSentence", () => {
   it("uses the narrative, then the category, then just the date", () => {
     expect(grantSentence(grant())).toBe("Paid October 24 for a design freelancer for the brand and landing page.");
     expect(grantSentence(grant({ paidFor: null }))).toBe("Paid October 24 for design.");
+    expect(grantSentence(grant({ paidFor: "API credits." }))).toBe("Paid October 24 for API credits.");
     expect(grantSentence(grant({ paidFor: null, useOfFundsLabel: "Other" }))).toBe("Paid October 24.");
     expect(grantSentence(grant({ paidFor: null, useOfFundsLabel: null, issuedAt: null }))).toBe("Paid.");
   });
@@ -155,16 +156,16 @@ describe("composeQuarterlyLetter", () => {
 
   it("writes portfolio moves, check-ins and the standing line", () => {
     expect(composeQuarterlyLetter(figures()).portfolio).toEqual([
-      "AquaSense moved to revenue. First paying lab signed in October.",
-      "SplitStay checked in, still at launched.",
-      "Of the 4 companies we have funded, one is at revenue and 3 are at launched.",
+      "AquaSense made its first revenue. First paying lab signed in October.",
+      "SplitStay checked in with no change in stage.",
+      "Of the 4 companies we have funded, one has revenue and 3 have launched.",
     ]);
     expect(
-      composeQuarterlyLetter(figures({ portfolio: { updates: [], standing: [{ tierLabel: "Launched", count: 1 }] } }))
+      composeQuarterlyLetter(figures({ portfolio: { updates: [], standing: [{ tier: "pilot", tierLabel: "Pilot", count: 1 }] } }))
         .portfolio
     ).toEqual([
       "No grantee changed stage this quarter, and we recorded no check-ins.",
-      "Of the one company we have funded, one is at launched.",
+      "Of the one company we have funded, one is at pilot.",
     ]);
   });
 

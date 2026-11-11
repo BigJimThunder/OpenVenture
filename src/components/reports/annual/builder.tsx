@@ -74,10 +74,9 @@ function SaveIndicator({ status, error, onRetry }: { status: SaveStatus; error: 
   );
 }
 
-const SECTION_EDITORS: Record<SectionId, React.ComponentType<EditorProps>> = {
+const SECTION_EDITORS: Record<Exclude<SectionId, "companies">, React.ComponentType<EditorProps>> = {
   team: TeamEditor,
   mission: MissionEditor,
-  companies: () => null,
   programs: ProgramsEditor,
   looking_forward: LookingForwardEditor,
 };
@@ -170,7 +169,7 @@ export function AnnualBuilder({
     viewerId,
     aiEnabled,
   };
-  const SectionEditor = sectionId ? SECTION_EDITORS[sectionId] : null;
+  const SectionEditor = sectionId && sectionId !== "companies" ? SECTION_EDITORS[sectionId] : null;
 
   const outline = (
     <Outline
@@ -296,7 +295,7 @@ export function AnnualBuilder({
             {sectionId === "companies" && (
               <CompaniesEditor {...editorProps} onOpen={(id) => select(`company:${id}`)} />
             )}
-            {SectionEditor && sectionId !== "companies" && <SectionEditor {...editorProps} />}
+            {SectionEditor && <SectionEditor {...editorProps} />}
             {companyId && (
               <CompanyEditor key={companyId} {...editorProps} companyId={companyId} material={materials[companyId]} />
             )}

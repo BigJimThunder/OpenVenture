@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { describe, expect, it } from "vitest";
+import { mcpEnabled } from "./config";
 import { createRateLimiter } from "./rate-limit";
 import { generateToken, isTokenFormat, tokenExpiry, tokenState, TOKEN_PREFIX } from "./tokens";
 
@@ -78,5 +79,26 @@ describe("rate limiter", () => {
     expect(limiter.hit("a", 1_000).ok).toBe(false);
     expect(limiter.hit("a", 59_000).ok).toBe(false);
     expect(limiter.hit("a", 60_000).ok).toBe(true);
+  });
+});
+
+describe("the off switch", () => {
+  it("is on unless MCP_DISABLED is set to a truthy value", () => {
+    const before = process.env.MCP_DISABLED;
+    try {
+      delete process.env.MCP_DISABLED;
+      expect(mcpEnabled()).toBe(true);
+      for (const value of ["", "0", "false", "no"]) {
+        process.env.MCP_DISABLED = value;
+        expect(mcpEnabled()).toBe(true);
+      }
+      for (const value of ["1", "true", "TRUE", " yes "]) {
+        process.env.MCP_DISABLED = value;
+        expect(mcpEnabled()).toBe(false);
+      }
+    } finally {
+      if (before === undefined) delete process.env.MCP_DISABLED;
+      else process.env.MCP_DISABLED = before;
+    }
   });
 });

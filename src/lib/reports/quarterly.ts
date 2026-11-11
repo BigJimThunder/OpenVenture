@@ -111,8 +111,8 @@ export type QuarterlyFigures = {
     declineReasons: { label: string; count: number }[];
   };
   portfolio: {
-    updates: { companyName: string; tierLabel: string; note: string | null; changed: boolean }[];
-    standing: { tierLabel: string; count: number }[];
+    updates: { companyName: string; tier: string; tierLabel: string; note: string | null; changed: boolean }[];
+    standing: { tier: string; tierLabel: string; count: number }[];
   };
 };
 
@@ -150,7 +150,8 @@ function joinList(parts: string[]): string {
   return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }
 
-const lowerFirst = (s: string) => (s ? s[0].toLowerCase() + s.slice(1) : s);
+/** Mid-sentence casing; an acronym ("API credits") keeps its capital. */
+const lowerFirst = (s: string) => (!s || /^[A-Z]{2,}/.test(s) ? s : s[0].toLowerCase() + s.slice(1));
 const sentence = (s: string) => {
   const t = s.trim().replace(/\s+/g, " ");
   return /[.!?]$/.test(t) ? t : `${t}.`;
@@ -257,12 +258,26 @@ function pipelineSentences(f: QuarterlyFigures): string[] {
   return out;
 }
 
+/** Outcome tiers as verbs: what happened, then how one or several companies stand. */
+const TIER_PHRASES: Record<string, { moved: string; stands: [string, string] }> = {
+  dormant: { moved: "has gone dormant", stands: ["is dormant", "are dormant"] },
+  incorporated: { moved: "incorporated", stands: ["has incorporated", "have incorporated"] },
+  launched: { moved: "launched", stands: ["has launched", "have launched"] },
+  revenue: { moved: "made its first revenue", stands: ["has revenue", "have revenue"] },
+  raised_round: { moved: "raised a round", stands: ["has raised a round", "have raised a round"] },
+  accelerator: {
+    moved: "was accepted to an accelerator",
+    stands: ["is in an accelerator", "are in an accelerator"],
+  },
+  acquired: { moved: "was acquired", stands: ["has been acquired", "have been acquired"] },
+};
+
 function portfolioSentences(f: QuarterlyFigures): string[] {
   const out: string[] = [];
   for (const u of f.portfolio.updates) {
     const lead = u.changed
-      ? `${u.companyName} moved to ${u.tierLabel.toLowerCase()}.`
-      : `${u.companyName} checked in, still at ${u.tierLabel.toLowerCase()}.`;
+      ? `${u.companyName} ${TIER_PHRASES[u.tier]?.moved ?? `moved to ${u.tierLabel.toLowerCase()}`}.`
+      : `${u.companyName} checked in with no change in stage.`;
     out.push(u.note?.trim() ? `${lead} ${sentence(u.note)}` : lead);
   }
   if (f.portfolio.updates.length === 0) {
@@ -273,7 +288,10 @@ function portfolioSentences(f: QuarterlyFigures): string[] {
   if (total > 0) {
     out.push(
       `Of the ${plural(total, "company", "companies")} we have funded, ${joinList(
-        standing.map((s) => `${countWord(s.count)} ${s.count === 1 ? "is" : "are"} at ${s.tierLabel.toLowerCase()}`)
+        standing.map((s) => {
+          const stands = TIER_PHRASES[s.tier]?.stands[s.count === 1 ? 0 : 1];
+          return `${countWord(s.count)} ${stands ?? `${s.count === 1 ? "is" : "are"} at ${s.tierLabel.toLowerCase()}`}`;
+        })
       )}.`
     );
   }

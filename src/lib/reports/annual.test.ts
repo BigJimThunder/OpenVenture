@@ -220,6 +220,7 @@ const material: EssayMaterial = {
   grantNarrative: null,
   memoSections: [
     { title: "Market", text: "There are 400 wet labs on campus." },
+    { title: "Recommendation", text: "Fund $2,350 for the team." },
     { title: "Founder", text: "Maya ran inventory for her own lab for two years. She built the first version in a weekend. It is used daily. A fourth sentence." },
   ],
   fundingRequest: [],
@@ -262,6 +263,7 @@ describe("first draft", () => {
     expect(essay).toContain("Maya ran inventory for her own lab for two years.");
     expect(essay).not.toContain("A fourth sentence");
     expect(essay).not.toContain("400 wet labs");
+    expect(essay).not.toContain("$2,350");
     expect(essay).toContain("From our coffee chat: She showed us the spreadsheet she replaced.");
     expect(countPrompts(essay)).toBe(2);
     expect(spreadStatus(first.companies[0])).toBe("needs_essay");
@@ -278,7 +280,7 @@ describe("first draft", () => {
 
   it("suggests companies we supported but did not fund", () => {
     expect(first.lookingForward.unfunded[0].note).toBe(
-      "Solara Labs: DIY solar balcony kits for renters. [add: how we helped, and where they are now]"
+      "DIY solar balcony kits for renters. [add: how we helped, and where they are now]"
     );
   });
 

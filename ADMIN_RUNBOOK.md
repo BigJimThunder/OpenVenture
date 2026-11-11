@@ -63,6 +63,47 @@ university mail scanners "click" links before you do.
 Resend's free tier allows 100 emails a day. OpenVenture is built to stay well
 under it: reminders are batched into one email per person, never one per event.
 
+### AI connections (access tokens)
+Any member can let their own AI assistant act as them: account menu → **Connect
+your AI**. They create a token there, paste it into the assistant, and the
+assistant can then read (and, with a write token, change) exactly what that
+member can. Everything it changes is in the activity log under the member's name.
+
+What you need to know as an admin:
+
+- **See who has connected one.** Connect your AI → **Other members' tokens**
+  lists every working token in the club: owner, name, read or write, last used.
+  **Revoke** stops it at once. Do this when a laptop is lost, or when someone
+  says "I pasted my token somewhere I shouldn't have".
+- **Offboarding.** Offboarding a member stops all their tokens immediately,
+  with nothing else to do. The tokens stay in the list (marked *Owner
+  offboarded*) until you revoke them; revoke them so the list stays clean.
+- **At handover.** Before the outgoing officers lose access, open the list
+  together and revoke every token that belongs to someone leaving or changing
+  role, and any that says *Never expires*. A token is as good as a password.
+- **Role changes.** A token never does more than its owner's current role. If
+  you demote a partner to analyst, their assistant loses the partner tools on
+  its next request.
+- **Limits.** 120 requests a minute per token. An assistant can email its own
+  member 10 times a day, send 5 digests a day, and (partners and admins only)
+  email other members 20 times a day. It cannot email founders at all. The
+  per-minute limit is counted per server instance, so on Vercel it is a guard
+  against a runaway loop rather than an exact ceiling; the email limits are
+  counted in the database and are exact.
+- **What it will never do.** Cast or reveal a vote, approve or issue a grant,
+  invite or offboard anyone, change settings, delete anything, or make more
+  tokens. Those stay with a signed-in person.
+- **Turning it off.** Set the environment variable `MCP_DISABLED=1` (Vercel →
+  Settings → Environment Variables, then Redeploy). Every token is refused and
+  the page stops offering new ones. Existing tokens are kept and work again
+  when you remove the variable. If you want them gone for good, revoke them
+  first.
+- **If an assistant "can't connect".** `401` means the token is wrong, expired,
+  revoked, or its owner was offboarded: make a new one. `404` means
+  `MCP_DISABLED` is set. `429` means it hit the per-minute limit and should
+  wait. Check that the address ends in `/api/mcp` and that `BETTER_AUTH_URL` is
+  your real site address, because the setup lines on the page are built from it.
+
 ## Scheduling
 
 Reminders, the Monday digest and auto-closing votes all come from **one request
