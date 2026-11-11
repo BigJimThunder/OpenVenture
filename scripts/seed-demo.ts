@@ -1004,6 +1004,7 @@ async function main() {
   // Seeded members are established (they skip the welcome flow), the newest
   // five carry due dates, and one invite is still waiting to be used.
   const { defaultProcessDoc, PROCESS_DOC_TASK_TITLE } = await import("../src/lib/defaults");
+  const { and } = await import("drizzle-orm");
   const [processDoc] = await db
     .insert(t.doc)
     .values({
