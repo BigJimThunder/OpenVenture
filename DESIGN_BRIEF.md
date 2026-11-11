@@ -179,9 +179,9 @@ search, theme and sign-out. Dialogs become bottom sheets.
 
 Nav groups:
 
-- *(personal)* — Inbox (count of what needs you), My work
+- *(personal)* — Inbox (count of what needs you), My work, Schedule
 - **Operate** — Pipeline (open count), Memos, Grants, Meetings, Members
-- **Learn** — Insights, Outcomes, Cap Table Lab, LP Reports
+- **Learn** — Insights, Outcomes, Cap Table Lab, Reports (funding requests, quarterly letters, annual report)
 - **Club** — Docs, Onboarding, Settings (admins only)
 
 **Keyboard:** ⌘K or `/` searches everything (companies, founders, memos, members,

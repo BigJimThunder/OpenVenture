@@ -42,10 +42,13 @@ checks from $200–$4,000) but useful to any student investing group.
 | **Automations** | One daily job: vote reminders and auto-close, stage-deadline nudges, a Monday digest, quarterly grantee check-ins. No per-event email storms; everything is deduplicated. |
 | **Memos & blind IC voting** | Templated memos with section versioning and comments; conviction voting that stays **hidden until reveal** — the cheapest anti-groupthink mechanism there is. |
 | **Grants** | The pool, requests, approve → issue → reconcile, receipts, budget burn-down with an overdraw guard. |
-| **Members, onboarding, meetings** | Roster, onboarding checklists, agenda builder, two-tap attendance, run mode, recaps, iCal feed. |
+| **Onboarding** | Invite someone once: they get a guided welcome flow — confirm their details, enter their class schedule, then whatever videos, articles and acknowledgements the club requires. Admins watch a pipeline of who is where; reminders send themselves. |
+| **Scheduler** | Everyone enters their class schedule once a term (paint it, paste it, or import a calendar file). Coffee chats and meetings are then suggested around it: pick the people and see when they're all free, or pick "any two this week" and get people and times. |
+| **Members & meetings** | Roster, agenda builder, two-tap attendance, run mode, recaps, iCal feed. |
 | **Insights** | Funnel conversion, sector & department mix, per-member sourcing attribution, decline reasons, outcome tiers, and per-member investor self-analysis. |
 | **Cap Table Lab** | A dilution sandbox for advising grantees: pitch-comp SAFEs, "$125K for 7%" accelerator deals, pool shuffles — with "show your work" on every derived number. |
-| **LP reports** | Quarterly letters generated from real data — deployment, pipeline, portfolio moves — plus GP commentary, print-ready for PDF. |
+| **Reports** | Three documents the club sends up, built from what is already in the app. **Funding requests**: the one-page memo for sign-off, with facts, the asked/approved line items and the vote pulled in, and the judgment sections prefilled from the memo. **Quarterly letters**: written from the ledger in plain sentences around a partner's opening. **Annual report**: team, mission, activity, a thesis-and-progress spread per company, programs and looking forward — printed as a publication. Numbers freeze when a report is finalized. |
+| **Connect your AI** | Each member can create an access token and plug their own assistant in over MCP. It acts as them, with their role: reads the pipeline, drafts notes, memos and reports, sends them a digest. It cannot vote, move money or email founders. |
 | **Enrichment & export** | One-click company enrichment from the founder's own website (optional Claude pass with an `ANTHROPIC_API_KEY`); full JSON/CSV export — your data is never locked in. |
 
 ## The work, not just the workflow
