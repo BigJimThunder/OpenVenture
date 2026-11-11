@@ -46,7 +46,7 @@ export function EnrichButton({
   }
 
   return (
-    <Button size="sm" variant="ghost" onClick={run} disabled={busy}>
+    <Button size="sm" variant="secondary" onClick={run} disabled={busy} className="max-md:h-10">
       <SparklesIcon />
       {busy ? "Reading site…" : "Enrich from website"}
     </Button>

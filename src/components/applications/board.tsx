@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  KeyboardSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -15,46 +14,17 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { formatDistanceToNowStrict } from "date-fns";
+import { formatDistanceStrict } from "date-fns";
 import { toast } from "sonner";
-import { KanbanIcon, VoteIcon, FileTextIcon, SignalHighIcon } from "lucide-react";
-import { moveApplicationStage, reorderApplication } from "@/lib/actions/applications";
+import { reorderApplication } from "@/lib/actions/applications";
 import type { PipelineApp, PipelineData } from "@/lib/queries/applications";
-import { DECLINE_REASONS, type DeclineReason } from "@/db/schema";
-import { cn, formatMoney, initials } from "@/lib/utils";
+import { DECLINE_REASON_LABELS } from "@/lib/pipeline/labels";
+import { cn, formatMoney } from "@/lib/utils";
 import { formatRef } from "@/lib/refs";
-import { usePaletteContext } from "@/components/shell/command-palette";
-import { isTypingTarget } from "@/components/shell/app-shell";
 import { StageDot } from "@/components/patterns/entity-ref";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-export const REASON_LABELS: Record<DeclineReason, string> = {
-  too_early: "Too early",
-  not_a_fit: "Not a fit",
-  budget_exhausted: "Budget exhausted",
-  team: "Team concerns",
-  unresponsive: "Unresponsive",
-  duplicate: "Duplicate",
-  outside_criteria: "Outside criteria",
-  other: "Other",
-};
-
-type PendingMove = { app: PipelineApp; toStageId: string; stageName: string };
+import { PriorityGlyph } from "@/components/patterns/priority-glyph";
+import { OwnerAvatar } from "./owner-picker";
+import { usePipeline } from "./pipeline-view";
 
 /**
  * Staleness is judged against the stage's own SLA, not a flat threshold — an
@@ -62,7 +32,7 @@ type PendingMove = { app: PipelineApp; toStageId: string; stageName: string };
  * its 7-day SLA is. Stages without an SLA never warn, which keeps the warning
  * colour meaning something on a board where most cards are months old.
  */
-function staleness(
+export function staleness(
   enteredStageAt: Date | string,
   slaDays: number | null,
   now: number
@@ -74,110 +44,15 @@ function staleness(
   return "ok";
 }
 
-export function Board({ data }: { data: PipelineData }) {
+/** The desktop kanban: drag between columns to move, within one to reorder. */
+export function Board() {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const peekId = searchParams.get("peek");
-
-  const [apps, setApps] = React.useState(data.apps);
+  const { stages, apps, setApps, byStage, requestMove, canEdit } = usePipeline();
   const [activeApp, setActiveApp] = React.useState<PipelineApp | null>(null);
-  const [pendingDecline, setPendingDecline] = React.useState<PendingMove | null>(null);
-  const [selectedId, setSelectedId] = React.useState<string | null>(peekId);
 
-  // Sync optimistic state when fresh server data arrives (adjust-during-render pattern).
-  const [prevServerApps, setPrevServerApps] = React.useState(data.apps);
-  if (prevServerApps !== data.apps) {
-    setPrevServerApps(data.apps);
-    setApps(data.apps);
-  }
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor)
-  );
-
-  const byStage = React.useMemo(() => {
-    const map = new Map<string, PipelineApp[]>();
-    for (const s of data.stages) map.set(s.id, []);
-    for (const a of apps) {
-      const stage = data.stages.find((s) => s.id === a.stageId);
-      // Funded/declined applications still show in their terminal columns.
-      if (a.status !== "open" && stage?.kind !== "won" && stage?.kind !== "lost") continue;
-      map.get(a.stageId)?.push(a);
-    }
-    return map;
-  }, [apps, data]);
-
-  /** Board order, column by column — what the arrow keys walk. */
-  const flatOrder = React.useMemo(
-    () => data.stages.flatMap((s) => byStage.get(s.id) ?? []),
-    [data.stages, byStage]
-  );
-
-  const setPeek = React.useCallback(
-    (id: string | null) => {
-      const next = new URLSearchParams(searchParams);
-      if (id) next.set("peek", id);
-      else next.delete("peek");
-      const qs = next.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    },
-    [router, pathname, searchParams]
-  );
-
-  const openFull = React.useCallback((id: string) => router.push(`/pipeline/${id}`), [router]);
-
-  const commitMove = React.useCallback(
-    async function commitMove(
-      app: PipelineApp,
-      toStageId: string,
-      declineReason?: DeclineReason,
-      position?: number
-    ) {
-      const prev = apps;
-      setApps((cur) =>
-        cur.map((a) =>
-          a.id === app.id
-            ? { ...a, stageId: toStageId, ...(position != null ? { position: String(position) } : {}) }
-            : a
-        )
-      );
-      const res = await moveApplicationStage({
-        applicationId: app.id,
-        toStageId,
-        declineReason,
-        position,
-      });
-      if (!res.ok) {
-        setApps(prev);
-        toast.error(res.error, {
-          action: {
-            label: "Retry",
-            onClick: () => commitMove(app, toStageId, declineReason, position),
-          },
-        });
-      } else {
-        router.refresh();
-      }
-    },
-    [apps, router]
-  );
-
-  const requestMove = React.useCallback(
-    (app: PipelineApp, toStageId: string, position?: number) => {
-      if (app.stageId === toStageId) return;
-      const stage = data.stages.find((s) => s.id === toStageId);
-      if (!stage) return;
-      if (stage.kind === "lost") {
-        // Decline requires a recorded reason — prompt before committing.
-        setPendingDecline({ app, toStageId, stageName: stage.name });
-        return;
-      }
-      void commitMove(app, toStageId, undefined, position);
-    },
-    [data.stages, commitMove]
-  );
+  // Pointer only: Space and Enter on a focused card mean peek and open here,
+  // and keyboard moves go through ⌘K → "Move to …".
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   /**
    * Persist a same-column reorder. Fractional midpoints keep it to one write;
@@ -240,7 +115,7 @@ export function Board({ data }: { data: PipelineData }) {
         router.refresh();
       }
     },
-    [apps, router]
+    [apps, router, setApps]
   );
 
   function onDragStart(e: DragStartEvent) {
@@ -257,7 +132,7 @@ export function Board({ data }: { data: PipelineData }) {
     const overId = String(over.id);
     const overApp = apps.find((a) => a.id === overId);
     const targetStageId = overApp ? overApp.stageId : overId;
-    if (!data.stages.some((s) => s.id === targetStageId)) return;
+    if (!stages.some((s) => s.id === targetStageId)) return;
 
     const columnWithoutApp = (byStage.get(targetStageId) ?? []).filter((a) => a.id !== app.id);
 
@@ -293,164 +168,30 @@ export function Board({ data }: { data: PipelineData }) {
     requestMove(app, targetStageId, position);
   }
 
-  const selected = React.useMemo(
-    () => flatOrder.find((a) => a.id === selectedId) ?? null,
-    [flatOrder, selectedId]
-  );
-
-  // Single-key shortcuts over the focused card. Mirrors the peek panel's
-  // buttons and the palette's actions — one vocabulary, three surfaces.
-  React.useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (isTypingTarget(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (pendingDecline) return;
-
-      if (e.key === "Escape" && peekId) {
-        e.preventDefault();
-        setPeek(null);
-        return;
-      }
-      if (!flatOrder.length) return;
-
-      const idx = selectedId ? flatOrder.findIndex((a) => a.id === selectedId) : -1;
-      const step = (delta: number) => {
-        e.preventDefault();
-        const nextIdx = idx < 0 ? 0 : Math.min(Math.max(idx + delta, 0), flatOrder.length - 1);
-        const next = flatOrder[nextIdx];
-        if (!next) return;
-        setSelectedId(next.id);
-        if (peekId) setPeek(next.id);
-      };
-
-      if (e.key === "ArrowDown" || e.key === "j") return step(1);
-      if (e.key === "ArrowUp" || e.key === "k") return step(-1);
-
-      if (!selected) return;
-      if (e.key === " ") {
-        e.preventDefault();
-        setPeek(peekId === selected.id ? null : selected.id);
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        openFull(selected.id);
-      } else if (e.key === "d" || e.key === "D") {
-        const lost = data.stages.find((s) => s.kind === "lost");
-        if (!lost || selected.stageId === lost.id) return;
-        e.preventDefault();
-        setPendingDecline({ app: selected, toStageId: lost.id, stageName: lost.name });
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [flatOrder, selectedId, selected, peekId, setPeek, openFull, pendingDecline, data.stages]);
-
-  // The peek panel's Decline… button raises this; the board owns the dialog.
-  React.useEffect(() => {
-    function onPeekDecline(e: Event) {
-      const applicationId = (e as CustomEvent<{ applicationId: string }>).detail?.applicationId;
-      const app = apps.find((a) => a.id === applicationId);
-      const lost = data.stages.find((s) => s.kind === "lost");
-      if (!app || !lost || app.stageId === lost.id) return;
-      setPendingDecline({ app, toStageId: lost.id, stageName: lost.name });
-    }
-    window.addEventListener("peek-decline", onPeekDecline);
-    return () => window.removeEventListener("peek-decline", onPeekDecline);
-  }, [apps, data.stages]);
-
-  // Publish the selection so ⌘K acts on it rather than only navigating.
-  usePaletteContext(
-    selected
-      ? {
-          label: `${selected.companyName} · ${formatRef("application", selected.ref)}`,
-          actions: [
-            {
-              id: "peek",
-              label: peekId === selected.id ? "Close peek" : "Peek",
-              shortcut: "Space",
-              icon: KanbanIcon,
-              run: () => setPeek(peekId === selected.id ? null : selected.id),
-            },
-            {
-              id: "open",
-              label: "Open application",
-              shortcut: "↵",
-              icon: FileTextIcon,
-              run: () => openFull(selected.id),
-            },
-            ...data.stages
-              .filter((s) => s.id !== selected.stageId)
-              .map((s) => ({
-                id: `stage-${s.id}`,
-                label: `Move to ${s.name}`,
-                icon: SignalHighIcon,
-                run: () => requestMove(selected, s.id),
-              })),
-            {
-              id: "vote",
-              label: "Start blind vote",
-              shortcut: "V",
-              icon: VoteIcon,
-              run: () => openFull(selected.id),
-            },
-          ],
-        }
-      : null
-  );
-
   return (
-    <>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-      >
-        <div className="flex h-full gap-2.5 overflow-x-auto px-4 pt-3 pb-4">
-          {data.stages.map((stage) => (
-            <Column
-              key={stage.id}
-              stage={stage}
-              apps={byStage.get(stage.id) ?? []}
-              selectedId={selectedId}
-              peekId={peekId}
-              onSelect={(id) => {
-                setSelectedId(id);
-                setPeek(id);
-              }}
-            />
-          ))}
-        </div>
-        <DragOverlay>{activeApp ? <AppCard app={activeApp} dragging /> : null}</DragOverlay>
-      </DndContext>
-
-      <DeclineDialog
-        key={pendingDecline?.app.id ?? "none"}
-        pending={pendingDecline}
-        onCancel={() => setPendingDecline(null)}
-        onConfirm={(reason) => {
-          if (pendingDecline) {
-            void commitMove(pendingDecline.app, pendingDecline.toStageId, reason);
-            setPendingDecline(null);
-          }
-        }}
-      />
-    </>
+    // A fixed `id` keeps dnd-kit's aria-describedby identical on the server and
+    // the client; its default is a module-level counter, which mismatches.
+    <DndContext
+      id="pipeline-board"
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
+      <div className="flex h-full gap-2.5 overflow-x-auto px-4 pt-3 pb-4">
+        {stages.map((stage) => (
+          <Column key={stage.id} stage={stage} apps={byStage.get(stage.id) ?? []} />
+        ))}
+      </div>
+      <DragOverlay>{activeApp ? <AppCard app={activeApp} dragging /> : null}</DragOverlay>
+      {!canEdit && <span className="sr-only">Read-only: cards can be opened but not moved.</span>}
+    </DndContext>
   );
 }
 
-function Column({
-  stage,
-  apps,
-  selectedId,
-  peekId,
-  onSelect,
-}: {
-  stage: PipelineData["stages"][number];
-  apps: PipelineApp[];
-  selectedId: string | null;
-  peekId: string | null;
-  onSelect: (id: string) => void;
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+function Column({ stage, apps }: { stage: PipelineData["stages"][number]; apps: PipelineApp[] }) {
+  const { canEdit } = usePipeline();
+  const { setNodeRef, isOver } = useDroppable({ id: stage.id, disabled: !canEdit });
   const total = apps.reduce((n, a) => n + Number(a.amountRequested ?? 0), 0);
 
   return (
@@ -472,19 +213,12 @@ function Column({
       >
         <SortableContext items={apps.map((a) => a.id)} strategy={verticalListSortingStrategy}>
           {apps.map((app) => (
-            <DraggableCard
-              key={app.id}
-              app={app}
-              slaDays={stage.slaDays}
-              selected={selectedId === app.id}
-              peeked={peekId === app.id}
-              onSelect={onSelect}
-            />
+            <DraggableCard key={app.id} app={app} slaDays={stage.slaDays} />
           ))}
         </SortableContext>
         {apps.length === 0 && (
           <div className="flex flex-1 items-center justify-center py-6 text-2xs text-fg-subtle">
-            Drop here
+            {canEdit ? "Drop here" : "Nothing here"}
           </div>
         )}
       </div>
@@ -492,56 +226,53 @@ function Column({
   );
 }
 
-function DraggableCard({
-  app,
-  slaDays,
-  selected,
-  peeked,
-  onSelect,
-}: {
-  app: PipelineApp;
-  slaDays: number | null;
-  selected: boolean;
-  peeked: boolean;
-  onSelect: (id: string) => void;
-}) {
+function DraggableCard({ app, slaDays }: { app: PipelineApp; slaDays: number | null }) {
+  const { selectedId, peekId, select, openPeek, canEdit } = usePipeline();
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
     id: app.id,
+    disabled: !canEdit,
   });
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      data-app-id={app.id}
+      aria-roledescription={canEdit ? "draggable application" : "application"}
+      aria-label={`${formatRef("application", app.ref)} ${app.companyName}`}
       style={{
         transform: transform
           ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)`
           : undefined,
         transition,
       }}
-      className={cn("outline-none", isDragging && "opacity-40")}
-      onClick={() => onSelect(app.id)}
+      className={cn("rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/50", isDragging && "opacity-40")}
+      onFocus={() => select(app.id)}
+      onClick={() => openPeek(app.id)}
     >
-      <AppCard app={app} slaDays={slaDays} selected={selected} peeked={peeked} />
+      <AppCard
+        app={app}
+        slaDays={slaDays}
+        selected={selectedId === app.id || peekId === app.id}
+      />
     </div>
   );
 }
 
-function AppCard({
+export function AppCard({
   app,
   slaDays = null,
   dragging,
   selected,
-  peeked,
+  className,
 }: {
   app: PipelineApp;
   slaDays?: number | null;
   dragging?: boolean;
   selected?: boolean;
-  peeked?: boolean;
+  className?: string;
 }) {
-  // Captured once per mount — staleness doesn't need to tick live.
-  const [now] = React.useState(() => Date.now());
+  const { now } = usePipeline();
   const stale = staleness(app.enteredStageAt, slaDays, now);
 
   return (
@@ -550,21 +281,17 @@ function AppCard({
         "cursor-pointer rounded-md border border-border bg-panel p-2.5 transition-colors hover:border-border-strong",
         app.status === "declined" && "opacity-60",
         app.status === "funded" && "opacity-75",
-        (selected || peeked) && "border-accent shadow-[0_0_0_1px_var(--accent)]",
-        dragging && "rotate-1 shadow-lg"
+        selected && "border-accent shadow-[0_0_0_1px_var(--accent)]",
+        dragging && "rotate-1 shadow-lg",
+        className
       )}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-1.5">
         <span className="font-mono text-[10.5px] text-fg-subtle">
           {formatRef("application", app.ref)}
         </span>
-        {app.ownerName ? (
-          <span className="flex size-[18px] items-center justify-center rounded-full bg-accent-subtle text-[8px] font-semibold text-accent">
-            {initials(app.ownerName)}
-          </span>
-        ) : (
-          <span className="size-[18px] rounded-full border border-dashed border-border-strong" />
-        )}
+        {app.priority !== "none" && <PriorityGlyph priority={app.priority} />}
+        <OwnerAvatar name={app.ownerName} className="ml-auto" />
       </div>
       <div className="mt-0.5 truncate text-sm font-medium">{app.companyName}</div>
       {app.companyOneLiner && (
@@ -575,69 +302,22 @@ function AppCard({
       <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-fg-subtle">
         <span className="tnum">{app.amountRequested ? formatMoney(app.amountRequested) : ""}</span>
         {app.status === "declined" && app.declineReason ? (
-          <span className="text-danger">{REASON_LABELS[app.declineReason].toLowerCase()}</span>
+          <span className="text-danger">{DECLINE_REASON_LABELS[app.declineReason].toLowerCase()}</span>
         ) : app.status === "funded" ? (
           <span className="text-success">funded</span>
         ) : (
           <span
             className={cn(
+              "tnum",
               stale === "late" && "text-warning",
               stale === "very-late" && "text-danger"
             )}
-            title={
-              slaDays && stale !== "ok" ? `Past this stage's ${slaDays}-day SLA` : undefined
-            }
+            title={slaDays && stale !== "ok" ? `Past this stage's ${slaDays}-day SLA` : undefined}
           >
-            {formatDistanceToNowStrict(app.enteredStageAt)}
+            {formatDistanceStrict(new Date(app.enteredStageAt), now)}
           </span>
         )}
       </div>
     </div>
-  );
-}
-
-function DeclineDialog({
-  pending,
-  onCancel,
-  onConfirm,
-}: {
-  pending: PendingMove | null;
-  onCancel: () => void;
-  onConfirm: (reason: DeclineReason) => void;
-}) {
-  // Keyed by application id from the parent, so state resets per prompt.
-  const [reason, setReason] = React.useState<DeclineReason | "">("");
-
-  return (
-    <Dialog open={!!pending} onOpenChange={(o) => !o && onCancel()}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Decline {pending?.app.companyName}</DialogTitle>
-          <DialogDescription>
-            A reason is required — it powers the pass-reason analytics and next year&apos;s retro.
-          </DialogDescription>
-        </DialogHeader>
-        <Select value={reason} onValueChange={(v) => setReason(v as DeclineReason)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Choose a reason…" />
-          </SelectTrigger>
-          <SelectContent>
-            {DECLINE_REASONS.map((r) => (
-              <SelectItem key={r} value={r}>
-                {REASON_LABELS[r]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button variant="danger" disabled={!reason} onClick={() => reason && onConfirm(reason)}>
-            Decline
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

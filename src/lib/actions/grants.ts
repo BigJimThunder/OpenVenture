@@ -18,6 +18,7 @@ import {
   OUTCOME_TIERS,
 } from "@/db/schema";
 import { canApprove } from "@/lib/grants/budget";
+import { findLiveGrant } from "@/lib/pipeline/moves";
 import { authedAction, ActionError } from "./safe-action";
 import { formatMoney } from "@/lib/utils";
 
@@ -69,14 +70,9 @@ export const createGrant = authedAction({
       companyId = app.companyId;
       amountRequested = app.amountRequested;
 
-      const [existing] = await db
-        .select({ id: grant.id })
-        .from(grant)
-        .where(
-          and(eq(grant.applicationId, input.applicationId), ne(grant.status, "cancelled"))
-        )
-        .limit(1);
-      if (existing) throw new ActionError("This application already has a grant");
+      if (await findLiveGrant(input.applicationId)) {
+        throw new ActionError("This application already has a grant");
+      }
 
       // Link the decision trail: the memo and vote that justified this check.
       const [[latestMemo], [latestRound]] = await Promise.all([

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { db } from "@/db";
 import {
   voteRound,
@@ -14,14 +15,24 @@ import {
   member,
   VOTE_DECISIONS,
   VOTE_OUTCOMES,
+  DECLINE_REASONS,
+  USE_OF_FUNDS,
 } from "@/db/schema";
 import { authedAction, ActionError } from "./safe-action";
-import { sendEmail } from "@/lib/email";
+import { appUrl, emailLayout, escapeHtml, notifyMany, sendEmailSafe } from "@/lib/notify";
+import { defaultFounderEmail, sendFounderEmail } from "@/lib/founder-emails";
+import { orgSettings } from "@/lib/org-settings";
+import { decideVoteRound, type DecisionInput } from "@/lib/pipeline/decision";
+import { isVotingOpen } from "@/lib/votes/status";
 
 function revalidateVote(memoId: string | null, applicationId?: string) {
   revalidatePath("/memos");
-  if (memoId) revalidatePath(`/memos/${memoId}`);
+  if (memoId) {
+    revalidatePath(`/memos/${memoId}`);
+    revalidatePath(`/memos/${memoId}/vote`);
+  }
   if (applicationId) revalidatePath(`/pipeline/${applicationId}`);
+  revalidatePath("/pipeline");
   revalidatePath("/inbox");
 }
 
@@ -106,22 +117,37 @@ export const openVoteRound = authedAction({
       }))
     );
 
-    // Ballot-box email to everyone eligible.
-    const base = process.env.BETTER_AUTH_URL ?? "";
-    void Promise.allSettled(
-      eligibleVoters
-        .filter((v) => !input.recusedMemberIds.includes(v.id))
-        .map((v) =>
-          sendEmail({
-            to: v.email,
-            subject: `Vote open: ${m.companyName}`,
-            html: `<div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:520px;margin:0 auto;padding:24px">
-              <h2 style="font-size:16px;margin:0 0 8px">IC vote: ${m.companyName}</h2>
-              <p style="color:#555;font-size:14px">Votes are blind until reveal. Closes ${closesAt.toUTCString()}.</p>
-              <p style="margin:16px 0"><a href="${base}/memos/${m.memo.id}/vote" style="background:#4f46e5;color:#fff;padding:9px 16px;border-radius:6px;text-decoration:none;font-size:14px">Cast your vote</a></p>
-            </div>`,
-          }).catch(() => {})
+    // Ballot-box email to everyone eligible. `after()` keeps the function
+    // alive until the sends settle — a bare promise is dropped on serverless.
+    const recipients = eligibleVoters.filter((v) => !input.recusedMemberIds.includes(v.id));
+    const orgName = ctx.org.name;
+    const voteUrl = appUrl(`/memos/${m.memo.id}/vote`);
+    const closes = closesAt.toLocaleString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: ctx.org.timezone ?? "UTC",
+      timeZoneName: "short",
+    });
+    after(() =>
+      notifyMany(
+        recipients.map(
+          (v) => () =>
+            sendEmailSafe({
+              to: v.email,
+              subject: `Vote open: ${m.companyName}`,
+              html: emailLayout({
+                orgName,
+                heading: `IC vote: ${m.companyName}`,
+                bodyHtml: `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#27272a">${escapeHtml(ctx.member.displayName)} opened a blind vote on ${escapeHtml(m.companyName)}. Read the memo, then cast your ballot — nobody, the chair included, can see any ballot until it is revealed.</p><p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#27272a">Voting closes ${escapeHtml(closes)}.</p>`,
+                cta: { label: "Cast your ballot", url: voteUrl },
+                footer: `You're receiving this because you're an eligible voter at ${orgName}.`,
+              }),
+            })
         )
+      )
     );
 
     revalidateVote(m.memo.id, m.applicationId);
@@ -150,7 +176,7 @@ export const submitVote = authedAction({
   handler: async (input, ctx) => {
     const { round } = await loadRound(ctx.org.id, input.roundId);
     if (round.status !== "open") throw new ActionError("This vote is not open");
-    if (round.closesAt && round.closesAt < new Date()) throw new ActionError("This vote has closed");
+    if (!isVotingOpen(round)) throw new ActionError("This vote has closed");
 
     const [elig] = await db
       .select()
@@ -216,7 +242,7 @@ export const revealVoteRound = authedAction({
       .set({ status: "revealed", revealedAt: now, revealedByMemberId: ctx.member.id })
       .where(eq(voteRound.id, round.id));
 
-    revalidateVote(round.memoId);
+    revalidateVote(round.memoId, round.applicationId);
     return {
       data: { ok: true },
       activity: {
@@ -246,14 +272,15 @@ export const recordVoteOutcome = authedAction({
       .update(voteRound)
       .set({ outcome: input.outcome, outcomeNote: input.note, decidedByMemberId: ctx.member.id })
       .where(eq(voteRound.id, round.id));
-    if (round.memoId) {
+    // Revisit / no quorum decide nothing — the memo stays circulated.
+    if (round.memoId && (input.outcome === "fund" || input.outcome === "decline")) {
       await db
         .update(memo)
         .set({ status: "decided", decidedAt: now, updatedAt: now })
         .where(eq(memo.id, round.memoId));
     }
 
-    revalidateVote(round.memoId);
+    revalidateVote(round.memoId, round.applicationId);
     return {
       data: { ok: true },
       activity: {
@@ -261,7 +288,155 @@ export const recordVoteOutcome = authedAction({
         entityType: "vote_round",
         entityId: round.id,
         entityLabel: companyName,
-        summary: `The club voted to ${input.outcome === "fund" ? "fund" : input.outcome} ${companyName}`,
+        summary: OUTCOME_SUMMARY[input.outcome](companyName),
+      },
+    };
+  },
+});
+
+const OUTCOME_SUMMARY: Record<(typeof VOTE_OUTCOMES)[number], (company: string) => string> = {
+  fund: (c) => `The club voted to fund ${c}`,
+  decline: (c) => `The club voted to decline ${c}`,
+  revisit: (c) => `The club will revisit ${c}`,
+  no_quorum: (c) => `The ${c} vote did not reach quorum`,
+};
+
+const founderEmailChoice = z
+  .object({ send: z.boolean(), body: z.string().max(6000).optional() })
+  .optional();
+
+/**
+ * The decision chain in one action. After reveal, a partner records what the
+ * club decided and the rest follows atomically (see lib/pipeline/decision):
+ *   fund     → outcome, memo decided, application → Funded, proposed grant
+ *   decline  → outcome, memo decided, application → Declined with its reason
+ *   revisit / no quorum → outcome, application stays put with a next step
+ * `recordVoteOutcome`, `moveApplicationStage` and `createGrant` remain usable
+ * on their own for the odd case that doesn't fit.
+ */
+export const decideVote = authedAction({
+  minRole: "partner",
+  input: z.discriminatedUnion("outcome", [
+    z.object({
+      roundId: z.string().uuid(),
+      outcome: z.literal("fund"),
+      note: z.string().max(2000).optional(),
+      /** Pool and amount are required unless the application already has a live grant. */
+      poolId: z.string().uuid().optional(),
+      amount: z
+        .string()
+        .trim()
+        .regex(/^\d{1,7}(\.\d{1,2})?$/, "Enter an amount like 1200 or 1200.50")
+        .optional(),
+      useOfFunds: z.enum(USE_OF_FUNDS).default("other"),
+      useOfFundsNarrative: z.string().max(2000).optional(),
+      /** Omitted → the club's Founder emails setting decides. */
+      emailFounder: z.boolean().optional(),
+    }),
+    z.object({
+      roundId: z.string().uuid(),
+      outcome: z.literal("decline"),
+      note: z.string().max(2000).optional(),
+      declineReason: z.enum(DECLINE_REASONS, { message: "Choose a decline reason" }),
+      founderEmail: founderEmailChoice,
+    }),
+    z.object({
+      roundId: z.string().uuid(),
+      outcome: z.enum(["revisit", "no_quorum"]),
+      note: z.string().max(2000).optional(),
+      nextStep: z.string().max(200).optional(),
+      nextStepDue: z.coerce.date().nullable().optional(),
+    }),
+  ]),
+  handler: async (input, ctx) => {
+    const { roundId, ...rest } = input;
+    const result = await decideVoteRound(
+      { orgId: ctx.org.id, memberId: ctx.member.id, memberName: ctx.member.displayName },
+      roundId,
+      rest as DecisionInput
+    );
+
+    if (input.outcome === "fund") {
+      const force = input.emailFounder;
+      if (force !== false) {
+        after(() =>
+          sendFounderEmail("funded", result.applicationId, {
+            amount: result.amount,
+            force: force === true,
+          })
+        );
+      }
+    } else if (input.outcome === "decline") {
+      const choice = input.founderEmail;
+      if (!choice) {
+        after(() => sendFounderEmail("declined", result.applicationId));
+      } else if (choice.send) {
+        after(() =>
+          sendFounderEmail("declined", result.applicationId, {
+            customBody: choice.body,
+            force: true,
+          })
+        );
+      }
+    }
+
+    revalidateVote(result.memoId, result.applicationId);
+    revalidatePath("/grants");
+    revalidatePath("/grants/budget");
+    return {
+      data: {
+        applicationId: result.applicationId,
+        grantId: result.grantId,
+        grantCreated: result.grantCreated,
+        amount: result.amount,
+        poolName: result.poolName,
+      },
+      activity: {
+        verb: "vote.decided",
+        entityType: "vote_round",
+        entityId: result.roundId,
+        entityLabel: result.companyName,
+        summary: result.summary,
+      },
+    };
+  },
+});
+
+/**
+ * The "you're funded" note as the founder would receive it, for the amount
+ * currently in the decision dialog. Read-only.
+ */
+export const getFundedEmailPreview = authedAction({
+  minRole: "partner",
+  input: z.object({
+    applicationId: z.string().uuid(),
+    amount: z.string().max(20).optional(),
+  }),
+  handler: async (input, ctx) => {
+    const [app] = await db
+      .select({
+        applicantName: application.applicantName,
+        applicantEmail: application.applicantEmail,
+        companyName: company.name,
+      })
+      .from(application)
+      .innerJoin(company, eq(application.companyId, company.id))
+      .where(and(eq(application.id, input.applicationId), eq(application.orgId, ctx.org.id)))
+      .limit(1);
+    if (!app) throw new ActionError("Application not found");
+    const amount = input.amount && Number(input.amount) > 0 ? input.amount : null;
+    const email = defaultFounderEmail("funded", {
+      orgName: ctx.org.name,
+      companyName: app.companyName,
+      firstName: (app.applicantName ?? "").trim().split(/\s+/)[0] ?? "",
+      amount,
+    });
+    return {
+      data: {
+        applicantEmail: app.applicantEmail,
+        subject: email.subject,
+        body: email.body,
+        clubSendsByDefault: orgSettings(ctx.org).founderEmails.funded,
       },
     };
   },

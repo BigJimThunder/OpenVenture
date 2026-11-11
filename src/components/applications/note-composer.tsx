@@ -30,6 +30,8 @@ export function NoteComposer({ applicationId }: { applicationId: string }) {
       <Textarea
         placeholder="Add a note — founder call, diligence finding, next step…"
         rows={2}
+        aria-label="New note"
+        className="max-md:text-base"
         value={body}
         onChange={(e) => setBody(e.target.value)}
         onKeyDown={(e) => {
@@ -38,7 +40,7 @@ export function NoteComposer({ applicationId }: { applicationId: string }) {
       />
       {body.trim() && (
         <div className="flex justify-end">
-          <Button size="sm" onClick={submit} disabled={busy}>
+          <Button size="sm" onClick={submit} disabled={busy} className="max-md:h-10">
             {busy ? "Saving…" : "Add note"}
           </Button>
         </div>
