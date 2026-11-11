@@ -29,6 +29,13 @@
       "when": 1794437192407,
       "tag": "0003_mysterious_miracleman",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794437729311,
+      "tag": "0004_square_karen_page",
+      "breakpoints": true
     }
   ]
 }

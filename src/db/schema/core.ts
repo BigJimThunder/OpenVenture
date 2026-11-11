@@ -120,6 +120,12 @@ export const member = pgTable("member", {
   /** Opt-in to appear on the club-visible investor-analysis leaderboard. */
   insightsOptIn: boolean("insights_opt_in").notNull().default(false),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  /**
+   * When the member finished the first-run welcome flow (confirmed their
+   * profile). Null = send them through /start on their next visit.
+   */
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+  major: text("major"),
   offboardedAt: timestamp("offboarded_at", { withTimezone: true }),
   lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
