@@ -372,6 +372,14 @@ const MEMO_SECTION_MAP: { field: FundingRequestField; match: RegExp }[] = [
   { field: "rationaleFunding", match: /recommend|rationale|why/i },
 ];
 
+/**
+ * A memo's recommendation usually opens with the verdict ("Fund $1,800.").
+ * The request states the amount itself, and it may differ, so keep the reason.
+ */
+export function stripVerdict(text: string): string {
+  return text.replace(/^\s*(?:we\s+)?(?:recommend|fund|approve)\b[^.]*\$[\d,.]*\d\.\s+/i, "").trim();
+}
+
 /** Paragraphs or list lines → list entries, bullets and numbering stripped. */
 export function textToList(text: string): string[] {
   return text
@@ -395,10 +403,10 @@ export function prefillFundingRequest(input: {
 }): FundingRequestContent {
   const content = fundingRequestContentSchema.parse({});
   for (const section of input.memoSections) {
-    const text = section.text.trim();
-    if (!text) continue;
     const target = MEMO_SECTION_MAP.find((m) => m.match.test(section.title))?.field;
     if (!target) continue;
+    const text = target === "rationaleFunding" ? stripVerdict(section.text) : section.text.trim();
+    if (!text) continue;
     if (target === "upside" || target === "concerns") {
       if (content[target].length === 0) {
         content[target] = textToList(text);

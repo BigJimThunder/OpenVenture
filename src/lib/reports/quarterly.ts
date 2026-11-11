@@ -236,8 +236,13 @@ function pipelineSentences(f: QuarterlyFigures): string[] {
   } else if (p.received > 0) {
     out.push("We have not decided any of them yet.");
   }
+  // Never open a sentence with a numeral: "…declined 2. 12 applications…" reads as one number.
   if (p.inReview > 0) {
-    out.push(`${p.inReview === 1 ? "One application is" : `${p.inReview} applications are`} still in review.`);
+    out.push(
+      p.inReview === 1
+        ? "There is one application still in review."
+        : `There are ${p.inReview} applications still in review.`
+    );
   }
   const reasons = p.declineReasons.filter((r) => r.count > 0).slice(0, 3);
   if (p.declined > 1 && reasons.length > 0) {

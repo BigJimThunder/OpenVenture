@@ -7,6 +7,7 @@ import { requireCtx } from "@/lib/actions/context";
 import { getApplicationDetail, getPipelineLookups } from "@/lib/queries/applications";
 import { isOverdue } from "@/lib/queries/dashboard";
 import { getPools } from "@/lib/queries/grants";
+import { fundingRequestStatusLabel, getFundingRequestStatus } from "@/lib/queries/reports";
 import { findDuplicateCandidates } from "@/lib/pipeline/duplicates";
 import { nextAction } from "@/lib/pipeline/next-action";
 import { effectiveRoundStatus } from "@/lib/votes/status";
@@ -119,8 +120,9 @@ export default async function ApplicationDetailPage({ params }: PageProps<"/pipe
   const aiOn = aiConfigured() && orgSettings(ctx.org).ai.enabled;
   const brief = readStoredBrief(app.custom);
 
-  const [pools, duplicates] = await Promise.all([
+  const [pools, fundingRequest, duplicates] = await Promise.all([
     action.kind === "propose_grant" && canContribute ? getPools(ctx.org.id) : Promise.resolve([]),
+    app.status === "funded" ? getFundingRequestStatus(ctx.org.id, app.id) : Promise.resolve(null),
     app.status === "open"
       ? findDuplicateCandidates(
           ctx.org.id,
@@ -322,8 +324,22 @@ export default async function ApplicationDetailPage({ params }: PageProps<"/pipe
               declineNote={app.declineNote}
               outcomeNote={round?.outcomeNote}
               grant={liveGrant}
+              fundingRequest={
+                app.status === "funded"
+                  ? fundingRequestStatusLabel(fundingRequest, orgSettings(ctx.org).reports.approverName)
+                  : null
+              }
               links={[
                 ...(liveGrant ? [{ href: "/grants" as Route, label: "View grant" }] : []),
+                // Nobody is offered a request they can't start; anyone can read one that exists.
+                ...(app.status === "funded" && (fundingRequest || canContribute)
+                  ? [
+                      {
+                        href: `/reports/funding/${app.id}` as Route,
+                        label: fundingRequest ? "Funding request" : "Write funding request",
+                      },
+                    ]
+                  : []),
                 ...(voteHref && round?.status === "revealed" ? [{ href: voteHref, label: "See the vote" }] : []),
               ]}
             >

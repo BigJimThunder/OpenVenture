@@ -34,6 +34,7 @@ import {
 } from "@/components/settings/lookup-sections";
 import { PoolManager } from "@/components/settings/pool-manager";
 import { PreferenceText } from "@/components/settings/preference-text";
+import { ReportSettings } from "@/components/settings/report-settings";
 import { PreferenceToggle } from "@/components/settings/preference-toggle";
 import { SettingsNav, type SettingsNavItem } from "@/components/settings/settings-nav";
 import { SettingsCard, SettingsSection, StatusLine } from "@/components/settings/settings-section";
@@ -54,6 +55,7 @@ const SECTIONS: SettingsNavItem[] = [
   { id: "intake", label: "Intake" },
   { id: "email", label: "Email" },
   { id: "automations", label: "Automations" },
+  { id: "reports", label: "Reports" },
   { id: "ai", label: "AI" },
   { id: "templates", label: "Templates" },
   { id: "data", label: "Data" },
@@ -503,6 +505,14 @@ export default async function SettingsPage() {
                 </ul>
               )}
             </SettingsCard>
+          </SettingsSection>
+
+          <SettingsSection
+            id="reports"
+            title="Reports"
+            description="Where funding requests and letters go, and the words they borrow. The reports themselves live under Reports."
+          >
+            <ReportSettings reports={settings.reports} />
           </SettingsSection>
 
           <SettingsSection

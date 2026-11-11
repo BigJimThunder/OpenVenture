@@ -163,6 +163,7 @@ export const refreshAnnualReport = authedAction({
     paths(fiscalYear);
     return {
       data: {
+        content: next,
         addedCompanies: next.companies.length - before.companies.length,
         addedMembers: next.team.members.length - before.team.members.length,
       },

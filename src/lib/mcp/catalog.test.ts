@@ -20,14 +20,15 @@ describe("what a token is offered", () => {
   it("gives an analyst the pipeline tools but not partner or admin ones", () => {
     const tools = toolsFor("analyst", "write");
     expect(tools).toEqual(expect.arrayContaining(["add_note", "move_stage", "score_application", "email_me"]));
-    for (const name of ["email_member", "draft_funding_request", "draft_quarterly_letter", "draft_annual_report", "run_daily_automations"]) {
+    expect(tools).toContain("draft_funding_request");
+    for (const name of ["email_member", "draft_quarterly_letter", "draft_annual_report", "run_daily_automations"]) {
       expect(tools).not.toContain(name);
     }
   });
 
   it("gives a partner the report drafts and member email, but not the automations", () => {
     const tools = toolsFor("partner", "write");
-    expect(tools).toEqual(expect.arrayContaining(["email_member", "draft_funding_request", "draft_annual_report"]));
+    expect(tools).toEqual(expect.arrayContaining(["email_member", "draft_quarterly_letter", "draft_annual_report"]));
     expect(tools).not.toContain("run_daily_automations");
   });
 

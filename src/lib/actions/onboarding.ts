@@ -15,6 +15,7 @@ import {
   ONBOARDING_TASK_KINDS,
 } from "@/db/schema";
 import { authedAction, ActionError } from "./safe-action";
+import { requireCtx } from "./context";
 import { fetchSiteMeta } from "@/lib/enrichment/fetch-meta";
 import { sendEmailSafe } from "@/lib/notify";
 import { nudgeEmail } from "@/lib/onboarding/emails";
@@ -60,6 +61,41 @@ async function recomputeTrackCompletion(orgId: string, trackId: string) {
   for (const memberId of new Set(assignments.map((a) => a.memberId))) {
     await syncOnboarding(orgId, memberId);
   }
+}
+
+/**
+ * The tracks an invite can enrol on, for the invite dialog. A read, so it is
+ * not an authedAction, but it is still a public endpoint: admin-only.
+ */
+export async function loadInviteTracks() {
+  const ctx = await requireCtx("admin");
+  const tracks = await db
+    .select({ id: onboardingTrack.id, name: onboardingTrack.name, isDefault: onboardingTrack.isDefault })
+    .from(onboardingTrack)
+    .where(and(eq(onboardingTrack.orgId, ctx.org.id), isNull(onboardingTrack.archivedAt)))
+    .orderBy(desc(onboardingTrack.isDefault), asc(onboardingTrack.name));
+  if (tracks.length === 0) return [];
+  const tasks = await db
+    .select({
+      trackId: onboardingTask.trackId,
+      required: onboardingTask.required,
+      minutes: onboardingTask.estimatedMinutes,
+    })
+    .from(onboardingTask)
+    .where(
+      inArray(
+        onboardingTask.trackId,
+        tracks.map((t) => t.id)
+      )
+    );
+  return tracks.map((t) => {
+    const required = tasks.filter((k) => k.trackId === t.id && k.required);
+    return {
+      ...t,
+      requiredCount: required.length,
+      minutes: required.reduce((n, k) => n + (k.minutes ?? 0), 0),
+    };
+  });
 }
 
 const trackFields = {

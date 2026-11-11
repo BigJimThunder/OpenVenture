@@ -157,6 +157,14 @@ tooltip.
 `src/components/patterns/` (composed, app-specific — **pages compose these, not raw ui/**):
 `PageHeader`, `StatCard`, `StageBadge`, `Money`, `EmptyState`, `ChartFrame`.
 
+### Forms and writing surfaces
+
+- **One field look.** Every control shares `fieldChrome` (`ui/input.tsx`): strong resting border, darker on hover, accent border with a soft ring on focus, danger when `aria-invalid`, flat grey when disabled. 36px with a mouse, 44px on touch. Never restyle a bare `<input>`, `<textarea>` or `<select>`; use `Input`, `Textarea`, `Select` (or `NativeSelect` for FormData forms), `Checkbox`, `Switch`.
+- **Every control has a label.** Wrap it in `Field` (`patterns/field.tsx`), which wires `htmlFor`, `aria-describedby` and `aria-invalid`. Pass `optional`, `hint` and `error` rather than writing them into the label. Switch and checkbox rows use `FieldToggle`.
+- **Money and units.** Amounts use `MoneyInput` (decimal string in and out, never a float) or `Input leading="$"` / `trailing="%"`.
+- **Textareas grow** with their text; add `showCount` when a `maxLength` is tight enough to hit.
+- **Prose is one editor.** Anything longer than a note uses `RichTextEditor` (`components/editor/rich-text.tsx`): `variant="document"` for memos, docs and reports; `variant="field"` for boxed notes. Read mode and print use `RichTextView`. Formatting appears on selection (a bubble on desktop, a docked bar on phones), `/` opens blocks, and links go through `safeHref`. The editor only emits `onChange`; the caller owns autosave.
+
 ### Shell
 
 **Desktop:** a 240px sidebar sits directly on the chrome — club name, a search field

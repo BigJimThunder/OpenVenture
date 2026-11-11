@@ -77,13 +77,13 @@ const ESSAYS: Record<string, { essay: string; state: "edited" | "ai"; reviewed: 
     state: "edited",
     reviewed: true,
     essay: [
-      "LabMate started as a spreadsheet. Sage ran inventory for a wet lab as a work-study job, and got tired of finding out that the lab was out of a reagent on the morning someone needed it. The spreadsheet told people what was in the freezer. Within a term, two neighbouring labs had asked for a copy.",
+      "LabMate started as a spreadsheet. Sage ran inventory for a wet lab as a work-study job, and got tired of finding out that the lab was out of a reagent on the morning someone needed it. The spreadsheet told people what was in the freezer. Within a term, two neighboring labs had asked for a copy.",
       "I met Sage at our September coffee chat. I had read the application twice and still expected a pitch about the size of the lab supplies market. Instead Sage opened a laptop and showed me the reorder log for the past year: every item, who used it last, and how long the lab had gone without it. The longest gap was nineteen days. That number was the whole pitch.",
       "The memo our committee read was candid that the distribution plan was thin. Sage did not have an answer for how LabMate reaches a lab where nobody knows Sage. What we had instead was a founder who knew the problem better than anyone we could have asked, and three labs using the product every day without being asked to.",
       "The grant paid for barcode scanners and a first run of printed labels, so that logging an item takes one scan and not a typed row. It is the smallest thing that could make the fourth lab say yes.",
     ].join("\n\n"),
     progress:
-      "LabMate is in seven labs across two departments. In October it closed a small outside round from two alumni angels, which we had no part in beyond an introduction. Sage is now working out what a department-wide licence would cost.",
+      "LabMate is in seven labs across two departments. In October it closed a small outside round from two alumni angels, which we had no part in beyond an introduction. Sage is now working out what a department-wide license would cost.",
   },
   GreenPlate: {
     state: "ai",

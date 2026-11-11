@@ -114,6 +114,8 @@ export async function bootstrapOrg(raw: z.input<typeof SetupInput>) {
         displayName: input.yourName || session.user.name || email.split("@")[0],
         role: "admin",
         status: "active",
+        // The founder has just been through setup; the welcome flow is for invitees.
+        onboardedAt: new Date(),
       }),
       q.insert(pipelineStage).values(
         DEFAULT_STAGES.map((s) => ({

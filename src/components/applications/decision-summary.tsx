@@ -27,6 +27,7 @@ export function DecisionSummary({
   declineNote,
   grant,
   nextStep,
+  fundingRequest,
   links,
   children,
   className,
@@ -38,6 +39,8 @@ export function DecisionSummary({
   declineNote?: string | null;
   grant?: { status: GrantStatus; amountAwarded: string; poolName: string } | null;
   nextStep?: string | null;
+  /** Where the memo sent up for sign-off stands: "Funding request: sent to Dana on Nov 12". */
+  fundingRequest?: string | null;
   /** Where to go from here — the grant, the application, the vote. */
   links?: { href: string; label: string }[];
   /** Extra actions (e.g. Reopen). */
@@ -110,6 +113,7 @@ export function DecisionSummary({
           {decidedAt && (
             <p className="tnum mt-0.5 text-xs text-fg-subtle">{format(decidedAt, "MMM d, yyyy")}</p>
           )}
+          {funded && fundingRequest && <p className="tnum mt-0.5 text-xs text-fg-muted">{fundingRequest}</p>}
         </div>
       </div>
       {(links?.length || children) && (

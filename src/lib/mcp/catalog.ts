@@ -510,10 +510,10 @@ export const TOOLS = {
     title: "Draft a funding request",
     summary: "Start (or open) the funding request for a company.",
     description:
-      "Creates the funding request draft for an application if it does not exist yet and returns its URL. Numbers in the document are filled from the application, votes and budget when it is opened; the member reviews, edits and sends it from the app. Nothing is sent by this tool.",
+      "Creates the funding request draft for an application if it does not exist yet and returns its URL. The draft is prefilled from the application and its memo, and its numbers come from the votes and the budget; a partner finalizes and sends it from the app. Nothing is sent by this tool.",
     group: "Run things",
     scope: "write",
-    minRole: "partner",
+    minRole: "analyst",
     idempotent: true,
     input: z.strictObject({ application: applicationRef }),
   },

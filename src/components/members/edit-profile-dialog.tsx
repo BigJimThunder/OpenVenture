@@ -112,6 +112,7 @@ export function EditProfileDialog({
               name="bio"
               rows={3}
               maxLength={1000}
+              showCount
               defaultValue={profile.bio ?? ""}
               placeholder="What you work on, what you want to see more of…"
             />

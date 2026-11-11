@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -8,6 +9,7 @@ import {
   ArrowRightIcon,
   ChevronRightIcon,
   CircleAlertIcon,
+  FileTextIcon,
   MoreHorizontalIcon,
   ReceiptIcon,
 } from "lucide-react";
@@ -179,8 +181,10 @@ export function GrantsTable({
       // Cashed is optional bookkeeping — a partner may reconcile straight from issued.
       reconcileEarly: canPartner && g.status === "issued",
       cancel: canMoney && open,
+      // The memo sent up for sign-off; anyone may read it, contributors write it.
+      request: g.applicationId != null && g.status !== "cancelled",
     };
-    if (!items.receipt && !items.reconcileEarly && !items.cancel) return null;
+    if (!items.receipt && !items.reconcileEarly && !items.cancel && !items.request) return null;
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -189,6 +193,14 @@ export function GrantsTable({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {items.request && (
+            <DropdownMenuItem asChild>
+              <Link href={`/reports/funding/${g.applicationId}` as Route}>
+                <FileTextIcon />
+                Funding request
+              </Link>
+            </DropdownMenuItem>
+          )}
           {items.receipt && (
             <DropdownMenuItem onClick={() => setReceiptFor(g)}>
               <ReceiptIcon />

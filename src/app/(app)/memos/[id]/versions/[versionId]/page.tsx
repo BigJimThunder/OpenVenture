@@ -6,7 +6,9 @@ import { ArrowLeftIcon } from "lucide-react";
 import { requireCtx } from "@/lib/actions/context";
 import { getMemoDetail, getVersionSections } from "@/lib/queries/memos";
 import { wordDiff } from "@/lib/diff";
+import { isDocEmpty, parseDoc } from "@/lib/rich-text";
 import { formatRef } from "@/lib/refs";
+import { RichTextView } from "@/components/editor/rich-text-view";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,10 +91,12 @@ export default async function MemoVersionPage({
                     )
                   )}
                 </p>
-              ) : (
+              ) : isDocEmpty(parseDoc(s.contentJson)) ? (
                 <p className="prose-surface whitespace-pre-wrap">
                   {s.contentText || <span className="text-fg-subtle">Empty</span>}
                 </p>
+              ) : (
+                <RichTextView value={parseDoc(s.contentJson)} />
               )}
             </Card>
           );

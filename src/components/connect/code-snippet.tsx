@@ -34,10 +34,11 @@ export function CodeSnippet({
   }
 
   return (
-    <div className={cn("relative rounded-md border border-border bg-bg-subtle", className)}>
+    // The button sits beside the scroll area, not over it, so long lines never run underneath.
+    <div className={cn("flex items-start rounded-md border border-border bg-bg-subtle", className)}>
       <pre
         className={cn(
-          "py-2.5 pr-12 pl-3 font-mono text-xs leading-relaxed text-fg select-all",
+          "min-w-0 flex-1 py-2.5 pl-3 font-mono text-xs leading-relaxed text-fg select-all",
           wrap ? "break-words whitespace-pre-wrap" : "overflow-x-auto whitespace-pre"
         )}
       >
@@ -46,7 +47,7 @@ export function CodeSnippet({
       <Button
         variant="ghost"
         size="icon-sm"
-        className="absolute top-1.5 right-1.5 bg-bg-subtle max-md:size-9"
+        className="m-1.5 shrink-0 max-md:size-9"
         onClick={copy}
         aria-label={`Copy ${label.toLowerCase()}`}
       >

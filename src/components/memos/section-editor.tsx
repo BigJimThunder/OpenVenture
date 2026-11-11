@@ -106,7 +106,7 @@ export function SectionEditor({
       aria-label={title}
       className="scroll-mt-16 rounded-lg border border-border bg-panel p-4 shadow-xs md:p-5"
     >
-      <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
         <h3 className="text-md font-semibold">{title}</h3>
         {required && <Badge variant="outline">Required</Badge>}
       </div>

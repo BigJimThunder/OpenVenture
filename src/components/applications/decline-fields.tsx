@@ -98,7 +98,7 @@ export type DeclineForm = ReturnType<typeof useDeclineForm>;
 export function DeclineFields({ form }: { form: DeclineForm }) {
   const { preview } = form;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label>Reason</Label>
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4" role="radiogroup" aria-label="Decline reason">

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { CheckIcon, GavelIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -195,7 +196,7 @@ function DecisionForm({
       toast.error(res.error);
       return;
     }
-    toast.success(
+    const message =
       outcome === "fund"
         ? res.data.grantCreated && res.data.amount
           ? `Funded — ${formatMoney(res.data.amount)} proposed from ${res.data.poolName}`
@@ -204,8 +205,20 @@ function DecisionForm({
           ? `${companyName} declined`
           : outcome === "revisit"
             ? "Recorded — the club will revisit"
-            : "Recorded — no quorum"
-    );
+            : "Recorded — no quorum";
+    if (outcome === "fund") {
+      // The memo that goes up for sign-off is the next thing a funded company needs.
+      toast.success(message, {
+        description: "The funding request is mostly filled in from the vote and the memo.",
+        action: {
+          label: "Write it",
+          onClick: () => router.push(`/reports/funding/${applicationId}` as Route),
+        },
+        duration: 12000,
+      });
+    } else {
+      toast.success(message);
+    }
     onDone();
     router.refresh();
   }

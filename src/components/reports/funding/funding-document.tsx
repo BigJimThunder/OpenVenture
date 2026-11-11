@@ -5,6 +5,7 @@ import {
   formatItemAmount,
   formatUsd,
   foundersOf,
+  isCut,
   recommendationOf,
   voteLine,
   type FundingRequestContent,
@@ -85,7 +86,11 @@ export function FundingDocument({
         </Cell>
         <Cell order="order-6 sm:order-6 print:order-6" top right>
           <strong>{FR_FIELD_META.rationaleCuts.documentLabel}:</strong>
-          <Prose text={content.rationaleCuts || "N/A"} missing="" className="mt-2" />
+          <Prose
+            text={content.rationaleCuts || (isCut(facts) ? "" : "N/A")}
+            missing="why we approved less than the ask"
+            className="mt-2"
+          />
         </Cell>
       </div>
 

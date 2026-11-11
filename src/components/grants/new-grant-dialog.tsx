@@ -132,7 +132,7 @@ export function NewGrantDialog({
             <Label>Application</Label>
             <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
               <PopoverTrigger asChild>
-                <Button variant="secondary" className="justify-between font-normal">
+                <Button variant="secondary" className="h-9 justify-between border-border-strong px-3 font-normal hover:border-fg-subtle max-md:h-11">
                   {selectedApp ? (
                     <span>
                       {selectedApp.companyName}
@@ -144,9 +144,9 @@ export function NewGrantDialog({
                       </span>
                     </span>
                   ) : (
-                    <span className="text-fg-subtle">Search applications…</span>
+                    <span className="text-fg-muted/85">Search applications…</span>
                   )}
-                  <ChevronDownIcon className="text-fg-subtle" />
+                  <ChevronDownIcon className="text-fg-muted" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">

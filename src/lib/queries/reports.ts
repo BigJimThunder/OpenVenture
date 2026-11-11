@@ -35,6 +35,7 @@ import {
   isCut,
   parseFundingRequestContent,
   prefillFundingRequest,
+  stripVerdict,
   summarizeBallots,
   type FounderInput,
   type FundingRequestContent,
@@ -195,10 +196,16 @@ export async function getFundingRequest(
 
   // `ballots` is empty until reveal — the redaction module guarantees it.
   const ballots = results?.revealed ? results.ballots : [];
-  const withRationale = (decision: string) =>
-    ballots
-      .filter((b) => b.decision === decision && b.rationale?.trim())
-      .map((b) => ({ memberName: b.memberName, rationale: b.rationale!.trim() }));
+  // Several voters often write the same thing; show each rationale once, with everyone who wrote it.
+  const withRationale = (decision: string) => {
+    const byText = new Map<string, string[]>();
+    for (const b of ballots) {
+      const text = b.rationale?.trim();
+      if (b.decision !== decision || !text) continue;
+      byText.set(text, [...(byText.get(text) ?? []), b.memberName]);
+    }
+    return [...byText].map(([rationale, names]) => ({ memberName: names.join(", "), rationale }));
+  };
 
   const now = new Date();
   const applicantName = app.applicantName?.trim() ?? "";
@@ -481,7 +488,8 @@ export async function getQuarterlyFigures(
     if (!applicationId) return null;
     const request = requests.find((r) => r.applicationId === applicationId);
     const fromRequest = request ? parseFundingRequestContent(request.content).rationaleFunding : "";
-    return firstSentences(fromRequest || recommendations.find((r) => r.applicationId === applicationId)?.text);
+    const fromMemo = recommendations.find((r) => r.applicationId === applicationId)?.text ?? "";
+    return firstSentences(stripVerdict(fromRequest || fromMemo));
   };
 
   const tierLabel = (tier: string | null) => TIER_META[tier as OutcomeTier]?.label ?? tier ?? "Not yet recorded";
@@ -605,7 +613,7 @@ export type HubFundingRow = {
 
 export async function getReportsHub(org: Org) {
   const [funded, reports] = await Promise.all([
-    // Every company the club decided to fund: by status, or by a live grant.
+    // Every company the club decided to fund, plus any other application someone started a request for.
     db
       .select({
         applicationId: application.id,
@@ -625,9 +633,11 @@ export async function getReportsHub(org: Org) {
           isNull(application.archivedAt),
           or(
             eq(application.status, "funded"),
-            sql`exists (select 1 from "grant" g where g.application_id = ${application.id} and g.status <> 'cancelled')`
-          ),
-          ne(application.status, "declined")
+            sql`exists (
+              select 1 from report r
+              where r.application_id = ${application.id} and r.kind = 'funding_request' and r.archived_at is null
+            )`
+          )
         )
       )
       .orderBy(desc(application.decidedAt)),

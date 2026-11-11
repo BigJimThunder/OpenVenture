@@ -13,13 +13,17 @@ const SelectValue = SelectPrimitive.Value;
 function SelectTrigger({
   className,
   children,
+  size = "default",
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Trigger>) {
+}: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
+  /** "sm" matches a default Button (32px), for selects in toolbars and page headers rather than forms. */
+  size?: "default" | "sm";
+}) {
   return (
     <SelectPrimitive.Trigger
       className={cn(
         fieldChrome,
-        fieldHeight,
+        size === "sm" ? "h-8 max-md:h-10" : fieldHeight,
         "flex cursor-pointer items-center justify-between gap-2 px-3 py-1 text-left data-[placeholder]:text-fg-muted/85 data-[state=open]:border-accent data-[state=open]:ring-3 data-[state=open]:ring-accent/20 [&>span]:truncate",
         className
       )}

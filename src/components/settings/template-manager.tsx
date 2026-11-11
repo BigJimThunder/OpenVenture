@@ -441,6 +441,7 @@ function SectionDialog({
               name="guidance"
               rows={3}
               maxLength={600}
+              showCount
               placeholder="What exactly does the money buy, and what does it unblock?"
               defaultValue={section?.guidance ?? ""}
             />

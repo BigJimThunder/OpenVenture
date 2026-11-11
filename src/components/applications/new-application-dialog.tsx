@@ -47,7 +47,6 @@ type Candidate = {
 type Options = { sectors: { id: string; name: string }[]; sources: { id: string; name: string }[] };
 
 const NONE = "none";
-const field = "max-md:h-11 max-md:text-base";
 
 /**
  * Fast add — must take under 10 seconds for the common case: only the company
@@ -190,7 +189,7 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
             placeholder="Lecture Loop"
-            className={field}
+           
           />
         </Field>
         <Field label="Website">
@@ -200,11 +199,11 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
             value={domain}
             onChange={(e) => setDomain(e.target.value)}
             placeholder="lectureloop.app"
-            className={field}
+           
           />
         </Field>
         <Field label="Founder">
-          <Input id="applicantName" name="applicantName" maxLength={120} placeholder="Jordan Lee" className={field} />
+          <Input id="applicantName" name="applicantName" maxLength={120} placeholder="Jordan Lee" />
         </Field>
         <Field label="Founder email">
           <Input id="applicantEmail"
@@ -213,7 +212,7 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
             value={applicantEmail}
             onChange={(e) => setApplicantEmail(e.target.value)}
             placeholder="jordan@school.edu"
-            className={field}
+           
           />
         </Field>
       </div>
@@ -275,7 +274,7 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="sourceId">How it reached us</Label>
             <Select value={sourceId} onValueChange={setSourceId}>
-              <SelectTrigger id="sourceId" className={field}>
+              <SelectTrigger id="sourceId">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -293,7 +292,7 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="sectorId">Sector</Label>
             <Select value={sectorId} onValueChange={setSectorId}>
-              <SelectTrigger id="sectorId" className={field}>
+              <SelectTrigger id="sectorId">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

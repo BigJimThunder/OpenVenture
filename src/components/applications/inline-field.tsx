@@ -91,7 +91,7 @@ export function InlineField({
         <div className={cn("flex w-full flex-col gap-2", className)}>
           <Textarea
             autoFocus
-            rows={5}
+            rows={3}
             value={draft}
             disabled={busy}
             maxLength={maxLength}
@@ -106,7 +106,7 @@ export function InlineField({
                 void commit();
               }
             }}
-            className={cn("leading-relaxed max-md:text-base", inputClassName)}
+            className={cn("leading-relaxed", inputClassName)}
           />
           <div className="flex justify-end gap-2">
             <Button type="button" size="sm" variant="ghost" onClick={cancel} disabled={busy}>
@@ -139,7 +139,7 @@ export function InlineField({
             void commit();
           }
         }}
-        className={cn("h-7 max-md:h-10 max-md:text-base", inputClassName, className)}
+        className={cn("h-7 px-2 max-md:h-10", inputClassName, className)}
       />
     );
   }

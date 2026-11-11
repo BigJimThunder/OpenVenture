@@ -135,7 +135,7 @@ describe("composeQuarterlyLetter", () => {
 
   it("writes the pipeline paragraph with singular and plural forms", () => {
     expect(composeQuarterlyLetter(figures()).pipeline).toBe(
-      "We received 12 applications this quarter. We funded 2 and declined 5. 7 applications are still in review. The most common reasons for declining were too early (3) and not a fit (2)."
+      "We received 12 applications this quarter. We funded 2 and declined 5. There are 7 applications still in review. The most common reasons for declining were too early (3) and not a fit (2)."
     );
     const one = composeQuarterlyLetter(
       figures({
@@ -143,13 +143,13 @@ describe("composeQuarterlyLetter", () => {
       })
     );
     expect(one.pipeline).toBe(
-      "We received one application this quarter. We declined one. One application is still in review. The reason recorded for the decline was too early."
+      "We received one application this quarter. We declined one. There is one application still in review. The reason recorded for the decline was too early."
     );
     const undecided = composeQuarterlyLetter(
       figures({ pipeline: { received: 3, funded: 0, declined: 0, inReview: 3, declineReasons: [] } })
     );
     expect(undecided.pipeline).toBe(
-      "We received 3 applications this quarter. We have not decided any of them yet. 3 applications are still in review."
+      "We received 3 applications this quarter. We have not decided any of them yet. There are 3 applications still in review."
     );
   });
 

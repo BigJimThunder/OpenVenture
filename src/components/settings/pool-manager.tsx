@@ -288,6 +288,7 @@ function PoolDialog({
               name="notes"
               rows={2}
               maxLength={1000}
+              showCount
               placeholder="Where the money comes from, who approved it, anything next year's treasurer should know."
               defaultValue={pool?.notes ?? ""}
             />

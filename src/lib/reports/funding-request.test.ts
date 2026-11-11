@@ -186,7 +186,7 @@ describe("content", () => {
         { title: "Team", text: "Two third-years." },
         { title: "Product & Traction", text: "Spoke to six shops." },
         { title: "Risks", text: "- Every shop is different\n- Hardware lead times" },
-        { title: "Recommendation", text: "Fund the starter kit." },
+        { title: "Recommendation", text: "Fund $1,800. They have done the work." },
       ],
       oneLiner: "ignored when the memo has a summary",
       pitch: null,
@@ -196,7 +196,7 @@ describe("content", () => {
     expect(content.summary).toBe("Tracks stock for CNC shops.");
     expect(content.feasibility).toBe("Spoke to six shops.");
     expect(content.concerns).toEqual(["Every shop is different", "Hardware lead times"]);
-    expect(content.rationaleFunding).toBe("Fund the starter kit.");
+    expect(content.rationaleFunding).toBe("They have done the work.");
     expect(content.origin).toMatchObject({ summary: "memo", team: "memo", concerns: "memo" });
     expect(content.askedItems.map((i) => i.amount)).toEqual(["260.00", "58.50"]);
     expect(content.approvedItems).toHaveLength(2);

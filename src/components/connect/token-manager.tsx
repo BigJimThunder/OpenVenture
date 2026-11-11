@@ -78,7 +78,7 @@ export function TokenList({
         {tokens.map((t) => (
           <li
             key={t.id}
-            className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-4"
+            className="flex items-start gap-3 py-3 first:pt-0 last:pb-0 sm:items-center sm:gap-4"
           >
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -98,7 +98,7 @@ export function TokenList({
             <Button
               variant="danger-ghost"
               size="sm"
-              className="self-start max-md:h-10 max-md:px-3 sm:self-center"
+              className="-mr-1 shrink-0 max-md:-mt-1.5 max-md:h-10 max-md:px-3"
               onClick={() => setRevoking(t)}
             >
               Revoke

@@ -18,6 +18,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     redirect(session?.user ? "/setup" : "/login");
   }
 
+  // New members finish the welcome flow first. /start sits outside this
+  // layout, so this cannot loop; token requests are never browser sessions.
+  if (ctx.via === "session" && !ctx.member.onboardedAt) redirect("/start");
+
   // Only admins see the getting-started checklist — and only until it's done.
   const [counts, setup] = await Promise.all([
     getShellCounts(ctx.org.id, ctx.member.id),

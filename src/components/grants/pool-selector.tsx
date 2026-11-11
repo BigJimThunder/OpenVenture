@@ -24,7 +24,7 @@ export function PoolSelector({
       value={currentPoolId}
       onValueChange={(v) => router.push(`${pathname}?pool=${v}`)}
     >
-      <SelectTrigger className="w-40">
+      <SelectTrigger size="sm" className="w-40">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

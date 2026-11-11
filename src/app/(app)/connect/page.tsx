@@ -50,7 +50,8 @@ const EXAMPLES: Example[] = [
     ask: "Draft the Team section of the Lecture Loop memo from what is in the application. Show me the text before you save it.",
     needs: "write",
   },
-  { ask: "Draft the funding request for Lecture Loop and send me the link.", needs: "partner" },
+  { ask: "Start the funding request for Lecture Loop and send me the link.", needs: "write" },
+  { ask: "Start this quarter's letter to our supporters and tell me what is still missing.", needs: "partner" },
   {
     ask: "Every Monday at 8am, email me my OpenVenture digest.",
     note: "The schedule lives in your assistant, so this needs one that can run tasks on a timer.",
@@ -191,14 +192,14 @@ export default async function ConnectPage() {
         >
           {groups.map(({ group, tools }) => (
             <SettingsCard key={group} title={group}>
-              <ul className="divide-y divide-border">
+              <ul className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
                 {tools.map(({ name, spec }) => (
-                  <li key={name} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium">{spec.title}</div>
-                      <div className="mt-0.5 text-xs leading-relaxed text-fg-muted">{spec.summary}</div>
+                  <li key={name} className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{spec.title}</span>
+                      {spec.scope === "write" && <Badge variant="neutral">write</Badge>}
                     </div>
-                    {spec.scope === "write" && <Badge variant="neutral">write</Badge>}
+                    <div className="mt-0.5 text-xs leading-relaxed text-fg-muted">{spec.summary}</div>
                   </li>
                 ))}
               </ul>
