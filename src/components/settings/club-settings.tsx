@@ -73,7 +73,7 @@ export function ClubSettings({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="name">Club name</Label>
           <Input id="name" name="name" required defaultValue={org.name} />
@@ -96,7 +96,7 @@ export function ClubSettings({
           allow any domain. Existing members keep access either way.
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label>Fiscal year starts</Label>
           <Select value={fyMonth} onValueChange={setFyMonth}>
@@ -129,7 +129,7 @@ export function ClubSettings({
         </div>
       </div>
       <div className="flex justify-end">
-        <Button type="submit" size="sm" disabled={busy}>
+        <Button type="submit" className="max-md:h-10" disabled={busy}>
           {busy ? "Saving…" : "Save"}
         </Button>
       </div>

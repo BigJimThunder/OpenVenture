@@ -94,7 +94,7 @@ export function BallotReveal() {
                 </span>
                 <span
                   className={cn(
-                    "font-display text-sm italic",
+                    "text-sm font-semibold",
                     b.vote === "fund" && "text-accent",
                     b.vote === "decline" && "text-fg",
                     b.vote === "abstain" && "text-fg-subtle"

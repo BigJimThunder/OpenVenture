@@ -3,14 +3,51 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PlusIcon, XIcon, SparklesIcon } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { toast } from "sonner";
-import { addAgendaItem, removeAgendaItem } from "@/lib/actions/meetings";
-import type { AgendaItemKind, AgendaItemStatus } from "@/db/schema";
+import {
+  addAgendaItem,
+  moveAgendaItem,
+  removeAgendaItem,
+  updateAgendaItem,
+} from "@/lib/actions/meetings";
+import { AGENDA_ITEM_KINDS, type AgendaItemKind, type AgendaItemStatus } from "@/db/schema";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/patterns/form-confirm-dialog";
+import { AGENDA_KIND_LABEL } from "./meeting-labels";
 
 type Item = {
   id: string;
@@ -18,8 +55,8 @@ type Item = {
   kind: AgendaItemKind;
   status: AgendaItemStatus;
   durationMinutes: number | null;
+  presenterMemberId: string | null;
   presenterName: string | null;
-  companyName: string | null;
   applicationId: string | null;
   voteRoundId: string | null;
   notes: string | null;
@@ -31,13 +68,24 @@ type Suggestions = {
   overdueActions: { id: string; title: string; assigneeName: string | null }[];
 };
 
+const STATUS_BADGE: Partial<Record<AgendaItemStatus, { label: string; variant: "success" | "warning" | "neutral" }>> = {
+  done: { label: "Done", variant: "success" },
+  in_progress: { label: "Now", variant: "warning" },
+  deferred: { label: "Deferred", variant: "neutral" },
+};
+
+const NO_PRESENTER = "none";
+
 export function AgendaBuilder({
   meetingId,
+  meetingMinutes,
   items,
   suggestions,
   editable,
+  members,
 }: {
   meetingId: string;
+  meetingMinutes: number;
   items: Item[];
   suggestions: Suggestions;
   editable: boolean;
@@ -46,6 +94,8 @@ export function AgendaBuilder({
   const router = useRouter();
   const [title, setTitle] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [editing, setEditing] = React.useState<Item | null>(null);
+  const [removing, setRemoving] = React.useState<Item | null>(null);
 
   async function add(input: {
     title: string;
@@ -64,101 +114,201 @@ export function AgendaBuilder({
     router.refresh();
   }
 
-  async function remove(agendaItemId: string) {
-    const res = await removeAgendaItem({ agendaItemId });
+  async function move(item: Item, direction: "up" | "down") {
+    setBusy(true);
+    const res = await moveAgendaItem({ agendaItemId: item.id, direction });
+    setBusy(false);
     if (!res.ok) toast.error(res.error);
     else router.refresh();
   }
 
+  async function remove(item: Item) {
+    const res = await removeAgendaItem({ agendaItemId: item.id });
+    if (!res.ok) {
+      toast.error(res.error);
+      return false;
+    }
+    router.refresh();
+  }
+
+  const planned = items.reduce((sum, i) => sum + (i.durationMinutes ?? 0), 0);
+  const untimed = items.filter((i) => !i.durationMinutes).length;
   const hasSuggestions =
     suggestions.applications.length > 0 ||
     suggestions.voteRounds.length > 0 ||
     suggestions.overdueActions.length > 0;
+  const chip =
+    "min-h-9 cursor-pointer rounded-full border border-border bg-panel px-3 py-1 text-left text-xs transition-colors hover:border-border-strong hover:bg-bg-subtle disabled:opacity-50 max-md:min-h-10";
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        {items.length === 0 && (
-          <p className="py-1 text-xs text-fg-muted">No agenda yet — add items or use a suggestion.</p>
-        )}
-        {items.map((item, idx) => (
-          <div
-            key={item.id}
-            className={cn(
-              "group flex items-center gap-2.5 rounded-md border border-border px-3 py-2",
-              item.status === "done" && "opacity-60"
-            )}
-          >
-            <span className="tnum w-5 shrink-0 text-xs text-fg-subtle">{idx + 1}.</span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className={cn("truncate text-sm", item.status === "done" && "line-through")}>
-                  {item.applicationId ? (
-                    <Link href={`/pipeline/${item.applicationId}`} className="hover:text-accent">
-                      {item.title}
-                    </Link>
-                  ) : (
-                    item.title
+      {items.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border-strong/70 bg-bg-subtle/40 px-4 py-5 text-sm text-fg-muted">
+          {editable
+            ? "No agenda yet. Add what the meeting needs to cover — the suggestions below come from the pipeline. Run mode walks through these one at a time."
+            : "This meeting had no agenda."}
+        </p>
+      ) : (
+        <>
+          <ol className="flex flex-col gap-1.5">
+            {items.map((item, idx) => {
+              const badge = STATUS_BADGE[item.status];
+              return (
+                <li
+                  key={item.id}
+                  className={cn(
+                    "flex items-start gap-2.5 rounded-lg border border-border bg-panel px-3 py-2.5",
+                    item.status === "done" && "bg-bg-subtle/50"
                   )}
-                </span>
-                {item.kind !== "other" && <Badge variant="neutral">{item.kind.replace("_", " ")}</Badge>}
-                {item.status !== "pending" && (
-                  <Badge
-                    variant={
-                      item.status === "done" ? "success" : item.status === "in_progress" ? "warning" : "neutral"
-                    }
-                  >
-                    {item.status.replace("_", " ")}
-                  </Badge>
-                )}
-              </div>
-              {item.notes && <p className="mt-0.5 truncate text-xs text-fg-muted">{item.notes}</p>}
-            </div>
-            {item.durationMinutes && (
-              <span className="tnum shrink-0 text-2xs text-fg-subtle">{item.durationMinutes}m</span>
-            )}
-            {editable && (
-              <button
-                onClick={() => remove(item.id)}
-                className="shrink-0 cursor-pointer text-fg-subtle opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
-              >
-                <XIcon className="size-3.5" />
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
+                >
+                  <span className="tnum mt-0.5 w-4 shrink-0 text-xs text-fg-subtle">{idx + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className={cn("text-sm font-medium", item.status === "done" && "text-fg-muted")}>
+                        {item.applicationId ? (
+                          <Link href={`/pipeline/${item.applicationId}`} className="hover:underline">
+                            {item.title}
+                          </Link>
+                        ) : (
+                          item.title
+                        )}
+                      </span>
+                      {badge && <Badge variant={badge.variant}>{badge.label}</Badge>}
+                    </div>
+                    <div className="tnum mt-0.5 flex flex-wrap gap-x-2 text-xs text-fg-muted">
+                      <span>{AGENDA_KIND_LABEL[item.kind]}</span>
+                      {item.durationMinutes && <span>· {item.durationMinutes} min</span>}
+                      {item.presenterName && <span>· {item.presenterName}</span>}
+                    </div>
+                    {item.notes && (
+                      <p className="mt-1.5 border-l-2 border-border pl-2.5 text-xs whitespace-pre-line text-fg-muted">
+                        {item.notes}
+                      </p>
+                    )}
+                  </div>
+                  {editable && (
+                    <>
+                      <div className="-mr-1 hidden shrink-0 md:flex">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={busy || idx === 0}
+                          onClick={() => move(item, "up")}
+                          aria-label={`Move ${item.title} up`}
+                        >
+                          <ArrowUpIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={busy || idx === items.length - 1}
+                          onClick={() => move(item, "down")}
+                          aria-label={`Move ${item.title} down`}
+                        >
+                          <ArrowDownIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setEditing(item)}
+                          aria-label={`Edit ${item.title}`}
+                        >
+                          <PencilIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setRemoving(item)}
+                          aria-label={`Remove ${item.title}`}
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      </div>
+                      {/* Phones: four icons would squeeze the title, so they fold into one menu. */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="-my-1 -mr-1.5 size-10 shrink-0 md:hidden"
+                            aria-label={`Actions for ${item.title}`}
+                          >
+                            <MoreHorizontalIcon />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-44">
+                          <DropdownMenuItem onSelect={() => setEditing(item)}>
+                            <PencilIcon />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={idx === 0} onSelect={() => move(item, "up")}>
+                            <ArrowUpIcon />
+                            Move up
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={idx === items.length - 1}
+                            onSelect={() => move(item, "down")}
+                          >
+                            <ArrowDownIcon />
+                            Move down
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-danger focus:text-danger"
+                            onSelect={() => setRemoving(item)}
+                          >
+                            <Trash2Icon />
+                            Remove
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+          {planned > 0 && (
+            <p className={cn("tnum text-xs", planned > meetingMinutes ? "text-warning" : "text-fg-subtle")}>
+              {planned} of {meetingMinutes} minutes planned
+              {untimed > 0 && ` · ${untimed} item${untimed === 1 ? "" : "s"} without a time`}
+              {planned > meetingMinutes && " — over the meeting's length"}
+            </p>
+          )}
+        </>
+      )}
 
       {editable && (
         <>
-          <div className="flex gap-2">
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (title.trim()) add({ title: title.trim() });
+            }}
+          >
             <Input
-              placeholder="Add agenda item…"
+              placeholder="Add an agenda item…"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && title.trim() && add({ title: title.trim() })}
+              maxLength={300}
+              className="max-md:h-10"
+              aria-label="New agenda item"
             />
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busy || !title.trim()}
-              onClick={() => add({ title: title.trim() })}
-            >
+            <Button type="submit" variant="secondary" className="max-md:h-10" disabled={busy || !title.trim()}>
               <PlusIcon />
               Add
             </Button>
-          </div>
+          </form>
 
           {hasSuggestions && (
-            <div className="rounded-md border border-dashed border-border p-2.5">
-              <div className="mb-1.5 flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wide text-fg-subtle">
-                <SparklesIcon className="size-3" />
-                Suggested
-              </div>
+            <div>
+              <div className="mb-1.5 text-xs font-medium text-fg-muted">Suggested from the pipeline</div>
               <div className="flex flex-wrap gap-1.5">
                 {suggestions.applications.map((s) => (
                   <button
                     key={s.applicationId}
+                    type="button"
                     disabled={busy}
                     onClick={() =>
                       add({
@@ -167,24 +317,28 @@ export function AgendaBuilder({
                         applicationId: s.applicationId,
                       })
                     }
-                    className="cursor-pointer rounded-full border border-border bg-panel px-2.5 py-1 text-xs transition-colors hover:border-accent hover:text-accent"
+                    className={chip}
                   >
-                    {s.companyName} · {s.stageName}
+                    <span className="font-medium">{s.companyName}</span>
+                    <span className="text-fg-muted"> · in {s.stageName}</span>
                   </button>
                 ))}
                 {suggestions.voteRounds.map((s) => (
                   <button
                     key={s.id}
+                    type="button"
                     disabled={busy}
                     onClick={() => add({ title: s.title, kind: "ic_vote", voteRoundId: s.id })}
-                    className="cursor-pointer rounded-full border border-border bg-panel px-2.5 py-1 text-xs transition-colors hover:border-accent hover:text-accent"
+                    className={chip}
                   >
-                    🗳 {s.title}
+                    <span className="font-medium">{s.title}</span>
+                    <span className="text-fg-muted"> · open vote</span>
                   </button>
                 ))}
                 {suggestions.overdueActions.map((s) => (
                   <button
                     key={s.id}
+                    type="button"
                     disabled={busy}
                     onClick={() =>
                       add({
@@ -192,9 +346,10 @@ export function AgendaBuilder({
                         kind: "admin",
                       })
                     }
-                    className="cursor-pointer rounded-full border border-border bg-panel px-2.5 py-1 text-xs transition-colors hover:border-warning hover:text-warning"
+                    className={chip}
                   >
-                    ⏰ {s.title}
+                    <span className="font-medium">{s.title}</span>
+                    <span className="text-warning"> · overdue</span>
                   </button>
                 ))}
               </div>
@@ -202,6 +357,151 @@ export function AgendaBuilder({
           )}
         </>
       )}
+
+      {editing && (
+        <AgendaItemDialog
+          key={editing.id}
+          item={editing}
+          members={members}
+          onClose={() => setEditing(null)}
+          onSaved={() => router.refresh()}
+        />
+      )}
+      {removing && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => !o && setRemoving(null)}
+          title={`Remove “${removing.title}”?`}
+          description={
+            removing.notes
+              ? "This item has notes, and they go with it. Action items captured under it are kept."
+              : "It comes off the agenda. Action items captured under it are kept."
+          }
+          confirmLabel="Remove item"
+          tone="danger"
+          onConfirm={() => remove(removing)}
+        />
+      )}
     </div>
+  );
+}
+
+function AgendaItemDialog({
+  item,
+  members,
+  onClose,
+  onSaved,
+}: {
+  item: Item;
+  members: { id: string; displayName: string }[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [busy, setBusy] = React.useState(false);
+  const [kind, setKind] = React.useState<AgendaItemKind>(item.kind);
+  const [presenter, setPresenter] = React.useState(item.presenterMemberId ?? NO_PRESENTER);
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const minutes = String(fd.get("durationMinutes") ?? "").trim();
+    setBusy(true);
+    const res = await updateAgendaItem({
+      agendaItemId: item.id,
+      title: String(fd.get("title") ?? ""),
+      kind,
+      durationMinutes: minutes ? Number(minutes) : null,
+      presenterMemberId: presenter === NO_PRESENTER ? null : presenter,
+      notes: String(fd.get("notes") ?? "").trim() || null,
+    });
+    setBusy(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    onSaved();
+    onClose();
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit agenda item</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="agenda-title">Title</Label>
+            <Input id="agenda-title" name="title" required maxLength={300} defaultValue={item.title} />
+          </div>
+          <div className="grid grid-cols-[1fr_6rem] gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label>Type</Label>
+              <Select value={kind} onValueChange={(v) => setKind(v as AgendaItemKind)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AGENDA_ITEM_KINDS.map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {AGENDA_KIND_LABEL[k]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="agenda-minutes">Minutes</Label>
+              <Input
+                id="agenda-minutes"
+                name="durationMinutes"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={240}
+                placeholder="—"
+                className="tnum"
+                defaultValue={item.durationMinutes ?? ""}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Presenter</Label>
+            <Select value={presenter} onValueChange={setPresenter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_PRESENTER}>No one in particular</SelectItem>
+                {members.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="agenda-notes">Notes</Label>
+            <Textarea
+              id="agenda-notes"
+              name="notes"
+              rows={4}
+              maxLength={10000}
+              placeholder="What was said or decided. Goes into the recap email."
+              defaultValue={item.notes ?? ""}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" className="max-sm:h-10" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button type="submit" className="max-sm:h-10" disabled={busy}>
+              {busy ? "Saving…" : "Save item"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

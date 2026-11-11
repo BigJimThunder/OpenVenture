@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { organization } from "@/db/schema";
 import { authedAction } from "./safe-action";
+import { mergeOrgSettings, orgSettingsPatchSchema } from "@/lib/org-settings";
 
 const DOMAIN_RE = /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i;
 
@@ -111,6 +112,33 @@ export const rotateIngestSecret = authedAction({
         entityType: "organization",
         entityId: ctx.org.id,
         summary: `${ctx.member.displayName} rotated the ingest secret`,
+      },
+    };
+  },
+});
+
+/**
+ * Patch the typed preferences stored in organization.settings (hosted form,
+ * founder emails, automations, AI, setup checklist). Deep-merges by section.
+ */
+export const updateClubPreferences = authedAction({
+  minRole: "admin",
+  input: orgSettingsPatchSchema,
+  handler: async (input, ctx) => {
+    const next = mergeOrgSettings(ctx.org.settings, input);
+    await db
+      .update(organization)
+      .set({ settings: next, updatedAt: new Date() })
+      .where(eq(organization.id, ctx.org.id));
+    revalidatePath("/", "layout");
+    const sections = Object.keys(input).filter((k) => input[k as keyof typeof input]);
+    return {
+      data: { ok: true },
+      activity: {
+        verb: "org.preferences_updated",
+        entityType: "organization",
+        entityId: ctx.org.id,
+        summary: `${ctx.member.displayName} updated club preferences (${sections.join(", ")})`,
       },
     };
   },

@@ -58,12 +58,12 @@ export function EditProfileDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="secondary">
+        <Button variant="secondary" className="max-md:h-10">
           <PencilIcon />
           Edit profile
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit your profile</DialogTitle>
           <DialogDescription>Role and status are managed by admins.</DialogDescription>
@@ -122,7 +122,7 @@ export function EditProfileDialog({
             />
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" className="max-sm:h-10" disabled={busy}>
               {busy ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
