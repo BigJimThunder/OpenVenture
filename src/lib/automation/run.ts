@@ -13,6 +13,7 @@ import {
   weeklyDigest,
   type JobSummary,
 } from "./jobs";
+import { onboardingNudges } from "./onboarding-nudges";
 
 /**
  * The one scheduled entry point. Runs once a day (see vercel.json and
@@ -68,6 +69,8 @@ export async function runDaily(now: Date = new Date()): Promise<DailyReport> {
     jobs.checkinReminders = await attempt(automation.checkinReminders, () =>
       checkinReminders(org, roster, now)
     );
+    // No switch of its own yet: it follows the other member nudges.
+    jobs.onboardingNudges = await attempt(automation.slaNudges, () => onboardingNudges(org, roster, now));
     jobs.housekeeping = await attempt(true, async () => ({
       emails: 0,
       items: await pruneIntakeAttempts(org.id, now),

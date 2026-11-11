@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { createPool } from "@/lib/actions/grants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field } from "@/components/patterns/field";
 
 export function NewPoolDialog({ defaultFiscalYear }: { defaultFiscalYear: number }) {
   const router = useRouter();
@@ -61,18 +61,16 @@ export function NewPoolDialog({ defaultFiscalYear }: { defaultFiscalYear: number
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="pool-name">Name</Label>
+          <Field label="Name">
             <Input
               id="pool-name"
               name="name"
               required
               defaultValue={`FY${defaultFiscalYear} Grant Pool`}
             />
-          </div>
+          </Field>
           <div className="grid grid-cols-3 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="pool-fy">Fiscal year</Label>
+            <Field label="Fiscal year">
               <Input
                 id="pool-fy"
                 name="fiscalYear"
@@ -81,10 +79,9 @@ export function NewPoolDialog({ defaultFiscalYear }: { defaultFiscalYear: number
                 defaultValue={defaultFiscalYear}
                 className="tnum"
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="pool-budget">Budget ($)</Label>
-              <Input
+            </Field>
+            <Field label="Budget">
+              <Input leading="$"
                 id="pool-budget"
                 name="totalBudget"
                 type="number"
@@ -94,10 +91,9 @@ export function NewPoolDialog({ defaultFiscalYear }: { defaultFiscalYear: number
                 placeholder="50000"
                 className="tnum"
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="pool-rollover">Rollover ($)</Label>
-              <Input
+            </Field>
+            <Field label="Rollover">
+              <Input leading="$"
                 id="pool-rollover"
                 name="rolloverFromPrior"
                 type="number"
@@ -106,7 +102,7 @@ export function NewPoolDialog({ defaultFiscalYear }: { defaultFiscalYear: number
                 placeholder="0"
                 className="tnum"
               />
-            </div>
+            </Field>
           </div>
           <DialogFooter>
             <Button type="submit" disabled={busy}>

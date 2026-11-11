@@ -1,0 +1,714 @@
+/* The annual report as a publication: paper sheets on screen, real pages in
+   print. Page boxes (@page size, margins, running footers) are emitted by
+   publication.tsx because their text is per-report; everything else is here.
+
+   Layout switches on the width of the publication itself (container queries),
+   not the viewport, so the same markup works as a full page, as the builder's
+   scaled preview, on a phone, and on Letter paper. */
+
+.root {
+  container-type: inline-size;
+  width: 100%;
+  max-width: 51rem; /* 816px: Letter at 96dpi */
+  margin-inline: auto;
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  line-height: 1.62;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.root :global(.rt) {
+  max-width: none;
+  font-size: inherit;
+  line-height: inherit;
+}
+.root :global(.rt p) {
+  margin: 0 0 0.85em;
+  orphans: 3;
+  widows: 3;
+}
+.root :global(.rt :is(h1, h2, h3)) {
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  letter-spacing: -0.012em;
+  margin: 1.4em 0 0.35em;
+}
+
+/* ——— Sheets ——— */
+
+.sheet {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-sm);
+  padding: 4rem 4.25rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.display {
+  font-family: var(--font-sans);
+  font-weight: 650;
+  letter-spacing: -0.028em;
+  line-height: 1.04;
+}
+
+.h1 {
+  composes: display;
+  font-size: 2.5rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.h2 {
+  composes: display;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 2rem 0 0.55rem;
+  break-after: avoid;
+}
+
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.byline {
+  composes: eyebrow;
+  margin: 0.9rem 0 1.6rem;
+}
+
+.band {
+  background: var(--bg-subtle);
+  margin: -4rem -4.25rem 2.5rem;
+  padding: 3.5rem 4.25rem 2.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.band .h1 + * {
+  margin-top: 1.1rem;
+}
+
+.empty {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: 6px;
+  padding: 0.75rem 0.9rem;
+  margin: 0.5rem 0;
+}
+
+/* ——— Cover ——— */
+
+.cover {
+  composes: sheet;
+  aspect-ratio: 8.5 / 11;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--bg-subtle);
+  isolation: isolate;
+}
+.coverImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -2;
+}
+.coverScrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(to top, oklch(0.16 0.01 264 / 0.82), oklch(0.16 0.01 264 / 0.1) 55%, oklch(0.16 0.01 264 / 0.28));
+}
+.coverTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 3.25rem 4.25rem 0;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.coverYear {
+  composes: display;
+  padding: 0 4.25rem;
+  font-size: clamp(4.5rem, 21cqw, 10.5rem);
+  letter-spacing: -0.055em;
+  line-height: 0.9;
+  color: var(--fg);
+}
+.coverYear span {
+  color: var(--accent);
+}
+.coverBottom {
+  padding: 0 4.25rem 3.5rem;
+}
+.coverRule {
+  width: 3.5rem;
+  height: 4px;
+  background: var(--accent);
+  margin-bottom: 1.4rem;
+}
+.coverOrg {
+  composes: display;
+  font-size: 2.25rem;
+}
+.coverTitle {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  margin-top: 0.45rem;
+  color: var(--fg-muted);
+}
+.coverSubtitle {
+  max-width: 30rem;
+  margin-top: 1.1rem;
+  font-size: 1.0625rem;
+  color: var(--fg-muted);
+}
+.cover.hasImage .coverTop,
+.cover.hasImage .coverTitle,
+.cover.hasImage .coverSubtitle {
+  color: oklch(0.96 0.005 264 / 0.9);
+}
+.cover.hasImage .coverOrg {
+  color: oklch(0.99 0 0);
+}
+.cover.hasImage .coverRule {
+  background: oklch(0.99 0 0);
+}
+
+/* ——— Contents ——— */
+
+.toc {
+  list-style: none;
+  margin: 2.75rem 0 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 1.1875rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+.toc > li {
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border);
+}
+.toc > li:last-child {
+  border-bottom: 1px solid var(--border);
+}
+.toc a {
+  color: inherit;
+  text-decoration: none;
+}
+.toc a:hover {
+  color: var(--accent);
+}
+.tocGroup {
+  color: var(--accent);
+}
+.tocSub {
+  list-style: none;
+  margin: 0.4rem 0 0.1rem;
+  padding: 0 0 0 1.25rem;
+  font-weight: 500;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--fg);
+  columns: 2;
+  column-gap: 2rem;
+}
+.note {
+  margin-top: 2rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+}
+
+/* ——— Team ——— */
+
+.members {
+  display: grid;
+  gap: 2rem;
+}
+.member {
+  display: grid;
+  grid-template-columns: 9.25rem 1fr;
+  gap: 1.75rem;
+  align-items: start;
+  break-inside: avoid;
+}
+.memberPhoto {
+  width: 9.25rem;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--bg-subtle);
+}
+.monogram {
+  composes: memberPhoto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--fg-subtle);
+  border: 1px solid var(--border);
+}
+.membersPlain {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.75rem 2.5rem;
+}
+.membersPlain .member {
+  display: block;
+}
+.memberName {
+  composes: display;
+  font-size: 1.375rem;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.memberTitle {
+  composes: eyebrow;
+  margin: 0.3rem 0 0.5rem;
+}
+.memberBio {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+/* ——— Mission, thesis & activity ——— */
+
+.split {
+  display: grid;
+  grid-template-columns: 11.5rem 1fr;
+  gap: 2.75rem;
+  align-items: start;
+}
+.sidebar {
+  background: var(--bg-subtle);
+  margin: -4rem 0 0 -4.25rem;
+  padding: 4.2rem 1.5rem 2rem 2.25rem;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-bottom-right-radius: 6px;
+  width: calc(11.5rem + 4.25rem + 1rem);
+  font-family: var(--font-sans);
+}
+.split > .main {
+  padding-left: 1rem;
+  min-width: 0;
+}
+.sidebarLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-bottom: 1.25rem;
+}
+.stat {
+  padding: 0.95rem 0;
+  border-top: 1px solid var(--border-strong);
+  break-inside: avoid;
+}
+.stat:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.statValue {
+  composes: display;
+  font-size: 2.125rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+}
+.statLabel {
+  margin-top: 0.3rem;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--fg-muted);
+}
+.sidebarMark {
+  margin-top: 2rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--accent);
+}
+
+/* ——— Company spread ——— */
+
+.companyHead {
+  composes: band;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2rem;
+  align-items: center;
+  padding-top: 2.75rem;
+  padding-bottom: 2rem;
+  margin-bottom: 2.25rem;
+}
+.logo {
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: 12px;
+  object-fit: contain;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+.logoMark {
+  composes: logo;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 2.5rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+}
+.companyLine {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+.companyLine strong {
+  font-weight: 700;
+}
+.founders {
+  margin: 0.7rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.founders b {
+  font-weight: 700;
+}
+.grantLine {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.lead {
+  float: right;
+  width: 44%;
+  margin: 0.3rem 0 1rem 1.75rem;
+}
+.figure {
+  margin: 0;
+  break-inside: avoid;
+}
+.figure img {
+  display: block;
+  width: 100%;
+  max-height: 22rem;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+}
+.figure figcaption {
+  margin-top: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--fg-muted);
+}
+.progress {
+  clear: both;
+  margin-top: 2.25rem;
+  padding: 1.5rem 1.75rem 1.6rem;
+  background: var(--bg-subtle);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  break-inside: avoid;
+}
+.progress .h2 {
+  margin-top: 0;
+}
+.progress :global(.rt p:last-child) {
+  margin-bottom: 0;
+}
+.photos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+.photos > :only-child {
+  grid-column: 1 / -1;
+  max-width: 70%;
+  margin-inline: auto;
+}
+
+/* ——— Programs ——— */
+
+.program + .program {
+  margin-top: 2.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+.statList {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+  list-style: square;
+}
+.statList li {
+  margin: 0.25rem 0;
+  padding-left: 0.2rem;
+}
+.statList li::marker {
+  color: var(--accent);
+}
+.programPhoto {
+  margin: 1.75rem auto 0;
+  max-width: 78%;
+}
+
+/* ——— Looking forward ——— */
+
+.unfundedIntro {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.45;
+  margin: 0 0 0.5rem;
+}
+.unfunded {
+  padding: 1.4rem 0;
+  border-top: 1px solid var(--border);
+  break-inside: avoid;
+}
+.unfundedHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.unfundedName {
+  composes: display;
+  font-size: 1.3125rem;
+  letter-spacing: -0.02em;
+}
+.unfunded p {
+  margin: 0;
+}
+
+/* ——— Narrow: phones, and any container under ~6.5in ——— */
+
+@container (max-width: 600px) {
+  .sheet {
+    padding: 2rem 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  .h1 {
+    font-size: 1.875rem;
+  }
+  .h2 {
+    font-size: 1.3125rem;
+  }
+  .band {
+    margin: -2rem -1.25rem 1.75rem;
+    padding: 2rem 1.25rem 1.5rem;
+  }
+  .cover {
+    padding: 0;
+    aspect-ratio: 3 / 4;
+  }
+  .coverTop {
+    padding: 1.5rem 1.25rem 0;
+  }
+  .coverYear {
+    padding: 0 1.25rem;
+  }
+  .coverBottom {
+    padding: 0 1.25rem 1.75rem;
+  }
+  .coverOrg {
+    font-size: 1.625rem;
+  }
+  .coverTitle {
+    font-size: 1.0625rem;
+  }
+  .tocSub {
+    columns: 1;
+  }
+  .member {
+    grid-template-columns: 4.5rem 1fr;
+    gap: 1rem;
+  }
+  .memberPhoto {
+    width: 4.5rem;
+  }
+  .monogram {
+    font-size: 1.25rem;
+  }
+  .membersPlain {
+    grid-template-columns: 1fr;
+  }
+  .split {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+  }
+  .split > .main {
+    padding-left: 0;
+  }
+  .sidebar {
+    width: auto;
+    margin: -2rem -1.25rem 0;
+    padding: 1.75rem 1.25rem 1.25rem;
+    border-right: 0;
+    border-radius: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 1.25rem;
+  }
+  .sidebarLabel,
+  .sidebarMark {
+    grid-column: 1 / -1;
+  }
+  .sidebarMark {
+    display: none;
+  }
+  .stat,
+  .stat:first-of-type {
+    border-top: 1px solid var(--border-strong);
+    padding: 0.75rem 0;
+  }
+  .statValue {
+    font-size: 1.625rem;
+  }
+  .companyHead {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding-top: 1.75rem;
+    padding-bottom: 1.5rem;
+  }
+  .logo {
+    width: 4rem;
+    height: 4rem;
+  }
+  .logoMark {
+    font-size: 1.5rem;
+  }
+  .lead {
+    float: none;
+    width: 100%;
+    margin: 0 0 1.25rem;
+  }
+  .progress {
+    padding: 1.1rem 1.1rem 1.2rem;
+  }
+  .photos {
+    grid-template-columns: 1fr;
+  }
+  .photos > :only-child,
+  .programPhoto {
+    max-width: 100%;
+  }
+}
+
+/* ——— Print ——— */
+
+@media print {
+  .root {
+    /* Paper is always light, whatever theme the member has on screen. These
+       are the light-theme token values from globals.css. */
+    --panel: oklch(1 0 0);
+    --bg-subtle: oklch(0.966 0.003 264);
+    --border: oklch(0.922 0.004 264);
+    --border-strong: oklch(0.86 0.006 264);
+    --fg: oklch(0.205 0.012 264);
+    --fg-muted: oklch(0.45 0.012 264);
+    --fg-subtle: oklch(0.6 0.01 264);
+    --accent: oklch(0.52 0.2 264);
+    container-type: normal;
+    max-width: none;
+    font-size: 10.5pt;
+    line-height: 1.55;
+  }
+  .sheet {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+  }
+  /* Bands and the sidebar bleed to the paper edge; the page box supplies the margins. */
+  .band {
+    margin: calc(-1 * var(--page-top)) calc(-1 * var(--page-side)) 9mm;
+    padding: calc(var(--page-top) + 2mm) var(--page-side) 8mm;
+  }
+  .companyHead {
+    padding-top: 14mm;
+    padding-bottom: 8mm;
+  }
+  .sidebar {
+    margin: calc(-1 * var(--page-top)) 0 0 calc(-1 * var(--page-side));
+    padding: calc(var(--page-top) + 1mm) 6mm 8mm var(--page-side);
+    width: calc(11.5rem + var(--page-side));
+  }
+  .split {
+    grid-template-columns: 11.5rem 1fr;
+    gap: 9mm;
+  }
+  .cover {
+    width: 8.5in;
+    height: 11in;
+    aspect-ratio: auto;
+    background: var(--bg-subtle);
+    break-after: page;
+  }
+  .coverTop {
+    padding: 20mm 22mm 0;
+  }
+  .coverYear {
+    padding: 0 22mm;
+    font-size: 120pt;
+  }
+  .coverBottom {
+    padding: 0 22mm 22mm;
+  }
+  .h1 {
+    font-size: 26pt;
+  }
+  .h2 {
+    font-size: 15pt;
+  }
+  .figure img {
+    max-height: 70mm;
+  }
+  .empty {
+    display: none;
+  }
+}

@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Field } from "@/components/patterns/field";
 
 type Kind =
   | "share_issuance"
@@ -183,21 +184,22 @@ export function AddEventDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label>Event type</Label>
-            <Select value={kind} onValueChange={(v) => setKind(v as Kind)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {KIND_OPTIONS.map((k) => (
-                  <SelectItem key={k.value} value={k.value}>
-                    {k.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Field label="Event type">
+            {(control) => (
+              <Select value={kind} onValueChange={(v) => setKind(v as Kind)}>
+                <SelectTrigger {...control}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {KIND_OPTIONS.map((k) => (
+                    <SelectItem key={k.value} value={k.value}>
+                      {k.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
 
           {needsName && (
             <div className="grid grid-cols-[1fr_120px] gap-3">
@@ -216,21 +218,22 @@ export function AddEventDialog({
                   ))}
                 </datalist>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Type</Label>
-                <Select value={holderKind} onValueChange={setHolderKind}>
-                  <SelectTrigger className="capitalize">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["founder", "employee", "advisor", "angel", "fund", "accelerator"].map((k) => (
-                      <SelectItem key={k} value={k} className="capitalize">
-                        {k}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Field label="Type">
+                {(control) => (
+                  <Select value={holderKind} onValueChange={setHolderKind}>
+                    <SelectTrigger {...control} className="capitalize">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["founder", "employee", "advisor", "angel", "fund", "accelerator"].map((k) => (
+                        <SelectItem key={k} value={k} className="capitalize">
+                          {k}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
             </div>
           )}
 
@@ -251,31 +254,30 @@ export function AddEventDialog({
           {kind === "safe_issue" && (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label>Cap type</Label>
-                  <Select value={capType} onValueChange={(v) => setCapType(v as typeof capType)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="post_money">Post-money (YC standard)</SelectItem>
-                      <SelectItem value="pre_money">Pre-money (original)</SelectItem>
-                      <SelectItem value="uncapped">Uncapped</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Field label="Cap type">
+                  {(control) => (
+                    <Select value={capType} onValueChange={(v) => setCapType(v as typeof capType)}>
+                      <SelectTrigger {...control}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="post_money">Post-money (YC standard)</SelectItem>
+                        <SelectItem value="pre_money">Pre-money (original)</SelectItem>
+                        <SelectItem value="uncapped">Uncapped</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
                 {capType !== "uncapped" && (
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="scap">Valuation cap ($)</Label>
-                    <Input id="scap" type="number" min={1} className="tnum" value={cap} onChange={(e) => setCap(e.target.value)} />
-                  </div>
+                  <Field label="Valuation cap">
+                    <Input leading="$" id="scap" type="number" min={1} className="tnum" value={cap} onChange={(e) => setCap(e.target.value)} />
+                  </Field>
                 )}
               </div>
               <div className="grid grid-cols-2 items-end gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="sdisc">Discount % (optional)</Label>
-                  <Input id="sdisc" type="number" min={0} max={99} className="tnum" value={discount} onChange={(e) => setDiscount(e.target.value)} />
-                </div>
+                <Field label="Discount" optional>
+                  <Input trailing="%" id="sdisc" type="number" min={0} max={99} className="tnum" value={discount} onChange={(e) => setDiscount(e.target.value)} />
+                </Field>
                 <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm">
                   <Checkbox checked={mfn} onCheckedChange={(c) => setMfn(c === true)} />
                   MFN clause
@@ -286,26 +288,22 @@ export function AddEventDialog({
 
           {kind === "note_issue" && (
             <div className="grid grid-cols-3 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="ncap">Cap ($, optional)</Label>
+              <Field label="Cap ($, optional)">
                 <Input id="ncap" type="number" min={0} className="tnum" value={cap} onChange={(e) => setCap(e.target.value)} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="nint">Interest %</Label>
+              </Field>
+              <Field label="Interest %">
                 <Input id="nint" type="number" min={0} max={25} className="tnum" value={interest} onChange={(e) => setInterest(e.target.value)} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="ndisc">Discount %</Label>
+              </Field>
+              <Field label="Discount %">
                 <Input id="ndisc" type="number" min={0} max={99} className="tnum" value={discount} onChange={(e) => setDiscount(e.target.value)} />
-              </div>
+              </Field>
             </div>
           )}
 
           {kind === "stock_split" && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="split">Split (N-for-1)</Label>
+            <Field label="Split (N-for-1)">
               <Input id="split" type="number" min={2} className="tnum w-24" value={splitN} onChange={(e) => setSplitN(e.target.value)} />
-            </div>
+            </Field>
           )}
 
           <DialogFooter>

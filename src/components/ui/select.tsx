@@ -4,6 +4,7 @@ import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fieldChrome, fieldHeight } from "./input";
 
 const Select = SelectPrimitive.Root;
 const SelectGroup = SelectPrimitive.Group;
@@ -17,14 +18,16 @@ function SelectTrigger({
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        "flex h-8 w-full items-center justify-between gap-2 rounded-md border border-border bg-panel px-2.5 py-1 text-sm shadow-xs outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:truncate cursor-pointer",
+        fieldChrome,
+        fieldHeight,
+        "flex cursor-pointer items-center justify-between gap-2 px-3 py-1 text-left data-[placeholder]:text-fg-muted/85 data-[state=open]:border-accent data-[state=open]:ring-3 data-[state=open]:ring-accent/20 [&>span]:truncate",
         className
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-4 text-fg-subtle" />
+        <ChevronDownIcon className="size-4 shrink-0 text-fg-muted" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -41,7 +44,7 @@ function SelectContent({
       <SelectPrimitive.Content
         position={position}
         className={cn(
-          "relative z-50 max-h-72 min-w-32 overflow-hidden rounded-md border border-border bg-panel-raised text-fg shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          "relative z-50 max-h-72 min-w-32 overflow-hidden rounded-lg border border-border bg-panel-raised text-fg shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
           position === "popper" && "translate-y-1",
           className
         )}
@@ -80,7 +83,7 @@ function SelectItem({
   return (
     <SelectPrimitive.Item
       className={cn(
-        "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-bg-subtle data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "relative flex w-full cursor-pointer select-none items-center rounded-md py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-bg-subtle max-md:py-2.5 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className
       )}
       {...props}
@@ -104,7 +107,27 @@ function SelectSeparator({
   );
 }
 
+/**
+ * The platform select, dressed like the rest of the fields. For plain HTML
+ * forms (FormData, no client state) and long lists on phones, where the
+ * native picker is the better control.
+ */
+function NativeSelect({ className, children, ...props }: React.ComponentProps<"select">) {
+  return (
+    <span className="relative block w-full">
+      <select className={cn(fieldChrome, fieldHeight, "cursor-pointer appearance-none py-1 pr-9 pl-3", className)} {...props}>
+        {children}
+      </select>
+      <ChevronDownIcon
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-fg-muted"
+      />
+    </span>
+  );
+}
+
 export {
+  NativeSelect,
   Select,
   SelectGroup,
   SelectValue,

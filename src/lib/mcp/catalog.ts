@@ -607,7 +607,8 @@ export function describeTool(name: ToolName): ToolDescriptor {
   const spec: ToolSpec = TOOLS[name];
   const readOnly = spec.scope === "read" && !spec.sideEffects;
   // `io: "input"` so a field with a default is not reported as required.
-  const { $schema: _dialect, ...inputSchema } = z.toJSONSchema(spec.input, { io: "input" });
+  const inputSchema: Record<string, unknown> = z.toJSONSchema(spec.input, { io: "input" });
+  delete inputSchema.$schema;
   return {
     name,
     title: spec.title,

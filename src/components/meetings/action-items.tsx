@@ -16,7 +16,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Field } from "@/components/patterns/field";
 
 export type MeetingAction = {
   id: string;
@@ -265,29 +265,28 @@ function ActionItemDialog({
           <DialogTitle>Edit {formatRef("actionItem", action.ref)}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="action-title">What needs doing</Label>
+          <Field label="What needs doing">
             <Input id="action-title" name="title" required maxLength={300} defaultValue={action.title} />
-          </div>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Assignee</Label>
-              <Select value={assignee} onValueChange={setAssignee}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                  {members.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="action-due">Due</Label>
+            <Field label="Assignee">
+              {(control) => (
+                <Select value={assignee} onValueChange={setAssignee}>
+                  <SelectTrigger {...control}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                    {members.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
+            <Field label="Due">
               <Input
                 id="action-due"
                 name="dueAt"
@@ -295,7 +294,7 @@ function ActionItemDialog({
                 className="tnum"
                 defaultValue={dateInputValue(action.dueAt)}
               />
-            </div>
+            </Field>
           </div>
           <DialogFooter className="sm:justify-between">
             <Button type="button" variant="danger-ghost" className="max-sm:h-10" onClick={remove} disabled={busy}>

@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { updateMyProfile } from "@/lib/actions/members";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -18,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field } from "@/components/patterns/field";
 
 export function EditProfileDialog({
   profile,
@@ -69,27 +69,24 @@ export function EditProfileDialog({
           <DialogDescription>Role and status are managed by admins.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="profile-name">Name</Label>
+          <Field label="Name">
             <Input
               id="profile-name"
               name="displayName"
               required
               defaultValue={profile.displayName}
             />
-          </div>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="profile-cohort">Cohort</Label>
+            <Field label="Cohort">
               <Input
                 id="profile-cohort"
                 name="cohort"
                 defaultValue={profile.cohort ?? ""}
                 placeholder="Fall 2026"
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="profile-classYear">Class year</Label>
+            </Field>
+            <Field label="Class year">
               <Input
                 id="profile-classYear"
                 name="classYear"
@@ -98,10 +95,9 @@ export function EditProfileDialog({
                 placeholder="2029"
                 className="tnum"
               />
-            </div>
+            </Field>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="profile-linkedin">LinkedIn</Label>
+          <Field label="LinkedIn">
             <Input
               id="profile-linkedin"
               name="linkedinUrl"
@@ -109,9 +105,8 @@ export function EditProfileDialog({
               defaultValue={profile.linkedinUrl ?? ""}
               placeholder="https://linkedin.com/in/…"
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="profile-bio">Bio</Label>
+          </Field>
+          <Field label="Bio">
             <Textarea
               id="profile-bio"
               name="bio"
@@ -120,7 +115,7 @@ export function EditProfileDialog({
               defaultValue={profile.bio ?? ""}
               placeholder="What you work on, what you want to see more of…"
             />
-          </div>
+          </Field>
           <DialogFooter>
             <Button type="submit" className="max-sm:h-10" disabled={busy}>
               {busy ? "Saving…" : "Save"}

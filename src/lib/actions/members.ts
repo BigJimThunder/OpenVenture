@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { db } from "@/db";
 import {
+  activity,
   member,
   onboardingTrack,
   onboardingAssignment,
@@ -15,34 +16,44 @@ import {
   type MemberRole,
 } from "@/db/schema";
 import { authedAction, ActionError } from "./safe-action";
-import { appUrl, emailLayout, escapeHtml, sendEmailSafe } from "@/lib/notify";
+import { notifyMany, sendEmailSafe } from "@/lib/notify";
 import { ROLE_LABEL } from "@/lib/permissions";
+import { inviteEmail, type OnboardingPlan } from "@/lib/onboarding/emails";
+import { MAX_BULK_INVITES, parseInviteLines, type BulkInviteResult } from "@/lib/onboarding/invites";
+import { getJourney, INVITED_VERB } from "@/lib/onboarding/load";
+import { DEFAULT_DUE_DAYS, dueDateFrom, entry } from "@/lib/onboarding/progress";
+import { syncOnboarding } from "@/lib/onboarding/sync";
 import type { Ctx } from "./context";
 
-function inviteEmail(ctx: Ctx, to: { email: string; role: MemberRole }) {
-  return {
-    to: to.email,
-    subject: `You've been invited to ${ctx.org.name}`,
-    html: emailLayout({
-      orgName: ctx.org.name,
-      heading: `Welcome to ${ctx.org.name}`,
-      bodyHtml: `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#27272a">${escapeHtml(
-        ctx.member.displayName
-      )} added you as ${escapeHtml(ROLE_LABEL[to.role].toLowerCase())}. Sign in with this email address — there is no password, we email you a link.</p>`,
-      cta: { label: "Sign in", url: appUrl("/login") },
-    }),
-  };
-}
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullable()
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v || null));
+const optionalUrl = z
+  .string()
+  .trim()
+  .url()
+  .max(300)
+  .nullable()
+  .optional()
+  .or(z.literal("").transform(() => null));
+const classYear = z.coerce.number().int().min(2000).max(2100);
 
 export const updateMyProfile = authedAction({
   // Explicitly below the analyst default: read_only members own their profile too.
   minRole: "read_only",
   input: z.object({
-    displayName: z.string().min(1).max(120),
+    displayName: z.string().trim().min(1).max(120),
     cohort: z.string().max(60).nullable().optional(),
-    classYear: z.coerce.number().int().min(2000).max(2100).nullable().optional(),
+    classYear: classYear.nullable().optional(),
+    major: optionalText(120),
+    title: optionalText(80),
     bio: z.string().max(1000).nullable().optional(),
-    linkedinUrl: z.string().url().max(300).nullable().optional().or(z.literal("").transform(() => null)),
+    linkedinUrl: optionalUrl,
   }),
   handler: async (input, ctx) => {
     // Operates only on the caller's own row — there is deliberately no
@@ -53,8 +64,11 @@ export const updateMyProfile = authedAction({
         displayName: input.displayName,
         ...(input.cohort !== undefined ? { cohort: input.cohort } : {}),
         ...(input.classYear !== undefined ? { classYear: input.classYear } : {}),
+        ...(input.major !== undefined ? { major: input.major } : {}),
+        ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.bio !== undefined ? { bio: input.bio } : {}),
         ...(input.linkedinUrl !== undefined ? { linkedinUrl: input.linkedinUrl } : {}),
+        updatedAt: new Date(),
       })
       .where(eq(member.id, ctx.member.id));
 
@@ -73,77 +87,295 @@ export const updateMyProfile = authedAction({
   },
 });
 
+/**
+ * The "Your details" step of the welcome flow. Stricter than a profile edit:
+ * class year and major are required, because having both is what marks the
+ * details as confirmed (see profileConfirmed).
+ */
+export const confirmMyDetails = authedAction({
+  minRole: "read_only",
+  input: z.object({
+    displayName: z.string().trim().min(1, "Add your name").max(120),
+    classYear: classYear,
+    major: z.string().trim().min(2, "Add your major or program").max(120),
+    title: optionalText(80),
+    bio: optionalText(1000),
+    linkedinUrl: optionalUrl,
+  }),
+  handler: async (input, ctx) => {
+    await db
+      .update(member)
+      .set({
+        displayName: input.displayName,
+        classYear: input.classYear,
+        major: input.major,
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.bio !== undefined ? { bio: input.bio } : {}),
+        ...(input.linkedinUrl !== undefined ? { linkedinUrl: input.linkedinUrl } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(member.id, ctx.member.id));
+    const first = !ctx.member.major && !ctx.member.onboardedAt;
+    await syncOnboarding(ctx.org.id, ctx.member.id);
+    revalidatePath("/onboarding");
+    revalidatePath("/members");
+    return {
+      data: { ok: true },
+      ...(first
+        ? {
+            activity: {
+              verb: "onboarding.details_confirmed",
+              entityType: "member",
+              entityId: ctx.member.id,
+              entityLabel: input.displayName,
+              summary: `${input.displayName} signed in and confirmed their details`,
+            },
+          }
+        : {}),
+    };
+  },
+});
+
+/**
+ * Leave the welcome flow for the app. Allowed once nothing required is left;
+ * `later` is the escape for admins, who may always come back to it.
+ */
+export const finishOnboarding = authedAction({
+  minRole: "read_only",
+  input: z.object({ later: z.boolean().default(false) }),
+  handler: async (input, ctx) => {
+    const synced = await syncOnboarding(ctx.org.id, ctx.member.id);
+    if (!synced) throw new ActionError("Member not found");
+    const { journey } = synced;
+    if (journey.member.onboardedAt) {
+      return {
+        data: { ok: true },
+        ...(ctx.member.onboardedAt
+          ? {}
+          : {
+              activity: {
+                verb: "onboarding.completed",
+                entityType: "member",
+                entityId: ctx.member.id,
+                entityLabel: ctx.member.displayName,
+                summary: `${ctx.member.displayName} finished onboarding`,
+              },
+            }),
+      };
+    }
+    if (!(input.later && entry(journey.member, journey.items).canFinishLater)) {
+      throw new ActionError("Finish the required items first.");
+    }
+    await db
+      .update(member)
+      .set({ onboardedAt: new Date(), updatedAt: new Date() })
+      .where(eq(member.id, ctx.member.id));
+    revalidatePath("/onboarding");
+    return {
+      data: { ok: true },
+      activity: {
+        verb: "onboarding.deferred",
+        entityType: "member",
+        entityId: ctx.member.id,
+        entityLabel: ctx.member.displayName,
+        summary: `${ctx.member.displayName} skipped the rest of onboarding for now`,
+      },
+    };
+  },
+});
+
+// ——— Invites ———
+
+const inviteOptions = {
+  role: z.enum(MEMBER_ROLES).default("analyst"),
+  cohort: z.string().trim().max(60).optional(),
+  classYear: classYear.optional(),
+  /** Omit for the club's default track; null for no onboarding. */
+  trackId: z.string().uuid().nullable().optional(),
+  /** Omit for the default; null for no due date. */
+  dueInDays: z.number().int().min(1).max(180).nullable().optional(),
+};
+type InviteOptions = {
+  role: MemberRole;
+  cohort?: string;
+  classYear?: number;
+  trackId?: string | null;
+  dueInDays?: number | null;
+};
+
+/** The track an invite enrols on, with what the email needs to describe it. */
+async function resolveInviteTrack(orgId: string, opts: InviteOptions) {
+  if (opts.trackId === null) return null;
+  const [track] = await db
+    .select({ id: onboardingTrack.id, name: onboardingTrack.name })
+    .from(onboardingTrack)
+    .where(
+      and(
+        eq(onboardingTrack.orgId, orgId),
+        opts.trackId ? eq(onboardingTrack.id, opts.trackId) : eq(onboardingTrack.isDefault, true),
+        isNull(onboardingTrack.archivedAt)
+      )
+    )
+    .limit(1);
+  if (!track) {
+    if (opts.trackId) throw new ActionError("That onboarding track no longer exists");
+    return null;
+  }
+  const tasks = await db
+    .select({ required: onboardingTask.required, minutes: onboardingTask.estimatedMinutes })
+    .from(onboardingTask)
+    .where(eq(onboardingTask.trackId, track.id));
+  const required = tasks.filter((t) => t.required);
+  const plan: OnboardingPlan = {
+    requiredCount: required.length,
+    minutes: required.reduce((n, t) => n + (t.minutes ?? 0), 0),
+    dueAt: dueDateFrom(new Date(), opts.dueInDays === undefined ? DEFAULT_DUE_DAYS : opts.dueInDays),
+  };
+  return { ...track, plan };
+}
+
+async function createInvite(
+  ctx: Ctx,
+  person: { email: string; displayName: string },
+  opts: InviteOptions,
+  track: Awaited<ReturnType<typeof resolveInviteTrack>>
+) {
+  const [row] = await db
+    .insert(member)
+    .values({
+      orgId: ctx.org.id,
+      email: person.email,
+      displayName: person.displayName,
+      role: opts.role,
+      status: "invited",
+      cohort: opts.cohort || null,
+      classYear: opts.classYear,
+    })
+    .returning();
+  if (track) {
+    await db
+      .insert(onboardingAssignment)
+      .values({ memberId: row.id, trackId: track.id, dueAt: track.plan.dueAt });
+  }
+  return row;
+}
+
+function inviteMessage(
+  ctx: Ctx,
+  to: { email: string; displayName: string; role: MemberRole },
+  plan: OnboardingPlan | null,
+  reminder = false
+) {
+  return inviteEmail({
+    org: ctx.org,
+    inviterName: ctx.member.displayName,
+    inviterEmail: ctx.member.email,
+    to,
+    plan,
+    reminder,
+  });
+}
+
+function assertAllowedDomain(ctx: Ctx, email: string) {
+  const domains = ctx.org.allowedEmailDomains;
+  if (domains.length > 0 && !domains.some((d) => email.endsWith(`@${d}`))) {
+    throw new ActionError(`Email must be on ${domains.map((d) => `@${d}`).join(" or ")}`);
+  }
+}
+
 export const inviteMember = authedAction({
   minRole: "admin",
   input: z.object({
-    email: z.string().email(),
-    displayName: z.string().min(1).max(120),
-    role: z.enum(MEMBER_ROLES).default("analyst"),
-    cohort: z.string().max(60).optional(),
-    classYear: z.coerce.number().int().min(2000).max(2100).optional(),
+    email: z.string().trim().email(),
+    displayName: z.string().trim().min(1).max(120),
+    ...inviteOptions,
   }),
   handler: async (input, ctx) => {
     const email = input.email.toLowerCase();
-
-    // Domain restriction, if the org set one.
-    const domains = ctx.org.allowedEmailDomains;
-    if (domains.length > 0 && !domains.some((d) => email.endsWith(`@${d}`))) {
-      throw new ActionError(`Email must be on ${domains.map((d) => `@${d}`).join(" or ")}`);
-    }
+    assertAllowedDomain(ctx, email);
 
     const [existing] = await db
       .select({ id: member.id, status: member.status })
       .from(member)
-      .where(and(eq(member.orgId, ctx.org.id), eq(member.email, email)))
+      .where(and(eq(member.orgId, ctx.org.id), eq(member.email, email), ne(member.status, "removed")))
       .limit(1);
-    if (existing && existing.status !== "removed") {
-      throw new ActionError("That email is already a member");
-    }
+    if (existing) throw new ActionError("That email is already a member");
 
-    const [row] = await db
-      .insert(member)
-      .values({
-        orgId: ctx.org.id,
-        email,
-        displayName: input.displayName,
-        role: input.role,
-        status: "invited",
-        cohort: input.cohort,
-        classYear: input.classYear,
-      })
-      .returning();
-
-    // Auto-assign the default onboarding track.
-    const [track] = await db
-      .select({ id: onboardingTrack.id })
-      .from(onboardingTrack)
-      .where(
-        and(
-          eq(onboardingTrack.orgId, ctx.org.id),
-          eq(onboardingTrack.isDefault, true),
-          isNull(onboardingTrack.archivedAt)
-        )
-      )
-      .limit(1);
-    if (track) {
-      await db.insert(onboardingAssignment).values({ memberId: row.id, trackId: track.id });
-    }
+    const track = await resolveInviteTrack(ctx.org.id, input);
+    const row = await createInvite(ctx, { email, displayName: input.displayName }, input, track);
 
     // getCtx links this member row by email on first sign-in — the invite
     // email only needs to point them at the login page.
-    after(() => sendEmailSafe(inviteEmail(ctx, { email, role: input.role })));
+    after(() =>
+      sendEmailSafe(
+        inviteMessage(ctx, { email, displayName: input.displayName, role: input.role }, track?.plan ?? null)
+      )
+    );
 
     revalidatePath("/members");
+    revalidatePath("/onboarding");
     return {
-      data: { memberId: row.id },
+      data: { memberId: row.id, trackName: track?.name ?? null },
       activity: {
-        verb: "member.invited",
+        verb: INVITED_VERB,
         entityType: "member",
         entityId: row.id,
         entityLabel: input.displayName,
-        summary: `${ctx.member.displayName} invited ${input.displayName} as ${input.role.replace("_", " ")}`,
+        summary: `${ctx.member.displayName} invited ${input.displayName} as ${ROLE_LABEL[input.role].toLowerCase()}${track ? ` and enrolled them on “${track.name}”` : ""}`,
       },
     };
+  },
+});
+
+/** Invite a pasted list — one person per line — with a shared role, cohort and track. */
+export const inviteMembers = authedAction({
+  minRole: "admin",
+  input: z.object({ lines: z.string().max(20_000), ...inviteOptions }),
+  handler: async (input, ctx) => {
+    const current = await db
+      .select({ email: member.email })
+      .from(member)
+      .where(and(eq(member.orgId, ctx.org.id), ne(member.status, "removed")));
+    const parsed = parseInviteLines(input.lines, {
+      allowedDomains: ctx.org.allowedEmailDomains,
+      existingEmails: current.map((m) => m.email),
+    });
+    if (parsed.length === 0) throw new ActionError("Paste at least one email address");
+    const valid = parsed.filter((p) => p.ok);
+    if (valid.length > MAX_BULK_INVITES) {
+      throw new ActionError(`That's ${valid.length} people. Invite up to ${MAX_BULK_INVITES} at a time.`);
+    }
+
+    const track = valid.length > 0 ? await resolveInviteTrack(ctx.org.id, input) : null;
+    const emails: ReturnType<typeof inviteMessage>[] = [];
+    for (const person of valid) {
+      const row = await createInvite(ctx, { email: person.email, displayName: person.name }, input, track);
+      // One log entry per person, so each invite keeps who sent it.
+      await db.insert(activity).values({
+        orgId: ctx.org.id,
+        actorMemberId: ctx.member.id,
+        actorType: "member",
+        verb: INVITED_VERB,
+        entityType: "member",
+        entityId: row.id,
+        entityLabel: person.name,
+        summary: `${ctx.member.displayName} invited ${person.name} as ${ROLE_LABEL[input.role].toLowerCase()}${track ? ` and enrolled them on “${track.name}”` : ""}`,
+      });
+      emails.push(
+        inviteMessage(ctx, { email: person.email, displayName: person.name, role: input.role }, track?.plan ?? null)
+      );
+    }
+    after(() => notifyMany(emails.map((e) => () => sendEmailSafe(e))));
+
+    revalidatePath("/members");
+    revalidatePath("/onboarding");
+    const results: BulkInviteResult[] = parsed.map((p) => ({
+      line: p.line,
+      raw: p.raw,
+      ok: p.ok,
+      detail: p.ok ? `${p.name} · ${p.email}` : p.error,
+    }));
+    return { data: { invited: valid.length, results, trackName: track?.name ?? null } };
   },
 });
 
@@ -242,8 +474,10 @@ export const offboardMember = authedAction({
   },
 });
 
+/** Tick or untick one onboarding item. Members do their own; admins can do anyone's. */
 export const toggleOnboardingTask = authedAction({
-  minRole: "analyst",
+  // Read-only members are onboarded like everyone else.
+  minRole: "read_only",
   input: z.object({
     assignmentId: z.string().uuid(),
     taskId: z.string().uuid(),
@@ -264,61 +498,47 @@ export const toggleOnboardingTask = authedAction({
       .limit(1);
     if (!assignment || assignment.orgId !== ctx.org.id) throw new ActionError("Assignment not found");
 
-    // Members check off their own list; admins can check anyone's.
-    if (assignment.memberId !== ctx.member.id && ctx.member.role !== "admin") {
+    const self = assignment.memberId === ctx.member.id;
+    if (!self && ctx.member.role !== "admin") {
       throw new ActionError("You can only update your own onboarding");
     }
+    const [task] = await db
+      .select({ id: onboardingTask.id })
+      .from(onboardingTask)
+      .where(and(eq(onboardingTask.id, input.taskId), eq(onboardingTask.trackId, assignment.trackId)))
+      .limit(1);
+    if (!task) throw new ActionError("That item isn't on this track");
 
     if (input.done) {
       await db
         .insert(onboardingCompletion)
         .values({
           assignmentId: assignment.id,
-          taskId: input.taskId,
-          verifiedByMemberId: ctx.member.id !== assignment.memberId ? ctx.member.id : null,
+          taskId: task.id,
+          verifiedByMemberId: self ? null : ctx.member.id,
         })
         .onConflictDoNothing();
     } else {
       await db
         .delete(onboardingCompletion)
         .where(
-          and(
-            eq(onboardingCompletion.assignmentId, assignment.id),
-            eq(onboardingCompletion.taskId, input.taskId)
-          )
+          and(eq(onboardingCompletion.assignmentId, assignment.id), eq(onboardingCompletion.taskId, task.id))
         );
     }
 
-    // Auto-complete the assignment when every required task is done.
-    const [tasks, completions] = await Promise.all([
-      db
-        .select({ id: onboardingTask.id, required: onboardingTask.required })
-        .from(onboardingTask)
-        .where(eq(onboardingTask.trackId, assignment.trackId)),
-      db
-        .select({ taskId: onboardingCompletion.taskId })
-        .from(onboardingCompletion)
-        .where(eq(onboardingCompletion.assignmentId, assignment.id)),
-    ]);
-    const doneIds = new Set(completions.map((c) => c.taskId));
-    const allRequiredDone = tasks.filter((t) => t.required).every((t) => doneIds.has(t.id));
-    await db
-      .update(onboardingAssignment)
-      .set({ completedAt: allRequiredDone ? new Date() : null })
-      .where(eq(onboardingAssignment.id, assignment.id));
-
+    const synced = await syncOnboarding(ctx.org.id, assignment.memberId);
     revalidatePath("/onboarding");
     revalidatePath(`/members/${assignment.memberId}`);
     return {
-      data: { ok: true, trackComplete: allRequiredDone },
-      ...(input.done && allRequiredDone
+      data: { ok: true, trackComplete: synced?.journey.stage === "complete" },
+      ...(input.done && synced?.justCompleted
         ? {
             activity: {
               verb: "onboarding.completed",
               entityType: "member",
               entityId: assignment.memberId,
               entityLabel: assignment.memberName,
-              summary: `${assignment.memberName} completed onboarding 🎉`,
+              summary: `${assignment.memberName} finished onboarding`,
             },
           }
         : {}),
@@ -344,7 +564,21 @@ export const resendInvite = authedAction({
   input: z.object({ memberId: z.string().uuid() }),
   handler: async (input, ctx) => {
     const target = await loadPendingInvite(ctx.org.id, input.memberId);
-    const sent = await sendEmailSafe(inviteEmail(ctx, { email: target.email, role: target.role }));
+    const journey = await getJourney(ctx.org.id, target.id);
+    const sent = await sendEmailSafe(
+      inviteMessage(
+        ctx,
+        target,
+        journey && journey.assignments.length > 0
+          ? {
+              requiredCount: journey.summary.requiredTotal,
+              minutes: journey.summary.minutesTotal,
+              dueAt: journey.dueAt,
+            }
+          : null,
+        true
+      )
+    );
     if (!sent) throw new ActionError("The invite email couldn't be sent. Check Settings → Email.");
     return {
       data: { ok: true },

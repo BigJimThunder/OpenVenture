@@ -102,7 +102,7 @@ export function SlashMenu({
       id={listId}
       role="listbox"
       aria-label="Insert a block"
-      className="invisible absolute top-0 left-0 z-30 max-h-72 w-60 max-w-full overflow-y-auto rounded-lg border border-border bg-panel-raised p-1 font-sans shadow-lg print:hidden"
+      className="invisible absolute top-0 left-0 z-30 max-h-80 w-60 max-w-full overflow-y-auto rounded-lg border border-border bg-panel-raised p-1 font-sans shadow-lg print:hidden"
     >
       {items.length === 0 ? (
         <p className="px-2 py-1.5 text-xs text-fg-subtle">No block called “{slash.query}”. Keep typing or press Esc.</p>

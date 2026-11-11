@@ -345,13 +345,13 @@ export function composeQuarterlyLetter(
   };
 }
 
-/** The first sentence or two of a longer rationale — enough for one line in the letter. */
+/** The first two sentences of a longer rationale, fewer if they run long — one line in the letter. */
 export function firstSentences(text: string | null | undefined, maxChars = 240): string | null {
   const clean = text?.trim().replace(/\s+/g, " ");
   if (!clean) return null;
   const parts = clean.match(/[^.!?]+[.!?]+(?=\s|$)/g) ?? [clean];
   let out = "";
-  for (const part of parts) {
+  for (const part of parts.slice(0, 2)) {
     if (out && (out + part).length > maxChars) break;
     out += part;
   }

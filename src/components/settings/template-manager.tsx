@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/patterns/form-confirm-dialog";
+import { Field } from "@/components/patterns/field";
 
 type Section = {
   id: string;
@@ -342,8 +343,7 @@ function TemplateDialog({
           <DialogTitle>{template ? "Edit template" : "New memo template"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tpl-name">Name</Label>
+          <Field label="Name">
             <Input
               id="tpl-name"
               name="name"
@@ -354,9 +354,8 @@ function TemplateDialog({
               placeholder="Grant memo"
               defaultValue={template?.name ?? ""}
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tpl-desc">When to use it</Label>
+          </Field>
+          <Field label="When to use it">
             <Input
               id="tpl-desc"
               name="description"
@@ -364,7 +363,7 @@ function TemplateDialog({
               placeholder="Standard memo for grants under $4,000"
               defaultValue={template?.description ?? ""}
             />
-          </div>
+          </Field>
           <DialogFooter>
             <Button type="button" variant="secondary" className="max-sm:h-10" onClick={onClose} disabled={busy}>
               Cancel
@@ -424,8 +423,7 @@ function SectionDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sec-title">Heading</Label>
+          <Field label="Heading">
             <Input
               id="sec-title"
               name="title"
@@ -435,7 +433,7 @@ function SectionDialog({
               placeholder="Use of funds"
               defaultValue={section?.title ?? ""}
             />
-          </div>
+          </Field>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="sec-guidance">Guidance prompt</Label>
             <Textarea

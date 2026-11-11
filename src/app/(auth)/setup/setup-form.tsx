@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn, formatMoney, seasonLabel } from "@/lib/utils";
+import { Field } from "@/components/patterns/field";
 
 const STEPS = ["Your club", "This year's budget", "Applications"] as const;
 
@@ -108,8 +109,7 @@ export function SetupForm({
       <div className="mt-4 flex flex-col gap-4">
         {step === 0 && (
           <>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="clubName">Club name</Label>
+            <Field label="Club name">
               <Input
                 id="clubName"
                 required
@@ -120,9 +120,8 @@ export function SetupForm({
                 value={clubName}
                 onChange={(e) => setClubName(e.target.value)}
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="schoolName">School</Label>
+            </Field>
+            <Field label="School">
               <Input
                 id="schoolName"
                 maxLength={120}
@@ -131,9 +130,8 @@ export function SetupForm({
                 value={schoolName}
                 onChange={(e) => setSchoolName(e.target.value)}
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="yourName">Your name</Label>
+            </Field>
+            <Field label="Your name">
               <Input
                 id="yourName"
                 maxLength={80}
@@ -143,7 +141,7 @@ export function SetupForm({
                 value={yourName}
                 onChange={(e) => setYourName(e.target.value)}
               />
-            </div>
+            </Field>
           </>
         )}
 

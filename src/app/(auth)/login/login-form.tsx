@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/patterns/field";
 
 const RESEND_AFTER_SECONDS = 30;
 
@@ -65,8 +65,7 @@ export function LoginForm({ emailConfigured }: { emailConfigured: boolean }) {
         }}
         className="flex flex-col gap-4"
       >
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="email">Email</Label>
+        <Field label="Email">
           <Input
             id="email"
             type="email"
@@ -80,7 +79,7 @@ export function LoginForm({ emailConfigured }: { emailConfigured: boolean }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-        </div>
+        </Field>
         <Button type="submit" size="lg" className="h-11" disabled={busy || !email}>
           {busy ? "Sending…" : "Email me a sign-in link"}
         </Button>
@@ -111,8 +110,7 @@ export function LoginForm({ emailConfigured }: { emailConfigured: boolean }) {
           </>
         )}
       </p>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="otp">Six-digit code</Label>
+      <Field label="Six-digit code">
         <Input
           id="otp"
           inputMode="numeric"
@@ -130,7 +128,7 @@ export function LoginForm({ emailConfigured }: { emailConfigured: boolean }) {
             if (code.length === 6 && !busy) void verify(code);
           }}
         />
-      </div>
+      </Field>
       <Button type="submit" size="lg" className="h-11" disabled={busy || otp.length !== 6}>
         {busy ? "Signing in…" : "Sign in"}
       </Button>

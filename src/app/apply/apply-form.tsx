@@ -2,11 +2,14 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { fieldChrome } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { submitApplication, type ApplyState } from "./actions";
 import { GENDER_OPTIONS, RACE_OPTIONS, TEAM_MIX_OPTIONS, YES_NO_OPTIONS } from "./options";
 
-const control =
-  "block w-full rounded-lg border border-border bg-panel px-3 text-md text-fg shadow-xs outline-none transition-colors placeholder:text-fg-subtle hover:border-border-strong focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 aria-invalid:border-danger aria-invalid:ring-2 aria-invalid:ring-danger/20 sm:text-base";
+// The public form runs one size up from the app's fields: founders fill it in once, mostly on phones.
+const control = cn(fieldChrome, "block rounded-lg px-3 text-md sm:text-base");
 
 type FieldCtx = { values: Record<string, string>; errors: Record<string, string> };
 const FormCtx = React.createContext<FieldCtx>({ values: {}, errors: {} });
@@ -71,14 +74,14 @@ function Select({
   blank?: string;
 }) {
   return (
-    <select className={cn(control, "h-11", className)} {...props}>
+    <NativeSelect className={cn(control, "h-11 pr-9", className)} {...props}>
       <option value="">{blank}</option>
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>
       ))}
-    </select>
+    </NativeSelect>
   );
 }
 
@@ -223,7 +226,7 @@ export function ApplyForm({
             label="What are you building, and for whom?"
             hint="Plain language. What exists today, and who is using it or waiting for it?"
           >
-            {(p) => <textarea {...p} required rows={6} maxLength={5000} className={cn(control, "min-h-36 py-2.5 leading-relaxed")} />}
+            {(p) => <Textarea {...p} required rows={6} maxLength={5000} className={cn(control, "py-2.5 leading-relaxed")} />}
           </Field>
         </Section>
 
@@ -243,7 +246,7 @@ export function ApplyForm({
             label="What will the money pay for?"
             hint="The more specific the better: incorporation fees, API credits, a prototype run."
           >
-            {(p) => <textarea {...p} required rows={4} maxLength={5000} className={cn(control, "min-h-28 py-2.5 leading-relaxed")} />}
+            {(p) => <Textarea {...p} required rows={4} maxLength={5000} className={cn(control, "py-2.5 leading-relaxed")} />}
           </Field>
         </Section>
 

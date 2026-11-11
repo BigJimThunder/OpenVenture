@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Field } from "@/components/patterns/field";
 
 const COLOR_TOKENS = Array.from({ length: 10 }, (_, i) => `cat-${i + 1}`);
 
@@ -238,26 +239,26 @@ function AddStageDialog() {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="new-stage-name">Name</Label>
+          <Field label="Name">
             <Input id="new-stage-name" name="name" required autoFocus placeholder="Deep Dive" />
-          </div>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Kind</Label>
-              <Select value={kind} onValueChange={(v) => setKind(v as StageKind)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STAGE_KINDS.map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {k}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Field label="Kind">
+              {(control) => (
+                <Select value={kind} onValueChange={(v) => setKind(v as StageKind)}>
+                  <SelectTrigger {...control}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STAGE_KINDS.map((k) => (
+                      <SelectItem key={k} value={k}>
+                        {k}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
             <div className="flex flex-col gap-1.5">
               <Label>Color</Label>
               <ColorSelect value={colorToken} onChange={setColorToken} />

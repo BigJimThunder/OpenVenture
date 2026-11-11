@@ -8,7 +8,6 @@ import { createPoolFromSettings, deletePool, updatePool } from "@/lib/actions/po
 import { cn, formatMoney } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -19,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/patterns/form-confirm-dialog";
+import { Field } from "@/components/patterns/field";
 
 export type PoolRow = {
   id: string;
@@ -229,8 +229,7 @@ function PoolDialog({
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
           <div className="grid grid-cols-[1fr_7rem] gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="pool-name">Name</Label>
+            <Field label="Name">
               <Input
                 id="pool-name"
                 name="name"
@@ -240,9 +239,8 @@ function PoolDialog({
                 autoFocus={!pool}
                 defaultValue={pool?.name ?? `FY${suggestedFiscalYear} grants`}
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="pool-fy">Fiscal year</Label>
+            </Field>
+            <Field label="Fiscal year">
               <Input
                 id="pool-fy"
                 name="fiscalYear"
@@ -253,12 +251,11 @@ function PoolDialog({
                 className="tnum"
                 defaultValue={pool?.fiscalYear ?? suggestedFiscalYear}
               />
-            </div>
+            </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="pool-budget">Budget ($)</Label>
-              <Input
+            <Field label="Budget">
+              <Input leading="$"
                 id="pool-budget"
                 name="totalBudget"
                 required
@@ -267,10 +264,9 @@ function PoolDialog({
                 className="tnum"
                 defaultValue={pool ? editable(pool.totalBudget) : ""}
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="pool-rollover">Rolled over ($)</Label>
-              <Input
+            </Field>
+            <Field label="Rolled over">
+              <Input leading="$"
                 id="pool-rollover"
                 name="rolloverFromPrior"
                 inputMode="decimal"
@@ -278,7 +274,7 @@ function PoolDialog({
                 className="tnum"
                 defaultValue={pool ? editable(pool.rolloverFromPrior) : ""}
               />
-            </div>
+            </Field>
           </div>
           {pool && spoken > 0 && (
             <p className="rounded-md border border-border bg-bg-subtle px-3 py-2 text-xs text-fg-muted">
@@ -286,8 +282,7 @@ function PoolDialog({
               committed or paid from this pool. Budget plus rollover can&apos;t go below that.
             </p>
           )}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="pool-notes">Notes</Label>
+          <Field label="Notes">
             <Textarea
               id="pool-notes"
               name="notes"
@@ -296,7 +291,7 @@ function PoolDialog({
               placeholder="Where the money comes from, who approved it, anything next year's treasurer should know."
               defaultValue={pool?.notes ?? ""}
             />
-          </div>
+          </Field>
           <DialogFooter>
             <Button type="button" variant="secondary" className="max-sm:h-10" onClick={onClose} disabled={busy}>
               Cancel

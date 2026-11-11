@@ -9,7 +9,6 @@ import { MEMBER_ROLES, type MemberRole, type MemberStatus } from "@/db/schema";
 import { ROLE_LABEL } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/patterns/form-confirm-dialog";
 import { ROLE_HINT } from "./member-labels";
+import { Field } from "@/components/patterns/field";
 
 type Target = {
   id: string;
@@ -164,12 +164,10 @@ function DetailsDialog({ member, onClose }: { member: Target; onClose: () => voi
           <DialogTitle>Roster details</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="details-name">Name</Label>
+          <Field label="Name">
             <Input id="details-name" name="displayName" required maxLength={120} defaultValue={member.displayName} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="details-title">Club title</Label>
+          </Field>
+          <Field label="Club title">
             <Input
               id="details-title"
               name="title"
@@ -177,14 +175,12 @@ function DetailsDialog({ member, onClose }: { member: Target; onClose: () => voi
               placeholder="President, Treasurer, Head of Sourcing…"
               defaultValue={member.title ?? ""}
             />
-          </div>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="details-cohort">Cohort</Label>
+            <Field label="Cohort">
               <Input id="details-cohort" name="cohort" maxLength={60} placeholder="Fall 2026" defaultValue={member.cohort ?? ""} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="details-class">Class year</Label>
+            </Field>
+            <Field label="Class year">
               <Input
                 id="details-class"
                 name="classYear"
@@ -195,7 +191,7 @@ function DetailsDialog({ member, onClose }: { member: Target; onClose: () => voi
                 className="tnum"
                 defaultValue={member.classYear ?? ""}
               />
-            </div>
+            </Field>
           </div>
           <DialogFooter>
             <Button type="button" variant="secondary" className="max-sm:h-10" onClick={onClose} disabled={busy}>

@@ -9,7 +9,6 @@ import { USE_OF_FUNDS, type UseOfFunds } from "@/db/schema";
 import { cn, formatMoney } from "@/lib/utils";
 import { USE_OF_FUNDS_LABELS } from "./use-of-funds";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -37,6 +36,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Field } from "@/components/patterns/field";
+import { MoneyInput } from "@/components/ui/money-input";
 
 export { USE_OF_FUNDS_LABELS };
 
@@ -170,35 +171,25 @@ export function NewGrantDialog({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="amount">Amount ($)</Label>
-              <Input
-                id="amount"
-                type="number"
-                inputMode="decimal"
-                min={1}
-                step={1}
-                required
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="tnum"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Use of funds</Label>
-              <Select value={useOfFunds} onValueChange={(v) => setUseOfFunds(v as UseOfFunds)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {USE_OF_FUNDS.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {USE_OF_FUNDS_LABELS[u]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Field label="Amount">
+              <MoneyInput id="amount" required value={amount} onValueChange={setAmount} />
+            </Field>
+            <Field label="Use of funds">
+              {(control) => (
+                <Select value={useOfFunds} onValueChange={(v) => setUseOfFunds(v as UseOfFunds)}>
+                  <SelectTrigger {...control}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {USE_OF_FUNDS.map((u) => (
+                      <SelectItem key={u} value={u}>
+                        {USE_OF_FUNDS_LABELS[u]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
           </div>
 
           {poolRemaining != null && (
@@ -215,25 +206,25 @@ export function NewGrantDialog({
           )}
 
           {pools.length > 1 && (
-            <div className="flex flex-col gap-1.5">
-              <Label>Pool</Label>
-              <Select value={poolId} onValueChange={setPoolId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {pools.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Field label="Pool">
+              {(control) => (
+                <Select value={poolId} onValueChange={setPoolId}>
+                  <SelectTrigger {...control}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pools.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
           )}
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="narrative">What will it pay for?</Label>
+          <Field label="What will it pay for?">
             <Textarea
               id="narrative"
               rows={2}
@@ -241,7 +232,7 @@ export function NewGrantDialog({
               onChange={(e) => setNarrative(e.target.value)}
               placeholder="Incorporation filing + registered agent for year one"
             />
-          </div>
+          </Field>
 
           <DialogFooter>
             <Button type="submit" disabled={busy || !amount}>

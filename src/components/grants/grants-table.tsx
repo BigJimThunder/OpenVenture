@@ -29,7 +29,6 @@ import { Money } from "@/components/patterns/money";
 import { Panel, dataTable, microLabel } from "@/components/patterns/data-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +51,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Field } from "@/components/patterns/field";
+import { MoneyInput } from "@/components/ui/money-input";
 
 /** The lifecycle, in order. `waiting` is what everyone who can't act sees. */
 const LIFECYCLE: {
@@ -744,25 +745,25 @@ function IssueDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label>Payment method</Label>
-            <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_METHODS.map((m) => (
-                  <SelectItem key={m} value={m} className="capitalize">
-                    {m}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ref">Reference (check no., transfer ID)</Label>
+          <Field label="Payment method">
+            {(control) => (
+              <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
+                <SelectTrigger {...control}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m} value={m} className="capitalize">
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+          <Field label="Reference (check no., transfer ID)">
             <Input id="ref" value={ref} onChange={(e) => setRef(e.target.value)} />
-          </div>
+          </Field>
           <DialogFooter>
             <Button type="submit" disabled={busy}>
               {busy ? "Issuing…" : "Issue payment"}
@@ -820,39 +821,26 @@ function ReceiptDialog({
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="ramount">Amount ($)</Label>
-              <Input
-                id="ramount"
-                type="number"
-                inputMode="decimal"
-                min={0.01}
-                step={0.01}
-                required
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="tnum"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="vendor">Vendor</Label>
+            <Field label="Amount">
+              <MoneyInput id="ramount" required value={amount} onValueChange={setAmount} />
+            </Field>
+            <Field label="Vendor">
               <Input
                 id="vendor"
                 value={vendor}
                 onChange={(e) => setVendor(e.target.value)}
                 placeholder="Stripe Atlas"
               />
-            </div>
+            </Field>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="rdesc">Description</Label>
+          <Field label="Description">
             <Input
               id="rdesc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Delaware C-corp formation"
             />
-          </div>
+          </Field>
           <DialogFooter>
             <Button type="submit" disabled={busy || !amount}>
               {busy ? "Saving…" : "Add receipt"}

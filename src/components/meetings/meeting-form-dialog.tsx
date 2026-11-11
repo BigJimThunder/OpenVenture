@@ -7,7 +7,6 @@ import { createMeeting, updateMeeting } from "@/lib/actions/meetings";
 import { MEETING_KINDS, type MeetingKind } from "@/db/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MEETING_KIND_LABEL, toLocalInputValue } from "./meeting-labels";
+import { Field } from "@/components/patterns/field";
 
 export type EditableMeeting = {
   id: string;
@@ -112,8 +112,7 @@ export function MeetingFormDialog({
           )}
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="meeting-title">Title</Label>
+          <Field label="Title">
             <Input
               id="meeting-title"
               name="title"
@@ -123,25 +122,25 @@ export function MeetingFormDialog({
               placeholder="Weekly general meeting"
               defaultValue={meeting?.title ?? ""}
             />
-          </div>
+          </Field>
           <div className="grid grid-cols-[1fr_6rem] gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Type</Label>
-              <Select value={kind} onValueChange={(v) => setKind(v as MeetingKind)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MEETING_KINDS.map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {MEETING_KIND_LABEL[k]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="meeting-minutes">Minutes</Label>
+            <Field label="Type">
+              {(control) => (
+                <Select value={kind} onValueChange={(v) => setKind(v as MeetingKind)}>
+                  <SelectTrigger {...control}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MEETING_KINDS.map((k) => (
+                      <SelectItem key={k} value={k}>
+                        {MEETING_KIND_LABEL[k]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
+            <Field label="Minutes">
               <Input
                 id="meeting-minutes"
                 name="durationMinutes"
@@ -154,10 +153,9 @@ export function MeetingFormDialog({
                 className="tnum"
                 defaultValue={meeting?.durationMinutes ?? 60}
               />
-            </div>
+            </Field>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="meeting-when">When</Label>
+          <Field label="When">
             <Input
               id="meeting-when"
               name="scheduledAt"
@@ -166,9 +164,8 @@ export function MeetingFormDialog({
               className="tnum"
               defaultValue={start}
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="meeting-location">Location</Label>
+          </Field>
+          <Field label="Location">
             <Input
               id="meeting-location"
               name="location"
@@ -176,10 +173,9 @@ export function MeetingFormDialog({
               placeholder="Huntsman Hall 240"
               defaultValue={meeting?.location ?? ""}
             />
-          </div>
+          </Field>
           {meeting && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="meeting-video">Video link</Label>
+            <Field label="Video link">
               <Input
                 id="meeting-video"
                 name="videoUrl"
@@ -188,7 +184,7 @@ export function MeetingFormDialog({
                 placeholder="https://…"
                 defaultValue={meeting.videoUrl ?? ""}
               />
-            </div>
+            </Field>
           )}
           <DialogFooter>
             <Button

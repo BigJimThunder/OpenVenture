@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ROLE_HINT } from "./member-labels";
+import { Field } from "@/components/patterns/field";
 
 /** Admin-only. Renders nothing for anyone else. */
 export function InviteMemberDialog({
@@ -95,10 +96,9 @@ export function InviteMemberDialog({
           </DialogDescription>
         </DialogHeader>
         <form ref={formRef} onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="invite-name">Name</Label>
+          <Field label="Name">
             <Input id="invite-name" name="displayName" required maxLength={120} autoFocus placeholder="Jordan Lee" />
-          </div>
+          </Field>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="invite-email">Email</Label>
             <Input
@@ -131,12 +131,10 @@ export function InviteMemberDialog({
             <p className="text-xs text-fg-subtle">{ROLE_HINT[role]}</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="invite-cohort">Cohort</Label>
+            <Field label="Cohort">
               <Input id="invite-cohort" name="cohort" maxLength={60} placeholder="Fall 2026" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="invite-class">Class year</Label>
+            </Field>
+            <Field label="Class year">
               <Input
                 id="invite-class"
                 name="classYear"
@@ -147,7 +145,7 @@ export function InviteMemberDialog({
                 placeholder="2029"
                 className="tnum"
               />
-            </div>
+            </Field>
           </div>
           <DialogFooter>
             <Button type="submit" name="intent" value="another" variant="secondary" className="max-sm:h-10" disabled={busy}>

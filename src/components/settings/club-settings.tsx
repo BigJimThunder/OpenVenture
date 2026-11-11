@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Field } from "@/components/patterns/field";
 
 const MONTHS = [
   "January",
@@ -74,14 +75,12 @@ export function ClubSettings({
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="name">Club name</Label>
+        <Field label="Club name">
           <Input id="name" name="name" required defaultValue={org.name} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="schoolName">School</Label>
+        </Field>
+        <Field label="School">
           <Input id="schoolName" name="schoolName" defaultValue={org.schoolName ?? ""} />
-        </div>
+        </Field>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="domains">Sign-in domains</Label>
@@ -97,36 +96,38 @@ export function ClubSettings({
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label>Fiscal year starts</Label>
-          <Select value={fyMonth} onValueChange={setFyMonth}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m, i) => (
-                <SelectItem key={m} value={String(i + 1)}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Timezone</Label>
-          <Select value={timezone} onValueChange={setTimezone}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {timezones.map((tz) => (
-                <SelectItem key={tz} value={tz}>
-                  {tz.replaceAll("_", " ")}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Field label="Fiscal year starts">
+          {(control) => (
+            <Select value={fyMonth} onValueChange={setFyMonth}>
+              <SelectTrigger {...control}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m, i) => (
+                  <SelectItem key={m} value={String(i + 1)}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
+        <Field label="Timezone">
+          {(control) => (
+            <Select value={timezone} onValueChange={setTimezone}>
+              <SelectTrigger {...control}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {timezones.map((tz) => (
+                  <SelectItem key={tz} value={tz}>
+                    {tz.replaceAll("_", " ")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
       </div>
       <div className="flex justify-end">
         <Button type="submit" className="max-md:h-10" disabled={busy}>

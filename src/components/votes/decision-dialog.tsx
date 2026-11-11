@@ -30,6 +30,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field } from "@/components/patterns/field";
 
 type Outcome = "fund" | "decline" | "revisit" | "no_quorum";
 
@@ -336,8 +337,7 @@ function DecisionForm({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="decision-narrative">What it pays for</Label>
+              <Field label="What it pays for">
                 <Textarea
                   id="decision-narrative"
                   rows={2}
@@ -347,7 +347,7 @@ function DecisionForm({
                   maxLength={2000}
                   className="max-md:text-base"
                 />
-              </div>
+              </Field>
             </div>
           </div>
         ))}
@@ -398,8 +398,7 @@ function DecisionForm({
 
       {(outcome === "revisit" || outcome === "no_quorum") && (
         <div className="grid gap-3 sm:grid-cols-[1fr_170px]">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="decision-next">Next step</Label>
+          <Field label="Next step">
             <Input
               id="decision-next"
               value={nextStep}
@@ -408,9 +407,8 @@ function DecisionForm({
               maxLength={200}
               className="max-md:h-11 max-md:text-base"
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="decision-due">Due</Label>
+          </Field>
+          <Field label="Due">
             <Input
               id="decision-due"
               type="date"
@@ -418,7 +416,7 @@ function DecisionForm({
               onChange={(e) => setNextStepDue(e.target.value)}
               className="tnum max-md:h-11 max-md:text-base"
             />
-          </div>
+          </Field>
         </div>
       )}
 

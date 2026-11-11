@@ -23,7 +23,6 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -48,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/patterns/form-confirm-dialog";
 import { AGENDA_KIND_LABEL } from "./meeting-labels";
+import { Field } from "@/components/patterns/field";
 
 type Item = {
   id: string;
@@ -430,28 +430,27 @@ function AgendaItemDialog({
           <DialogTitle>Edit agenda item</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="agenda-title">Title</Label>
+          <Field label="Title">
             <Input id="agenda-title" name="title" required maxLength={300} defaultValue={item.title} />
-          </div>
+          </Field>
           <div className="grid grid-cols-[1fr_6rem] gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Type</Label>
-              <Select value={kind} onValueChange={(v) => setKind(v as AgendaItemKind)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {AGENDA_ITEM_KINDS.map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {AGENDA_KIND_LABEL[k]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="agenda-minutes">Minutes</Label>
+            <Field label="Type">
+              {(control) => (
+                <Select value={kind} onValueChange={(v) => setKind(v as AgendaItemKind)}>
+                  <SelectTrigger {...control}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AGENDA_ITEM_KINDS.map((k) => (
+                      <SelectItem key={k} value={k}>
+                        {AGENDA_KIND_LABEL[k]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
+            <Field label="Minutes">
               <Input
                 id="agenda-minutes"
                 name="durationMinutes"
@@ -463,26 +462,26 @@ function AgendaItemDialog({
                 className="tnum"
                 defaultValue={item.durationMinutes ?? ""}
               />
-            </div>
+            </Field>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Presenter</Label>
-            <Select value={presenter} onValueChange={setPresenter}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_PRESENTER}>No one in particular</SelectItem>
-                {members.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="agenda-notes">Notes</Label>
+          <Field label="Presenter">
+            {(control) => (
+              <Select value={presenter} onValueChange={setPresenter}>
+                <SelectTrigger {...control}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_PRESENTER}>No one in particular</SelectItem>
+                  {members.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+          <Field label="Notes">
             <Textarea
               id="agenda-notes"
               name="notes"
@@ -491,7 +490,7 @@ function AgendaItemDialog({
               placeholder="What was said or decided. Goes into the recap email."
               defaultValue={item.notes ?? ""}
             />
-          </div>
+          </Field>
           <DialogFooter>
             <Button type="button" variant="secondary" className="max-sm:h-10" onClick={onClose} disabled={busy}>
               Cancel

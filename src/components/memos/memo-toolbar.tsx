@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/patterns/form-confirm-dialog";
 import { REC_LABEL } from "./memo-labels";
+import { Field } from "@/components/patterns/field";
 
 const NO_REC = "none";
 
@@ -247,30 +248,29 @@ function DetailsDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="memo-title">Title</Label>
+          <Field label="Title">
             <Input id="memo-title" name="title" required maxLength={200} defaultValue={title} />
-          </div>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Recommendation</Label>
-              <Select value={rec} onValueChange={setRec}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_REC}>Not decided yet</SelectItem>
-                  {MEMO_RECOMMENDATIONS.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {REC_LABEL[r]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="memo-amount">Proposed amount ($)</Label>
-              <Input
+            <Field label="Recommendation">
+              {(control) => (
+                <Select value={rec} onValueChange={setRec}>
+                  <SelectTrigger {...control}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_REC}>Not decided yet</SelectItem>
+                    {MEMO_RECOMMENDATIONS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {REC_LABEL[r]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
+            <Field label="Proposed amount">
+              <Input leading="$"
                 id="memo-amount"
                 name="proposedAmount"
                 inputMode="decimal"
@@ -278,7 +278,7 @@ function DetailsDialog({
                 className="tnum"
                 defaultValue={proposedAmount ? proposedAmount.replace(/\.00$/, "") : ""}
               />
-            </div>
+            </Field>
           </div>
           {amountRequested && (
             <p className="tnum text-xs text-fg-muted">
@@ -345,8 +345,7 @@ function OpenVoteDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="hours">Closes in (hours)</Label>
+          <Field label="Closes in (hours)">
             <Input
               id="hours"
               type="number"
@@ -357,7 +356,7 @@ function OpenVoteDialog({
               onChange={(e) => setHours(e.target.value)}
               className="tnum w-24"
             />
-          </div>
+          </Field>
           <div className="flex flex-col gap-1.5">
             <Label>Recusals — anyone with a conflict of interest</Label>
             <div className="flex max-h-48 flex-col overflow-y-auto rounded-md border border-border p-1">

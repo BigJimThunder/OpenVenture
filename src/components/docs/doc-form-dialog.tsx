@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { VISIBILITY_LABEL } from "./doc-labels";
+import { Field } from "@/components/patterns/field";
 
 export type EditableDoc = {
   id: string;
@@ -98,8 +99,7 @@ export function DocFormDialog({
           )}
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="doc-title">Title</Label>
+          <Field label="Title">
             <Input
               id="doc-title"
               name="title"
@@ -109,7 +109,7 @@ export function DocFormDialog({
               placeholder="How we screen applications"
               defaultValue={doc?.title ?? ""}
             />
-          </div>
+          </Field>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="doc-folder">Folder</Label>
             <Input
@@ -128,21 +128,22 @@ export function DocFormDialog({
             <p className="text-xs text-fg-subtle">Type a new name to start a folder. Empty files it under General.</p>
           </div>
           {canChangeAudience && (
-            <div className="flex flex-col gap-1.5">
-              <Label>Who can see it</Label>
-              <Select value={visibility} onValueChange={(v) => setVisibility(v as DocVisibility)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {allowed.map((v) => (
-                    <SelectItem key={v} value={v}>
-                      {VISIBILITY_LABEL[v]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Field label="Who can see it">
+              {(control) => (
+                <Select value={visibility} onValueChange={(v) => setVisibility(v as DocVisibility)}>
+                  <SelectTrigger {...control}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allowed.map((v) => (
+                      <SelectItem key={v} value={v}>
+                        {VISIBILITY_LABEL[v]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
           )}
           <DialogFooter>
             <Button

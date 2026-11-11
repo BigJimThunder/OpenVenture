@@ -16,6 +16,8 @@ import { PriorityGlyph, PRIORITY_LABELS } from "@/components/patterns/priority-g
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
+import { Field } from "@/components/patterns/field";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -104,6 +106,7 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
   const [companyName, setCompanyName] = React.useState("");
   const [domain, setDomain] = React.useState("");
   const [applicantEmail, setApplicantEmail] = React.useState("");
+  const [amount, setAmount] = React.useState("");
   const [priority, setPriority] = React.useState<ApplicationPriority>("none");
   const [sourceId, setSourceId] = React.useState(NONE);
   const [sectorId, setSectorId] = React.useState(NONE);
@@ -179,10 +182,8 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="companyName">Company</Label>
-          <Input
-            id="companyName"
+        <Field label="Company">
+          <Input id="companyName"
             required
             autoFocus
             maxLength={120}
@@ -191,11 +192,9 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
             placeholder="Lecture Loop"
             className={field}
           />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="domain">Website</Label>
-          <Input
-            id="domain"
+        </Field>
+        <Field label="Website">
+          <Input id="domain"
             inputMode="url"
             autoCapitalize="none"
             value={domain}
@@ -203,15 +202,12 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
             placeholder="lectureloop.app"
             className={field}
           />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="applicantName">Founder</Label>
+        </Field>
+        <Field label="Founder">
           <Input id="applicantName" name="applicantName" maxLength={120} placeholder="Jordan Lee" className={field} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="applicantEmail">Founder email</Label>
-          <Input
-            id="applicantEmail"
+        </Field>
+        <Field label="Founder email">
+          <Input id="applicantEmail"
             type="email"
             autoCapitalize="none"
             value={applicantEmail}
@@ -219,7 +215,7 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
             placeholder="jordan@school.edu"
             className={field}
           />
-        </div>
+        </Field>
       </div>
 
       {candidates.length > 0 && (
@@ -248,19 +244,9 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="amountRequested">Ask ($)</Label>
-          <Input
-            id="amountRequested"
-            name="amountRequested"
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step={50}
-            placeholder="1500"
-            className={cn("tnum", field)}
-          />
-        </div>
+        <Field label="Ask">
+          <MoneyInput name="amountRequested" value={amount} onValueChange={setAmount} decimals={0} placeholder="1,500" />
+        </Field>
         <div className="flex flex-col gap-1.5">
           <Label>Priority</Label>
           <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label="Priority">
@@ -323,17 +309,15 @@ function NewApplicationForm({ onDone }: { onDone: () => void }) {
         )}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="pitchSummary">One-line pitch</Label>
-        <Textarea
-          id="pitchSummary"
+      <Field label="One-line pitch">
+        <Textarea id="pitchSummary"
           name="pitchSummary"
           rows={2}
           maxLength={2000}
           placeholder="What are they building, and what's the grant for?"
           className="max-md:text-base"
         />
-      </div>
+      </Field>
 
       <DialogFooter>
         <Button type="submit" disabled={busy || !companyName.trim()} className="max-md:h-12 max-md:text-base">

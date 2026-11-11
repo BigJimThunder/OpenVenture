@@ -8,7 +8,6 @@ import { duplicateAsScenario, archiveCapTable } from "@/lib/actions/captable";
 import { useCan } from "@/components/shell/viewer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field } from "@/components/patterns/field";
 
 export function TableActions({
   capTableId,
@@ -82,8 +82,7 @@ export function TableActions({
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={duplicate} className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="scenario-name">Scenario name</Label>
+            <Field label="Scenario name">
               <Input
                 id="scenario-name"
                 name="name"
@@ -92,7 +91,7 @@ export function TableActions({
                 defaultValue={`${tableName} — scenario`}
                 maxLength={120}
               />
-            </div>
+            </Field>
             <DialogFooter>
               <Button type="submit" disabled={busy}>
                 {busy ? "Duplicating…" : "Duplicate"}

@@ -30,7 +30,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/patterns/form-confirm-dialog";
+import { Field } from "@/components/patterns/field";
 
 const KIND_LABEL: Record<OnboardingTaskKind, string> = {
   read: "Read",
@@ -367,8 +367,7 @@ function TrackDialog({
           <DialogTitle>{track ? "Edit track" : "New onboarding track"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="track-name">Name</Label>
+          <Field label="Name">
             <Input
               id="track-name"
               name="name"
@@ -379,9 +378,8 @@ function TrackDialog({
               placeholder="New analyst onboarding"
               defaultValue={track?.name ?? ""}
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="track-desc">Who it is for</Label>
+          </Field>
+          <Field label="Who it is for">
             <Input
               id="track-desc"
               name="description"
@@ -389,7 +387,7 @@ function TrackDialog({
               placeholder="Everyone in their first two weeks"
               defaultValue={track?.description ?? ""}
             />
-          </div>
+          </Field>
           <DialogFooter>
             <Button type="button" variant="secondary" className="max-sm:h-10" onClick={onClose} disabled={busy}>
               Cancel
@@ -448,8 +446,7 @@ function TaskDialog({
           <DialogTitle>{task ? "Edit task" : "Add a task"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="task-title">Task</Label>
+          <Field label="Task">
             <Input
               id="task-title"
               name="title"
@@ -459,25 +456,25 @@ function TaskDialog({
               placeholder="Shadow a coffee chat"
               defaultValue={task?.title ?? ""}
             />
-          </div>
+          </Field>
           <div className="grid grid-cols-[8rem_1fr] gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Type</Label>
-              <Select value={kind} onValueChange={(v) => setKind(v as OnboardingTaskKind)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ONBOARDING_TASK_KINDS.map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {KIND_LABEL[k]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="task-url">Link (optional)</Label>
+            <Field label="Type">
+              {(control) => (
+                <Select value={kind} onValueChange={(v) => setKind(v as OnboardingTaskKind)}>
+                  <SelectTrigger {...control}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ONBOARDING_TASK_KINDS.map((k) => (
+                      <SelectItem key={k} value={k}>
+                        {KIND_LABEL[k]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
+            <Field label="Link (optional)">
               <Input
                 id="task-url"
                 name="resourceUrl"
@@ -486,7 +483,7 @@ function TaskDialog({
                 placeholder="https://…"
                 defaultValue={task?.resourceUrl ?? ""}
               />
-            </div>
+            </Field>
           </div>
           <label className="flex cursor-pointer items-start gap-2.5 text-sm">
             <Checkbox checked={required} onCheckedChange={(c) => setRequired(c === true)} className="mt-0.5" />

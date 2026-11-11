@@ -133,7 +133,9 @@ function LiveEditor({
         heading: { levels: [1, 2, 3] },
         link: {
           openOnClick: false,
-          autolink: true,
+          // Autolink makes the mark "inclusive": typing after a link, or pressing
+          // Enter, keeps extending it. Pasted URLs still become links.
+          autolink: false,
           defaultProtocol: "https",
           isAllowedUri: (url) => safeHref(url) !== null,
           HTMLAttributes: { rel: "noopener noreferrer nofollow", target: "_blank" },
@@ -174,7 +176,9 @@ function LiveEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      const doc = editor.getJSON();
+      // ProseMirror attrs are null-prototype objects, which a Server Action
+      // call silently drops (heading levels, link hrefs). Hand out plain JSON.
+      const doc = JSON.parse(JSON.stringify(editor.getJSON())) as JSONContent;
       lastEmitted.current = doc;
       onChangeRef.current(doc);
     },

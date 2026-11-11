@@ -21,6 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { VerdictButtons } from "./verdict-buttons";
+import { Field } from "@/components/patterns/field";
 
 type Mode = "log" | "schedule";
 
@@ -190,8 +191,7 @@ export function CoffeeChatDialog({
                 <Label>Your verdict</Label>
                 <VerdictButtons value={verdict} onChange={setVerdict} />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="chat-debrief">Debrief</Label>
+              <Field label="Debrief">
                 <Textarea
                   id="chat-debrief"
                   rows={4}
@@ -201,7 +201,7 @@ export function CoffeeChatDialog({
                   maxLength={5000}
                   className="max-md:text-base"
                 />
-              </div>
+              </Field>
             </>
           )}
 
@@ -216,8 +216,7 @@ export function CoffeeChatDialog({
                 className="tnum max-md:h-11 max-md:text-base"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="chat-location">Where</Label>
+            <Field label="Where">
               <Input
                 id="chat-location"
                 name="location"
@@ -225,7 +224,7 @@ export function CoffeeChatDialog({
                 maxLength={200}
                 className="max-md:h-11 max-md:text-base"
               />
-            </div>
+            </Field>
           </div>
 
           <DialogFooter>

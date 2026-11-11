@@ -9,7 +9,6 @@ import { PRESETS } from "@/lib/captable/presets";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field } from "@/components/patterns/field";
 
 export function NewCapTableDialog() {
   const router = useRouter();
@@ -79,15 +79,14 @@ export function NewCapTableDialog() {
               </button>
             ))}
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name">Name (optional)</Label>
+          <Field label="Name (optional)">
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Acme Robotics — pre-seed model"
             />
-          </div>
+          </Field>
           <DialogFooter>
             <Button type="submit" disabled={busy}>
               {busy ? "Creating…" : "Create"}
