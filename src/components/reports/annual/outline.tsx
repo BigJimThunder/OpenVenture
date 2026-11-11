@@ -118,7 +118,7 @@ export function Outline({
                 </button>
                 {canEdit && (
                   <span className="flex shrink-0 items-center gap-0.5 pr-1.5">
-                    <span className="md:opacity-0 md:transition-opacity md:group-focus-within:opacity-100 md:group-hover:opacity-100">
+                    <span className="md:hidden md:group-focus-within:block md:group-hover:block">
                       <MoveButtons
                         label={title}
                         first={index === 0}

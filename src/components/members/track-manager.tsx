@@ -27,6 +27,7 @@ import {
   updateOnboardingTrack,
 } from "@/lib/actions/onboarding";
 import type { OnboardingTaskKind } from "@/db/schema";
+import { DEFAULT_CONFIDENTIALITY_TEXT } from "@/lib/defaults";
 import { detectKind, KIND_META, KIND_ORDER, linkHost, videoEmbed } from "@/lib/onboarding/resource";
 import { cn } from "@/lib/utils";
 import { EnrolDialog } from "@/components/onboarding/enrol-dialog";
@@ -65,12 +66,6 @@ type Task = {
 };
 
 type DocOption = { id: string; title: string };
-
-const ACK_TEMPLATE = `What founders tell us stays inside the club. I won't share applications, memos, financials or anything said in a coffee chat with anyone outside it.
-
-Votes are blind. I won't ask how anyone voted, or say how I did, before a partner reveals the round.
-
-If I know a founder personally, or have any stake in their company, I'll say so and recuse myself from the vote.`;
 
 /** What a task row says under its title. */
 function taskMeta(task: Task, docs: DocOption[]): string {
@@ -495,7 +490,7 @@ function TaskDialog({
   function pickKind(next: OnboardingTaskKind) {
     setKind(next);
     if (next === "submit") {
-      if (!description.trim()) setDescription(ACK_TEMPLATE);
+      if (!description.trim()) setDescription(DEFAULT_CONFIDENTIALITY_TEXT);
       if (!title.trim()) setTitle("Blind votes and confidentiality");
     }
     if (next !== "read") setDocId(null);

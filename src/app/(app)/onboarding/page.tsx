@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
-import { format } from "date-fns";
+import { format, formatDistanceStrict } from "date-fns";
 import { ArrowRightIcon, CheckIcon, CircleIcon, GraduationCapIcon } from "lucide-react";
 import { db } from "@/db";
 import { doc, member, onboardingAssignment } from "@/db/schema";
@@ -65,11 +65,21 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
     : [];
   const assignedTo = (trackId: string) => assignments.filter((a) => a.trackId === trackId).map((a) => a.memberId);
 
-  const { entries } = pipeline;
+  const { entries, asOf } = pipeline;
+  // Formatted here, in the club's timezone, so the server render and the browser agree.
+  const inZone = (opts: Intl.DateTimeFormatOptions) => {
+    const f = new Intl.DateTimeFormat("en-US", { timeZone: ctx.org.timezone, ...opts });
+    return (d: Date | null) => (d ? f.format(d) : null);
+  };
+  const day = inZone({ month: "short", day: "numeric" });
+  const fullDay = inZone({ month: "short", day: "numeric", year: "numeric" });
+  const moment = inZone({ month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const isoDay = new Intl.DateTimeFormat("en-CA", { timeZone: ctx.org.timezone });
+  const ago = (d: Date | null) => (d ? formatDistanceStrict(d, asOf, { addSuffix: true }) : null);
   const active = entries.filter((e) => e.stage !== "complete");
   const overdue = active.filter((e) => e.overdue).length;
   const waiting = active.filter((e) => e.stage === "invited").length;
-  const monthAgo = pipeline.asOf.getTime() - 30 * 86_400_000;
+  const monthAgo = asOf.getTime() - 30 * 86_400_000;
   const recentlyDone = entries.filter((e) => e.completedAt && e.completedAt.getTime() >= monthAgo).length;
 
   return (
@@ -152,12 +162,15 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
                     requiredDone: e.summary.requiredDone,
                     requiredTotal: e.summary.requiredTotal,
                     nextTitle: e.summary.next?.title ?? null,
-                    dueAt: e.dueAt?.toISOString() ?? null,
                     overdue: e.overdue,
                     daysUntilDue: e.daysUntilDue,
-                    invitedAt: e.member.createdAt.toISOString(),
+                    dueOn: day(e.dueAt),
+                    dueInput: e.dueAt ? isoDay.format(e.dueAt) : "",
+                    invitedOn: fullDay(e.member.createdAt) ?? "",
+                    invitedAgo: ago(e.member.createdAt) ?? "",
                     invitedBy: e.invitedBy?.name ?? null,
-                    lastNudgeAt: e.lastNudgeAt?.toISOString() ?? null,
+                    lastNudgeAgo: ago(e.lastNudgeAt),
+                    completedOn: day(e.completedAt),
                     completedAt: e.completedAt?.toISOString() ?? null,
                     items: e.items.map((i) => ({
                       id: i.id,
@@ -165,7 +178,7 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
                       title: i.title,
                       kind: i.kind,
                       required: i.required,
-                      completedAt: i.completedAt?.toISOString() ?? null,
+                      doneOn: moment(i.completedAt),
                       verified: i.verified,
                       waived: i.waived,
                     })),

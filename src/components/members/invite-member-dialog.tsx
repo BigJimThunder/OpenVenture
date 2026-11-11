@@ -325,9 +325,11 @@ export function InviteMemberDialog({
                 className="font-mono text-xs"
               />
               <p className="tnum text-xs text-fg-subtle">
-                {preview.length === 0
-                  ? "Paste from a spreadsheet or a sign-up sheet. A bare email works; we guess the name and they confirm it."
-                  : `${ready} ready to invite${problems > 0 ? ` · ${problems} with a problem` : ""}${ready > MAX_BULK_INVITES ? ` · the limit is ${MAX_BULK_INVITES} at a time` : ""}`}
+                {results
+                  ? `${results.filter((r) => r.ok).length} invited · ${results.filter((r) => !r.ok).length} skipped. The skipped lines are still in the box; edit them to try again.`
+                  : preview.length === 0
+                    ? "Paste from a spreadsheet or a sign-up sheet. A bare email works; we guess the name and they confirm it."
+                    : `${ready} ready to invite${problems > 0 ? ` · ${problems} with a problem` : ""}${ready > MAX_BULK_INVITES ? ` · the limit is ${MAX_BULK_INVITES} at a time` : ""}`}
               </p>
             </div>
             {report.length > 0 && (
@@ -351,8 +353,8 @@ export function InviteMemberDialog({
               <Button type="button" variant="secondary" className="max-sm:h-10" onClick={() => setOpen(false)} disabled={busy}>
                 {results ? "Done" : "Cancel"}
               </Button>
-              <Button type="submit" className="max-sm:h-10" disabled={busy || ready === 0 || ready > MAX_BULK_INVITES}>
-                {busy ? "Inviting…" : ready === 0 ? "Send invites" : `Send ${ready} invite${ready === 1 ? "" : "s"}`}
+              <Button type="submit" className="max-sm:h-10" disabled={busy || Boolean(results) || ready === 0 || ready > MAX_BULK_INVITES}>
+                {busy ? "Inviting…" : results || ready === 0 ? "Send invites" : `Send ${ready} invite${ready === 1 ? "" : "s"}`}
               </Button>
             </DialogFooter>
           </form>

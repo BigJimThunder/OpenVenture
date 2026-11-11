@@ -569,8 +569,8 @@ export const setOnboardingDueDate = authedAction({
   handler: async (input, ctx) => {
     const journey = await getJourney(ctx.org.id, input.memberId);
     if (!journey || journey.assignments.length === 0) throw new ActionError("This member isn't on a track");
-    // End of that day, so "due Friday" includes Friday.
-    const dueAt = input.dueOn ? new Date(`${input.dueOn}T23:59:00Z`) : null;
+    // Midday UTC: the same calendar date in every timezone a club is likely to be in.
+    const dueAt = input.dueOn ? new Date(`${input.dueOn}T12:00:00Z`) : null;
     await db
       .update(onboardingAssignment)
       .set({ dueAt })
@@ -606,6 +606,7 @@ export const nudgeOnboarding = authedAction({
         nextTitle: journey.summary.next?.title ?? null,
         minutesLeft: journey.summary.minutesLeft,
         dueAt: journey.dueAt,
+        locked: !journey.member.onboardedAt,
       })
     );
     if (!sent) throw new ActionError("The email couldn't be sent. Check Settings → Email.");

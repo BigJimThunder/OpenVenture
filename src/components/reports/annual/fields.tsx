@@ -90,7 +90,7 @@ export function Prose({
         editable={editable}
         placeholder={placeholder}
         ariaLabel={ariaLabel}
-        className={cn("px-4 py-3 text-[1rem] leading-[1.65]", minHeight)}
+        className={cn("px-4 py-3 text-[0.9375rem]! leading-[1.6]!", minHeight)}
       />
     </div>
   );

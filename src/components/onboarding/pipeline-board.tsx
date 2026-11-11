@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format, formatDistanceToNowStrict } from "date-fns";
 import {
   BadgeCheckIcon,
   BellIcon,
@@ -46,7 +45,8 @@ export type BoardItem = {
   title: string;
   kind: OnboardingTaskKind;
   required: boolean;
-  completedAt: string | null;
+  /** "Nov 3, 4:12 PM" in the club's timezone, or null while open. */
+  doneOn: string | null;
   verified: boolean;
   waived: boolean;
 };
@@ -64,12 +64,21 @@ export type BoardEntry = {
   requiredDone: number;
   requiredTotal: number;
   nextTitle: string | null;
-  dueAt: string | null;
   overdue: boolean;
   daysUntilDue: number | null;
-  invitedAt: string;
+  /**
+   * Dates arrive formatted, in the club's timezone: formatting them here
+   * would differ between the server render and the browser.
+   */
+  dueOn: string | null;
+  /** YYYY-MM-DD for the date input. */
+  dueInput: string;
+  invitedOn: string;
+  invitedAgo: string;
   invitedBy: string | null;
-  lastNudgeAt: string | null;
+  lastNudgeAgo: string | null;
+  completedOn: string | null;
+  /** Sort key only. */
   completedAt: string | null;
   items: BoardItem[];
 };
@@ -77,8 +86,6 @@ export type BoardEntry = {
 type Result = { ok: true } | { ok: false; error: string };
 const ALL = "all";
 const COMPLETE_PREVIEW = 6;
-
-const ago = (iso: string) => formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
 
 function dueLabel(e: BoardEntry): { text: string; tone: "danger" | "warning" | "muted" } | null {
   if (e.stage === "complete" || e.daysUntilDue == null) return null;
@@ -89,20 +96,20 @@ function dueLabel(e: BoardEntry): { text: string; tone: "danger" | "warning" | "
   if (e.daysUntilDue <= 3) {
     return { text: e.daysUntilDue <= 1 ? "Due tomorrow" : `Due in ${e.daysUntilDue} days`, tone: "warning" };
   }
-  return { text: `Due ${format(new Date(e.dueAt!), "MMM d")}`, tone: "muted" };
+  return { text: `Due ${e.dueOn}`, tone: "muted" };
 }
 
 /** What a card says under the name: the one fact that explains where this person is. */
 function statusLine(e: BoardEntry): string {
   switch (e.stage) {
     case "invited":
-      return `Invited ${ago(e.invitedAt)}${e.invitedBy ? ` by ${e.invitedBy.split(" ")[0]}` : ""}`;
+      return `Invited ${e.invitedAgo}${e.invitedBy ? ` by ${e.invitedBy.split(" ")[0]}` : ""}`;
     case "setup":
       return "Signed in, hasn't confirmed their details";
     case "in_progress":
       return e.nextTitle ? `Stuck on: ${e.nextTitle}` : "Working through it";
     case "complete":
-      return e.completedAt ? `Finished ${format(new Date(e.completedAt), "MMM d")}` : "Finished";
+      return e.completedOn ? `Finished ${e.completedOn}` : "Finished";
   }
 }
 
@@ -342,7 +349,11 @@ function MemberDrawer({
   const first = e.name.split(" ")[0];
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="content-start sm:top-2 sm:right-2 sm:bottom-2 sm:left-auto sm:h-[calc(100svh-1rem)] sm:max-h-none sm:max-w-md sm:translate-x-0 sm:translate-y-0">
+      <DialogContent
+        // Opening straight into the date field would pop the phone's date picker.
+        onOpenAutoFocus={(ev) => ev.preventDefault()}
+        className="content-start sm:top-2 sm:right-2 sm:bottom-2 sm:left-auto sm:h-[calc(100svh-1rem)] sm:max-h-none sm:max-w-md sm:translate-x-0 sm:translate-y-0"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5 pr-8">
             <Avatar className="size-8">
@@ -365,17 +376,17 @@ function MemberDrawer({
         </DialogHeader>
 
         <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
-          <dt className="text-fg-muted">Invited</dt>
+          <dt className="text-fg-muted">Added</dt>
           <dd className="tnum">
-            {format(new Date(e.invitedAt), "MMM d, yyyy")}
+            {e.invitedOn}
             {e.invitedBy && <span className="text-fg-muted"> by {e.invitedBy}</span>}
           </dd>
           <dt className="text-fg-muted">Status</dt>
           <dd>{statusLine(e)}</dd>
-          {e.lastNudgeAt && (
+          {e.lastNudgeAgo && (
             <>
               <dt className="text-fg-muted">Last reminder</dt>
-              <dd className="tnum">{ago(e.lastNudgeAt)}</dd>
+              <dd className="tnum">{e.lastNudgeAgo}</dd>
             </>
           )}
           {e.enrolled && e.stage !== "complete" && (
@@ -387,12 +398,13 @@ function MemberDrawer({
                 <Input
                   id="drawer-due"
                   type="date"
-                  defaultValue={e.dueAt ? e.dueAt.slice(0, 10) : ""}
+                  defaultValue={e.dueInput}
                   disabled={busy === "due"}
                   className="tnum w-44 max-md:h-10"
-                  onChange={(ev) => {
+                  // On blur, not on change: a typed date passes through several valid years.
+                  onBlur={(ev) => {
                     const value = ev.target.value;
-                    if (value === (e.dueAt?.slice(0, 10) ?? "")) return;
+                    if (value === e.dueInput) return;
                     run("due", () => setOnboardingDueDate({ memberId: e.memberId, dueOn: value || null }), value ? "Due date changed" : "Due date cleared");
                   }}
                 />
@@ -446,7 +458,7 @@ function MemberDrawer({
         ) : (
           <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
             {e.items.map((item) => {
-              const done = Boolean(item.completedAt);
+              const done = item.doneOn != null;
               const key = `${item.assignmentId}:${item.id}`;
               const ref = { assignmentId: item.assignmentId, taskId: item.id };
               return (
@@ -459,8 +471,7 @@ function MemberDrawer({
                     <span className="tnum block text-xs text-fg-subtle">
                       {KIND_META[item.kind].label}
                       {item.required ? "" : " · optional"}
-                      {done &&
-                        ` · ${item.waived ? "waived" : "done"} ${format(new Date(item.completedAt!), "MMM d, h:mm a")}`}
+                      {done && ` · ${item.waived ? "waived" : "done"} ${item.doneOn}`}
                       {item.verified && " · verified"}
                     </span>
                   </span>

@@ -24,6 +24,7 @@ export function StartAnnualReport({
 }) {
   const router = useRouter();
   const partner = useCan("partnerWork");
+  const contributor = useCan("contribute");
   const [busy, setBusy] = React.useState(false);
 
   async function start() {
@@ -61,7 +62,11 @@ export function StartAnnualReport({
               {busy ? "Assembling the draft…" : "Start the report"}
             </Button>
           ) : (
-            <p className="text-sm text-fg-muted">A partner starts the report. Once it exists you can write your essays here.</p>
+            <p className="text-sm text-fg-muted">
+              {contributor
+                ? "A partner starts the report. Once it exists you can write your essays here."
+                : "A partner starts the report. You will be able to read it here once it is finalized."}
+            </p>
           )
         }
         secondaryAction={

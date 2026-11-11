@@ -117,15 +117,36 @@ export function AnnualBuilder({
   const [outlineOpen, setOutlineOpen] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
   const scroller = React.useRef<HTMLDivElement | null>(null);
+  const previewPane = React.useRef<HTMLElement | null>(null);
 
   const progress = React.useMemo(() => annualProgress(content, derived), [content, derived]);
 
-  const select = React.useCallback((target: string) => {
-    setSelected(target);
-    setTab("edit");
-    setOutlineOpen(false);
-    scroller.current?.scrollTo({ top: 0 });
+  /** Bring the part being edited into view in the preview. */
+  const showInPreview = React.useCallback((target: string) => {
+    requestAnimationFrame(() => {
+      const pane = previewPane.current;
+      if (!pane) return;
+      const anchor =
+        target === "cover"
+          ? null
+          : target === "companies"
+            ? pane.querySelector('[id^="ar-company-"]')
+            : document.getElementById(`ar-${target.replace(":", "-")}`);
+      if (anchor) anchor.scrollIntoView({ block: "start" });
+      else pane.scrollTo({ top: 0 });
+    });
   }, []);
+
+  const select = React.useCallback(
+    (target: string) => {
+      setSelected(target);
+      setTab("edit");
+      setOutlineOpen(false);
+      scroller.current?.scrollTo({ top: 0 });
+      showInPreview(target);
+    },
+    [showInPreview]
+  );
 
   async function refresh() {
     setRefreshing(true);
@@ -234,7 +255,13 @@ export function AnnualBuilder({
           </span>
         </Button>
         <span className="max-lg:hidden" />
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "edit" | "preview")}>
+        <Tabs
+          value={tab}
+          onValueChange={(v) => {
+            setTab(v as "edit" | "preview");
+            if (v === "preview") showInPreview(selected);
+          }}
+        >
           <TabsList className="max-md:h-10">
             <TabsTrigger value="edit" className="max-md:h-9 max-md:px-4">
               Edit
@@ -247,13 +274,13 @@ export function AnnualBuilder({
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-border lg:block">{outline}</aside>
+        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border lg:block">{outline}</aside>
 
         <div
           ref={scroller}
           className={cn("min-w-0 flex-1 overflow-y-auto", tab === "preview" && "max-xl:hidden")}
         >
-          <div className="mx-auto max-w-[44rem] px-4 pt-5 pb-24 md:px-8 md:pt-7">
+          <div className="mx-auto max-w-[44rem] px-4 pt-5 pb-24 md:px-6 md:pt-7">
             {companyId && (
               <button
                 type="button"
@@ -303,8 +330,9 @@ export function AnnualBuilder({
         </div>
 
         <aside
+          ref={previewPane}
           className={cn(
-            "overflow-y-auto bg-bg-subtle xl:block xl:w-[34rem] xl:shrink-0 xl:border-l xl:border-border 2xl:w-[40rem]",
+            "overflow-y-auto bg-bg-subtle xl:block xl:w-[26rem] xl:shrink-0 xl:border-l xl:border-border 2xl:w-[38rem]",
             tab === "preview" ? "max-xl:min-w-0 max-xl:flex-1" : "max-xl:hidden"
           )}
           aria-label="Preview"

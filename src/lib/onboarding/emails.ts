@@ -94,6 +94,8 @@ export function nudgeEmail(opts: {
   nextTitle: string | null;
   minutesLeft: number;
   dueAt: Date | null;
+  /** True while they are still held at the welcome flow. */
+  locked: boolean;
 }): Email {
   const { org, to, remaining } = opts;
   const left =
@@ -117,9 +119,9 @@ export function nudgeEmail(opts: {
     html: emailLayout({
       orgName: org.name,
       heading: `${firstName(to.displayName)}, pick up where you left off`,
-      bodyHtml: p(lead) + p(`${left} Until it's done the rest of the app stays closed to you.`),
+      bodyHtml: p(lead) + p(opts.locked ? `${left} Until it's done the rest of the app stays closed to you.` : left),
       cta: { label: "Continue onboarding", url: appUrl("/start") },
-      footer: `You're getting this because you were invited to ${org.name} and haven't finished onboarding.`,
+      footer: `You're getting this because you're on an onboarding track at ${org.name} and haven't finished it.`,
     }),
   };
 }

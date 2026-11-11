@@ -114,16 +114,25 @@ export function dueDateFrom(now: Date, days: number | null | undefined): Date | 
  * The entry policy. Required items block the rest of the app. Admins may
  * always leave and come back (a founder must never be locked out of their own
  * club); everyone else gets in once their details are confirmed and nothing
- * required is left.
+ * required is left — unless the club has switched blocking off, in which case
+ * confirmed details are enough and required items become reminders.
  */
-export function entry(m: JourneyMember, items: JourneyItem[]) {
+export function entry(
+  m: JourneyMember,
+  items: JourneyItem[],
+  /** Club preference `onboarding.blockUntilComplete`; strict when omitted. */
+  opts: { blockUntilComplete?: boolean } = {}
+) {
   const s = summarize(items);
   const ready = profileConfirmed(m) && s.requiredDone === s.requiredTotal;
+  const strict = opts.blockUntilComplete ?? true;
   return {
     /** Everything required is done: onboarding is finished. */
     ready,
     /** May skip what is left for now. */
-    canFinishLater: !ready && m.role === "admin",
+    // A club that doesn't block lets anyone in once their details are confirmed;
+    // required items then stay on their list and in the reminders.
+    canFinishLater: !ready && (m.role === "admin" || (!strict && profileConfirmed(m))),
   };
 }
 

@@ -1,3 +1,4 @@
+import { orgSettings } from "@/lib/org-settings";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -8,12 +9,15 @@ import {
   CalendarIcon,
   CheckIcon,
   ClipboardListIcon,
-  GraduationCapIcon,
+  FileTextIcon,
   InboxIcon,
+  ListChecksIcon,
+  PlayIcon,
+  ShieldCheckIcon,
   UserIcon,
+  UsersIcon,
   VoteIcon,
 } from "lucide-react";
-import { format } from "date-fns";
 import { db } from "@/db";
 import { activity, application, doc, meeting, member, voteEligibility, voteRound } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -36,6 +40,19 @@ import {
 
 export const metadata: Metadata = { title: "Welcome" };
 export const dynamic = "force-dynamic";
+
+const KIND_ICON = {
+  read: <FileTextIcon />,
+  watch: <PlayIcon />,
+  submit: <ShieldCheckIcon />,
+  do: <ListChecksIcon />,
+  meet: <UsersIcon />,
+} as const;
+
+/** Dates in the club's timezone, not the server's. */
+function inZone(date: Date, timeZone: string, opts: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone, ...opts }).format(date);
+}
 
 const href = (key: string) => `/start?step=${key}`;
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
@@ -71,7 +88,7 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
   }
   const step = steps[index];
   const m = journey.member;
-  const { canFinishLater } = entry(m, journey.items);
+  const { canFinishLater } = entry(m, journey.items, orgSettings(ctx.org).onboarding);
   const back = index > 0 ? steps[index - 1].key : "welcome";
   const next = steps[Math.min(index + 1, steps.length - 1)].key;
 
@@ -100,7 +117,7 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
       }
       footer={<SignOutLink />}
     >
-      {step.kind === "welcome" && <Welcome orgId={ctx.org.id} orgName={ctx.org.name} journey={journey} nextKey={next} />}
+      {step.kind === "welcome" && <Welcome org={ctx.org} journey={journey} nextKey={next} />}
       {step.kind === "profile" && (
         <StepBody
           eyebrow="Your details"
@@ -149,20 +166,18 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
         </StepBody>
       )}
       {step.kind === "done" && (
-        <Done orgId={ctx.org.id} memberId={m.id} name={m.displayName} canContribute={can(m.role, "contribute")} />
+        <Done orgId={ctx.org.id} timeZone={ctx.org.timezone} memberId={m.id} name={m.displayName} canContribute={can(m.role, "contribute")} />
       )}
     </StartShell>
   );
 }
 
 async function Welcome({
-  orgId,
-  orgName,
+  org,
   journey,
   nextKey,
 }: {
-  orgId: string;
-  orgName: string;
+  org: { id: string; name: string; timezone: string };
   journey: NonNullable<Awaited<ReturnType<typeof getJourney>>>;
   nextKey: string;
 }) {
@@ -170,7 +185,7 @@ async function Welcome({
     .select({ name: member.displayName })
     .from(activity)
     .innerJoin(member, eq(activity.actorMemberId, member.id))
-    .where(and(eq(activity.orgId, orgId), eq(activity.verb, INVITED_VERB), eq(activity.entityId, journey.member.id)))
+    .where(and(eq(activity.orgId, org.id), eq(activity.verb, INVITED_VERB), eq(activity.entityId, journey.member.id)))
     .orderBy(desc(activity.occurredAt))
     .limit(1);
   const { summary } = journey;
@@ -181,7 +196,7 @@ async function Welcome({
   return (
     <StepBody
       eyebrow={inviter ? `${inviter.name} invited you` : "You're in"}
-      title={`Welcome to ${orgName}, ${firstName(journey.member.displayName)}`}
+      title={`Welcome to ${org.name}, ${firstName(journey.member.displayName)}`}
       lede={
         required.length > 0 ? (
           <span className="tnum">
@@ -199,7 +214,7 @@ async function Welcome({
         {required.map((i) => (
           <PlanRow
             key={i.id}
-            icon={<GraduationCapIcon />}
+            icon={KIND_ICON[i.kind]}
             title={i.title}
             meta={`${KIND_META[i.kind].label}${i.estimatedMinutes ? ` · ${i.estimatedMinutes} min` : ""}`}
             done={Boolean(i.completedAt)}
@@ -209,7 +224,9 @@ async function Welcome({
       </ol>
       {due && (
         <p className="mt-4 text-sm text-fg-muted">
-          The club would like this done by <span className="font-medium text-fg">{format(due, "EEEE, MMMM d")}</span>.
+          The club would like this done by <span className="font-medium text-fg">
+            {inZone(due, org.timezone, { weekday: "long", month: "long", day: "numeric" })}
+          </span>.
         </p>
       )}
       <StepNav>
@@ -308,11 +325,13 @@ async function Item({
 
 async function Done({
   orgId,
+  timeZone,
   memberId,
   name,
   canContribute,
 }: {
   orgId: string;
+  timeZone: string;
   memberId: string;
   name: string;
   canContribute: boolean;
@@ -384,7 +403,7 @@ async function Done({
           <FirstStep
             href={`/meetings/${nextMeeting.id}`}
             icon={<CalendarIcon />}
-            title={`Next meeting: ${format(nextMeeting.scheduledAt, "EEE, MMM d 'at' h:mm a")}`}
+            title={`Next meeting: ${inZone(nextMeeting.scheduledAt, timeZone, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`}
             body={`${nextMeeting.title}${nextMeeting.location ? ` · ${nextMeeting.location}` : ""}. The agenda is in the app the night before.`}
           />
         ) : (

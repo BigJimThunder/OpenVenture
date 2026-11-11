@@ -69,6 +69,7 @@ export async function onboardingNudges(org: Org, roster: Roster, now: Date): Pro
                   nextTitle: e.summary.next?.title ?? null,
                   minutesLeft: e.summary.minutesLeft,
                   dueAt: e.dueAt,
+                  locked: !e.member.onboardedAt,
                 })
           )
       );

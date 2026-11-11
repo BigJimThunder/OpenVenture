@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { orgSettings } from "@/lib/org-settings";
 import { and, eq, ne, isNull, count } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
@@ -163,7 +164,7 @@ export const finishOnboarding = authedAction({
             }),
       };
     }
-    if (!(input.later && entry(journey.member, journey.items).canFinishLater)) {
+    if (!(input.later && entry(journey.member, journey.items, orgSettings(ctx.org).onboarding).canFinishLater)) {
       throw new ActionError("Finish the required items first.");
     }
     await db
