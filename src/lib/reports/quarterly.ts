@@ -245,7 +245,8 @@ function pipelineSentences(f: QuarterlyFigures): string[] {
         : `There are ${p.inReview} applications still in review.`
     );
   }
-  const reasons = p.declineReasons.filter((r) => r.count > 0).slice(0, 3);
+  // "Other" tells the reader nothing, so it is counted in the total but never named.
+  const reasons = p.declineReasons.filter((r) => r.count > 0 && r.label !== "Other").slice(0, 3);
   if (p.declined > 1 && reasons.length > 0) {
     out.push(
       `The ${reasons.length === 1 ? "most common reason" : "most common reasons"} for declining ${

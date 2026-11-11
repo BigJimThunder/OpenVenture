@@ -18,16 +18,23 @@ function cssString(text: string) {
  * running footer can say which part of the report you are in, the way a
  * printed annual report does; a change of page name also forces the page
  * break. The cover prints edge to edge with no footer.
+ *
+ * The last unit deliberately has no name and takes the default footer:
+ * anything the app renders after the report is on the default page too, and
+ * a change of name there would add a blank sheet at the end.
  */
-function pageCss(pub: PublicationData, footers: { page: string; text: string }[]) {
+function pageCss(pub: PublicationData, units: { key: string; title: string }[]) {
   const footer = (text: string) =>
     `@bottom-right { content: ${cssString(text)}; font: 600 8pt ui-sans-serif, system-ui, sans-serif; color: #5b6070; padding-bottom: 9mm; }`;
+  const on = (title: string) => `${pub.orgName} on ${title}`;
+  const last = units[units.length - 1];
   return [
     // Paper is white whatever theme is on screen; the app canvas must not print as a tint.
-    `@media print { :root, .dark { --bg: #fff; --chrome: #fff; color-scheme: light; } html, body { background: #fff; } }`,
-    `@page { size: Letter; margin: ${PAGE_TOP} ${PAGE_SIDE} 22mm; @bottom-left { content: counter(page); font: 500 8pt ui-sans-serif, system-ui, sans-serif; color: #8b90a0; padding-bottom: 9mm; } ${footer(`${pub.orgName} · ${pub.cover.title}`)} }`,
+    `@media print { :root, .dark { --bg: #fff; --chrome: #fff; } html { color-scheme: light !important; } html, body { background: #fff !important; } }`,
+    `@page { size: Letter; margin: ${PAGE_TOP} ${PAGE_SIDE} 22mm; @bottom-left { content: counter(page); font: 500 8pt ui-sans-serif, system-ui, sans-serif; color: #8b90a0; padding-bottom: 9mm; } ${footer(last ? on(last.title) : pub.cover.title)} }`,
     `@page ov-cover { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }`,
-    ...footers.map((f) => `@page ${f.page} { ${footer(f.text)} }`),
+    `@page ov-contents { ${footer(`${pub.orgName} · ${pub.cover.title}`)} }`,
+    ...units.slice(0, -1).map((u, i) => `@page ov-p${i} { ${footer(on(u.title))} }`),
   ].join("\n");
 }
 
@@ -66,18 +73,20 @@ function Figure({ url, caption, className }: { url: string; caption: string; cla
  */
 export function Publication({ pub, draft = false }: { pub: PublicationData; draft?: boolean }) {
   const anchor = (id: string) => `ar-${id}`;
-  const footers: { page: string; text: string }[] = [];
-  const pageFor = (key: string, text: string) => {
-    const page = `ov-p${footers.length}`;
-    footers.push({ page, text: `${pub.orgName} on ${text}` });
-    return { page, key };
+  // One printed "unit" per section, except that every company spread is its own.
+  const units = pub.sections.flatMap((s) =>
+    s.id === "companies" ? pub.companies.map((c) => ({ key: c.id, title: c.name })) : [{ key: s.id, title: s.title }]
+  );
+  const pageStyle = (key: string): React.CSSProperties | undefined => {
+    const index = units.findIndex((u) => u.key === key);
+    return index >= 0 && index < units.length - 1 ? { page: `ov-p${index}` } : undefined;
   };
 
   const placeholder = (text: string) => (draft ? <p className={styles.empty}>{text}</p> : null);
 
   const body: Record<SectionId, (title: string) => React.ReactNode> = {
     team: (title) => (
-      <section key="team" id={anchor("team")} className={styles.sheet} style={{ page: pageFor("team", title).page }}>
+      <section key="team" id={anchor("team")} className={styles.sheet} style={pageStyle("team")}>
         <header className={styles.band}>
           <h1 className={styles.h1}>{title}</h1>
           {pub.team.statement ? (
@@ -124,7 +133,7 @@ export function Publication({ pub, draft = false }: { pub: PublicationData; draf
         key="mission"
         id={anchor("mission")}
         className={styles.sheet}
-        style={{ page: pageFor("mission", title).page }}
+        style={pageStyle("mission")}
       >
         <div className={pub.mission.stats.length > 0 ? styles.split : undefined}>
           {pub.mission.stats.length > 0 && (
@@ -167,7 +176,7 @@ export function Publication({ pub, draft = false }: { pub: PublicationData; draf
             key={c.id}
             id={anchor(`company-${c.id}`)}
             className={styles.sheet}
-            style={{ page: pageFor(c.id, c.name).page }}
+            style={pageStyle(c.id)}
           >
             <header className={styles.companyHead}>
               {c.logoUrl ? (
@@ -221,7 +230,7 @@ export function Publication({ pub, draft = false }: { pub: PublicationData; draf
         key="programs"
         id={anchor("programs")}
         className={styles.sheet}
-        style={{ page: pageFor("programs", title).page }}
+        style={pageStyle("programs")}
       >
         <h1 className={styles.h1}>{title}</h1>
         <div className={styles.byline}>By the {pub.orgName} team</div>
@@ -254,7 +263,7 @@ export function Publication({ pub, draft = false }: { pub: PublicationData; draf
         key="looking_forward"
         id={anchor("looking_forward")}
         className={styles.sheet}
-        style={{ page: pageFor("looking_forward", title).page }}
+        style={pageStyle("looking_forward")}
       >
         <header className={styles.band}>
           <h1 className={styles.h1}>{title}</h1>
@@ -355,8 +364,7 @@ export function Publication({ pub, draft = false }: { pub: PublicationData; draf
       </section>
 
       {rendered}
-      {/* After the sections, so every named page has been registered. */}
-      <style>{pageCss(pub, footers)}</style>
+      <style>{pageCss(pub, units)}</style>
     </div>
   );
 }

@@ -143,7 +143,14 @@ function assemble(members: MemberRow[], loaded: Awaited<ReturnType<typeof loadIt
     const finished = assignments.map((a) => a.completedAt).filter((d): d is Date => d != null);
     return {
       member: m,
-      assignments: assignments.map(({ memberId: _memberId, ...a }) => a),
+      assignments: assignments.map((a) => ({
+        id: a.id,
+        trackId: a.trackId,
+        trackName: a.trackName,
+        assignedAt: a.assignedAt,
+        dueAt: a.dueAt,
+        completedAt: a.completedAt,
+      })),
       items,
       summary: summarize(items),
       stage,
@@ -220,6 +227,7 @@ export async function getPipeline(orgId: string, now = new Date()) {
     };
   });
   return {
+    asOf: now,
     /** On the board: has a track, or hasn't been through the welcome flow. */
     entries: entries.filter((e) => e.enrolled || !e.member.onboardedAt),
     /** Established members with no track, who could be given one. */

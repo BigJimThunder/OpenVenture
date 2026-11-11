@@ -40,7 +40,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
-          <Toaster position="bottom-right" />
+          <div className="print:hidden">
+            <Toaster position="bottom-right" />
+          </div>
         </ThemeProvider>
       </body>
     </html>

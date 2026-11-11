@@ -415,11 +415,6 @@
   color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
 }
-.lead {
-  float: right;
-  width: 44%;
-  margin: 0.3rem 0 1rem 1.75rem;
-}
 .figure {
   margin: 0;
   break-inside: avoid;
@@ -439,6 +434,11 @@
   line-height: 1.35;
   text-align: center;
   color: var(--fg-muted);
+}
+.figure.lead {
+  float: right;
+  width: 44%;
+  margin: 0.3rem 0 1rem 1.75rem;
 }
 .progress {
   clear: both;
@@ -619,7 +619,7 @@
   .logoMark {
     font-size: 1.5rem;
   }
-  .lead {
+  .figure.lead {
     float: none;
     width: 100%;
     margin: 0 0 1.25rem;
@@ -681,6 +681,18 @@
     width: auto;
     border: 0;
     border-radius: 3mm;
+  }
+  .sidebarMark {
+    display: none;
+  }
+  .stat {
+    padding: 3.2mm 0;
+  }
+  .statValue {
+    font-size: 21pt;
+  }
+  .statLabel {
+    font-size: 8.5pt;
   }
   .split {
     grid-template-columns: 10.5rem 1fr;

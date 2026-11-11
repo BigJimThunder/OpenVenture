@@ -16,6 +16,7 @@ import {
   memoTemplateSection,
   onboardingTrack,
   onboardingTask,
+  doc,
   grantPool,
   activity,
 } from "@/db/schema";
@@ -27,6 +28,8 @@ import {
   DEFAULT_ONBOARDING_TASKS,
   DEFAULT_SOURCES,
   DEFAULT_TIMEZONE,
+  PROCESS_DOC_TASK_TITLE,
+  defaultProcessDoc,
 } from "@/lib/defaults";
 import { atomic } from "@/lib/pipeline/atomic";
 
@@ -93,6 +96,7 @@ export async function bootstrapOrg(raw: z.input<typeof SetupInput>) {
   const memberId = randomUUID();
   const templateId = randomUUID();
   const trackId = randomUUID();
+  const processDocId = randomUUID();
 
   try {
     await atomic((q) => [
@@ -130,14 +134,29 @@ export async function bootstrapOrg(raw: z.input<typeof SetupInput>) {
       q.insert(screeningCriterion).values(DEFAULT_SCREENING_CRITERIA.map((c) => ({ ...c, orgId }))),
       q.insert(memoTemplate).values({ id: templateId, orgId, name: "Grant memo", isDefault: true }),
       q.insert(memoTemplateSection).values(DEFAULT_MEMO_SECTIONS.map((s) => ({ ...s, templateId }))),
+      // The first thing a new member reads. It is an ordinary doc: admins edit it in Docs.
+      q.insert(doc).values({
+        id: processDocId,
+        orgId,
+        ...defaultProcessDoc(),
+        isPinned: true,
+        createdByMemberId: memberId,
+        updatedByMemberId: memberId,
+      }),
       q.insert(onboardingTrack).values({
         id: trackId,
         orgId,
-        name: "New analyst",
-        description: "What every new member does in their first two weeks.",
+        name: "New member",
+        description: "What everyone does before their first meeting.",
         isDefault: true,
       }),
-      q.insert(onboardingTask).values(DEFAULT_ONBOARDING_TASKS.map((t) => ({ ...t, trackId }))),
+      q.insert(onboardingTask).values(
+        DEFAULT_ONBOARDING_TASKS.map((t) => ({
+          ...t,
+          trackId,
+          docId: t.title === PROCESS_DOC_TASK_TITLE ? processDocId : null,
+        }))
+      ),
       q.insert(grantPool).values({
         orgId,
         name: `FY${input.fiscalYear} Pool`,

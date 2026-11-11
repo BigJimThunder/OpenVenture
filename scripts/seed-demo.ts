@@ -1000,6 +1000,63 @@ async function main() {
     });
   }
 
+  // ——— Onboarding pipeline ———
+  // Seeded members are established (they skip the welcome flow), the newest
+  // five carry due dates, and one invite is still waiting to be used.
+  const { defaultProcessDoc, PROCESS_DOC_TASK_TITLE } = await import("../src/lib/defaults");
+  const [processDoc] = await db
+    .insert(t.doc)
+    .values({
+      orgId: org.id,
+      ...defaultProcessDoc(),
+      isPinned: true,
+      createdByMemberId: members[0].id,
+      updatedByMemberId: members[0].id,
+    })
+    .returning();
+  await db
+    .update(t.onboardingTask)
+    .set({ docId: processDoc.id })
+    .where(and(eq(t.onboardingTask.trackId, track.id), eq(t.onboardingTask.title, PROCESS_DOC_TASK_TITLE)));
+  await db.update(t.member).set({ onboardedAt: daysAgo(30) }).where(eq(t.member.orgId, org.id));
+  const dueInDays = [null, 9, 2, -4, 12];
+  for (let mi = 0; mi < newest.length; mi++) {
+    const days = dueInDays[mi];
+    if (days == null) continue;
+    await db
+      .update(t.onboardingAssignment)
+      .set({ dueAt: daysAgo(-days), assignedAt: daysAgo(14 - days) })
+      .where(eq(t.onboardingAssignment.memberId, newest[mi].id));
+  }
+  const [invitee] = await db
+    .insert(t.member)
+    .values({
+      orgId: org.id,
+      email: "riley.chen@example.com",
+      displayName: "Riley Chen",
+      role: "analyst",
+      status: "invited",
+      classYear: SEASON + 4,
+      cohort: `Fall ${SEASON}`,
+      joinedAt: daysAgo(5),
+      createdAt: daysAgo(5),
+    })
+    .returning();
+  await db
+    .insert(t.onboardingAssignment)
+    .values({ memberId: invitee.id, trackId: track.id, assignedAt: daysAgo(5), dueAt: daysAgo(-9) });
+  await db.insert(t.activity).values({
+    orgId: org.id,
+    actorMemberId: members[0].id,
+    actorType: "member",
+    verb: "member.invited",
+    entityType: "member",
+    entityId: invitee.id,
+    entityLabel: invitee.displayName,
+    summary: `${members[0].displayName} invited ${invitee.displayName} as analyst and enrolled them on “${track.name}”`,
+    occurredAt: daysAgo(5),
+  });
+
   console.log(`Seeded: ${COMPANIES.length} applications, ${fundedCount} funded, ${members.length} members.`);
   console.log("Log in as demo@example.com (magic link prints to the server console in dev).");
   process.exit(0);
