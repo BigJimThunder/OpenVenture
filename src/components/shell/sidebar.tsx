@@ -13,6 +13,7 @@ import {
   LogOutIcon,
   UserIcon,
   SparklesIcon,
+  PlugIcon,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { cn, initials } from "@/lib/utils";
@@ -173,6 +174,12 @@ export function Sidebar({
             <Link href="/members/me/insights">
               <SparklesIcon />
               My investor profile
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/connect">
+              <PlugIcon />
+              Connect your AI
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem

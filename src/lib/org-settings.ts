@@ -55,6 +55,20 @@ export const orgSettingsSchema = z.object({
       autoAssign: z.enum(["off", "round_robin"]).default("round_robin"),
     })
     .prefault({}),
+  /** Reports the club sends up (funding requests, LP letters, annual report). */
+  reports: z
+    .object({
+      /** Who funding requests go to for sign-off — a donor, advisor or office. */
+      approverName: z.string().max(120).default(""),
+      approverEmail: z.string().max(200).default(""),
+      /** Who receives the quarterly letter and annual report (comma-separated emails). */
+      lpEmails: z.string().max(2000).default(""),
+      /** One or two sentences on what the club is for; opens the annual report. */
+      mission: z.string().max(2000).default(""),
+      /** What the club looks for in a founder; quoted in reports and AI drafts. */
+      thesis: z.string().max(3000).default(""),
+    })
+    .prefault({}),
   ai: z
     .object({
       /** Master switch; AI also needs ANTHROPIC_API_KEY in the environment. */
@@ -77,6 +91,7 @@ export const orgSettingsPatchSchema = z.object({
   apply: orgSettingsSchema.shape.apply.unwrap().partial().optional(),
   founderEmails: orgSettingsSchema.shape.founderEmails.unwrap().partial().optional(),
   automation: orgSettingsSchema.shape.automation.unwrap().partial().optional(),
+  reports: orgSettingsSchema.shape.reports.unwrap().partial().optional(),
   ai: orgSettingsSchema.shape.ai.unwrap().partial().optional(),
 });
 export type OrgSettingsPatch = z.infer<typeof orgSettingsPatchSchema>;

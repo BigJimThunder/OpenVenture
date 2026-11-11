@@ -49,7 +49,7 @@ export const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
       { href: "/insights", label: "Insights", icon: ChartColumnIcon, chord: "n" },
       { href: "/outcomes", label: "Outcomes", icon: TrendingUpIcon, chord: "o" },
       { href: "/lab", label: "Cap Table Lab", icon: FlaskConicalIcon, chord: "l" },
-      { href: "/reports", label: "LP Reports", icon: ScrollTextIcon, chord: "r" },
+      { href: "/reports", label: "Reports", icon: ScrollTextIcon, chord: "r" },
     ],
   },
   {

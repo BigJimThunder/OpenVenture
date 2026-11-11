@@ -51,6 +51,8 @@ export function authedAction<S extends z.ZodType, T>(opts: {
         };
       }
       const ctx = await requireCtx(opts.minRole ?? "analyst");
+      // Every authedAction is a mutation; a read-scoped access token stops here.
+      if (ctx.via === "token" && ctx.tokenScope !== "write") throw new ForbiddenError();
       const { data, activity: act } = await opts.handler(parsed.data, ctx);
       if (act) {
         // Structurally impossible to forget the audit log — it's written here.

@@ -1,9 +1,10 @@
 import { cache } from "react";
+import { createHash } from "crypto";
 import { headers } from "next/headers";
 import { eq, and, inArray, isNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { member, organization, type MemberRole } from "@/db/schema";
+import { apiToken, member, organization, type ApiTokenScope, type MemberRole } from "@/db/schema";
 
 /**
  * Server-side auth context. Auth is enforced here AND in the (app) layout —
@@ -36,11 +37,56 @@ export function roleAtLeast(role: MemberRole, min: MemberRole) {
 }
 
 export type Ctx = {
+  /** Auth user id; empty for a token of a member who has never signed in. */
   userId: string;
   email: string;
   member: typeof member.$inferSelect;
   org: typeof organization.$inferSelect;
+  /**
+   * How this request authenticated. A personal access token acts as its
+   * member, with the member's role; a `read` token can never mutate
+   * (enforced in authedAction, not left to each caller).
+   */
+  via: "session" | "token";
+  tokenScope?: ApiTokenScope;
 };
+
+const TOKEN_PREFIX = "ov_pat_";
+
+export function hashApiToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Resolve `Authorization: Bearer ov_pat_…` to its member. Used by the MCP
+ * endpoint; returns null for anything that isn't a live token of a live member.
+ */
+async function ctxFromToken(authorization: string | null): Promise<Ctx | null> {
+  const token = authorization?.match(/^Bearer\s+(\S+)$/i)?.[1];
+  if (!token || !token.startsWith(TOKEN_PREFIX)) return null;
+  const [row] = await db
+    .select({ token: apiToken, member, org: organization })
+    .from(apiToken)
+    .innerJoin(member, eq(apiToken.memberId, member.id))
+    .innerJoin(organization, eq(apiToken.orgId, organization.id))
+    .where(and(eq(apiToken.tokenHash, hashApiToken(token)), isNull(apiToken.revokedAt)))
+    .limit(1);
+  if (!row) return null;
+  if (row.token.expiresAt && row.token.expiresAt < new Date()) return null;
+  if (row.member.offboardedAt || row.member.status !== "active") return null;
+  // Throttled: at most one write per token per minute.
+  if (!row.token.lastUsedAt || Date.now() - row.token.lastUsedAt.getTime() > 60_000) {
+    await db.update(apiToken).set({ lastUsedAt: new Date() }).where(eq(apiToken.id, row.token.id));
+  }
+  return {
+    userId: row.member.userId ?? "",
+    email: row.member.email,
+    member: row.member,
+    org: row.org,
+    via: "token",
+    tokenScope: row.token.scope,
+  };
+}
 
 /**
  * Break-glass admin — survival hatch for the year a cohort graduates without
@@ -77,8 +123,9 @@ async function maybeBreakGlass(
 
 /** Cached per-request. Returns null when unauthenticated or not yet a member. */
 export const getCtx = cache(async (): Promise<Ctx | null> => {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) return null;
+  const requestHeaders = await headers();
+  const session = await auth.api.getSession({ headers: requestHeaders });
+  if (!session?.user) return ctxFromToken(requestHeaders.get("authorization"));
 
   const rows = await db
     .select()
@@ -133,7 +180,13 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
     .limit(1);
   if (!orgs[0]) return null;
 
-  return { userId: session.user.id, email: session.user.email, member: m, org: orgs[0] };
+  return {
+    userId: session.user.id,
+    email: session.user.email,
+    member: m,
+    org: orgs[0],
+    via: "session",
+  };
 });
 
 export async function requireCtx(minRole: MemberRole = "read_only"): Promise<Ctx> {
