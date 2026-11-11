@@ -56,6 +56,8 @@ export type EngineInput = {
   minLeadMinutes?: number;
 };
 
+/** A coffee chat has no end time on file; this is how long one is held for. */
+export const COFFEE_CHAT_MINUTES = 45;
 export const SLOT_STEP_MINUTES = 15;
 export const DEFAULT_BUFFER_MINUTES = 10;
 const EDGE_MINUTES = 30;

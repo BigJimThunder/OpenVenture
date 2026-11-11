@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StepNav, primaryStepButton } from "./start-frame";
 
+import { ScheduleStep } from "@/components/scheduling/schedule-step";
 const stepHref = (key: string) => `/start?step=${key}`;
 
 // ——— Header actions ———
@@ -514,6 +515,27 @@ export function ExtrasStep({
           </Link>
         </Button>
       </StepNav>
+    </div>
+  );
+}
+
+/**
+ * The class-schedule step. Never blocks: a member can skip it and the
+ * start-of-term reminders will bring them back.
+ */
+export function ScheduleFlowStep({ backKey, nextKey }: { backKey: string; nextKey: string }) {
+  const router = useRouter();
+  return (
+    <div className="flex flex-col gap-4">
+      <ScheduleStep onDone={() => router.push(stepHref(nextKey))} />
+      <div className="flex items-center justify-between text-sm">
+        <Link href={stepHref(backKey)} className="text-fg-muted hover:text-fg">
+          Back
+        </Link>
+        <Link href={stepHref(nextKey)} className="text-fg-muted hover:text-fg">
+          Skip for now
+        </Link>
+      </div>
     </div>
   );
 }

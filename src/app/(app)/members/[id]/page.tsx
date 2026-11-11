@@ -17,6 +17,7 @@ import { MemberAdminControls } from "@/components/members/member-admin-controls"
 import { EditProfileDialog } from "@/components/members/edit-profile-dialog";
 import { OnboardingChecklist } from "@/components/members/onboarding-checklist";
 import { ROLE_BADGE } from "@/components/members/member-labels";
+import { MemberScheduleCard } from "@/components/scheduling/member-schedule-card";
 import { ATTENDANCE_LABEL, ATTENDED } from "@/components/meetings/meeting-labels";
 import { MEMO_STATUS } from "@/components/memos/memo-labels";
 
@@ -210,6 +211,10 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
               </div>
             </CardContent>
           </Card>
+
+          {(isSelf || isAdmin) && m.status === "active" && (
+            <MemberScheduleCard org={ctx.org} memberId={m.id} memberName={m.displayName} isSelf={isSelf} />
+          )}
 
           {onboarding && (
             <Card>

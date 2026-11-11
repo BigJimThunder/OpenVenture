@@ -187,18 +187,21 @@ const rangeShape = {
   days: z.number().int().min(1).max(28).default(14),
   durationMinutes: z.number().int().min(15).max(480),
   includeUnknown: z.boolean().default(false),
+  /** Start from tomorrow: for things that need notice, like a founder or the whole club. */
+  skipToday: z.boolean().default(false),
 };
 
 const ids = z.array(z.string().uuid()).max(200);
 
 async function engineFor(
   ctx: Ctx,
-  range: { fromDay?: IsoDay; days: number },
+  range: { fromDay?: IsoDay; days: number; skipToday?: boolean },
   excludeMeetingId?: string
 ): Promise<{ input: EngineInput; meta: FinderMeta }> {
   const now = new Date();
   const today = clubToday(ctx.org, now);
-  const fromDay = range.fromDay && range.fromDay > today ? range.fromDay : today;
+  const earliest = range.skipToday ? addDays(today, 1) : today;
+  const fromDay = range.fromDay && range.fromDay > earliest ? range.fromDay : earliest;
   const toDay = addDays(fromDay, range.days - 1);
   const input = await loadEngineInput(ctx.org, { fromDay, toDay, now, excludeMeetingId });
   return {
@@ -332,7 +335,12 @@ export async function checkTimeAction(raw: z.input<typeof atSchema>): Promise<Ac
       startMinute: res.startMinute,
       durationMinutes: q.durationMinutes,
       start: q.start.toISOString(),
-      people: res.presences.map((p) => viewPresence(p, viewer, ctx.org.timezone)),
+      people: res.presences.map((p) =>
+        viewPresence(p, viewer, ctx.org.timezone, {
+          start: q.start.getTime(),
+          end: q.start.getTime() + q.durationMinutes * 60_000,
+        })
+      ),
       combinations: q.n ? res.combinations : [],
       availableCount: res.availableCount,
       ownerId: app.ownerId,

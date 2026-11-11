@@ -19,6 +19,7 @@ const SEEDED = [
   "A five-question screening scorecard",
   "A grant memo template",
   "An onboarding checklist for new analysts",
+  "The current term on the calendar, so members can enter their class schedules",
 ];
 
 const field = "h-10 text-base";
@@ -41,6 +42,7 @@ export function SetupForm({
   const [poolBudget, setPoolBudget] = React.useState("10000");
   const [fiscalYear, setFiscalYear] = React.useState(defaultFiscalYear);
   const [openApplications, setOpenApplications] = React.useState(true);
+  const [termSystem, setTermSystem] = React.useState<"semester" | "quarter">("semester");
   const headingRef = React.useRef<HTMLHeadingElement>(null);
 
   const budget = Number(poolBudget.replace(/[$,\s]/g, ""));
@@ -67,6 +69,7 @@ export function SetupForm({
       fiscalYear,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       openApplications,
+      termSystem,
     });
     if (!res.ok) {
       setBusy(false);
@@ -142,6 +145,40 @@ export function SetupForm({
                 onChange={(e) => setYourName(e.target.value)}
               />
             </Field>
+            <fieldset className="flex flex-col gap-1.5">
+              <legend className="mb-1.5 text-sm font-medium">Does the school run on semesters or quarters?</legend>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ["semester", "Semesters"],
+                    ["quarter", "Quarters"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label
+                    key={value}
+                    className={cn(
+                      "flex h-10 cursor-pointer items-center justify-center rounded-md border text-base transition-colors has-focus-visible:ring-2 has-focus-visible:ring-accent/40",
+                      termSystem === value
+                        ? "border-accent bg-accent-subtle font-medium text-fg"
+                        : "border-border bg-panel text-fg-muted hover:border-border-strong"
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="termSystem"
+                      className="sr-only"
+                      checked={termSystem === value}
+                      onChange={() => setTermSystem(value)}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-fg-muted">
+                Members enter their class schedule once a term, and meetings and coffee chats are scheduled around it.
+                We&apos;ll add the current term with typical dates; adjust them in Settings.
+              </p>
+            </fieldset>
           </>
         )}
 

@@ -25,6 +25,7 @@ import { NoAccess } from "@/components/patterns/no-access";
 import { PageHeader } from "@/components/patterns/page-header";
 import { CopyField } from "@/components/patterns/form-copy-field";
 import { AutoAssignSelect } from "@/components/settings/auto-assign-select";
+import { CalendarSection } from "@/components/settings/calendar-section";
 import { ClubSettings } from "@/components/settings/club-settings";
 import { EmailPreview } from "@/components/settings/email-preview";
 import {
@@ -50,6 +51,7 @@ export const dynamic = "force-dynamic";
 /** Section ids are deep-linked from other screens (/settings#money) — don't rename. */
 const SECTIONS: SettingsNavItem[] = [
   { id: "club", label: "Club" },
+  { id: "calendar", label: "Calendar" },
   { id: "money", label: "Money" },
   { id: "pipeline", label: "Pipeline" },
   { id: "intake", label: "Intake" },
@@ -71,6 +73,14 @@ const NOTIFICATION_LABEL: Record<string, string> = {
   checkin_reminder: "Grantee check-in reminder",
   checkin_reminder_email: "Grantee check-in reminder",
   intake_assigned: "Application assigned",
+  onboarding_invite_reminder: "Onboarding — invite reminder",
+  onboarding_nudge: "Onboarding — reminder",
+  onboarding_admin_notice: "Onboarding — update to inviter",
+  schedule_reminder: "Class schedule reminder",
+  schedule_reminder_manual: "Class schedule reminder (sent by an admin)",
+  mcp_email_me: "AI connection — email to self",
+  mcp_email_member: "AI connection — email to a member",
+  mcp_digest: "AI connection — digest",
   founder_received: "Founder email — received",
   founder_declined: "Founder email — declined",
   founder_funded: "Founder email — funded",
@@ -191,6 +201,8 @@ export default async function SettingsPage() {
               />
             </SettingsCard>
           </SettingsSection>
+
+          <CalendarSection org={ctx.org} />
 
           <SettingsSection
             id="money"
@@ -463,6 +475,20 @@ export default async function SettingsPage() {
                   checked={settings.automation.checkinReminders}
                   label="Grantee check-in reminders"
                   description="When a funded company has had no outcome update for 90 days, the application's owner is asked to check in and record how it is going."
+                />
+                <PreferenceToggle
+                  section="automation"
+                  field="onboardingNudges"
+                  checked={settings.automation.onboardingNudges}
+                  label="Onboarding reminders"
+                  description="An invited member who hasn't signed in after 3 days gets one reminder. Members with required onboarding items outstanding are nudged before the due date and when overdue, at most once every 3 days. Whoever invited them hears when they finish or fall a week behind."
+                />
+                <PreferenceToggle
+                  section="onboarding"
+                  field="blockUntilComplete"
+                  checked={settings.onboarding.blockUntilComplete}
+                  label="Require onboarding before using the app"
+                  description="New members must finish every required onboarding item before they can open the rest of the app. Admins can always skip. Turn this off to let members in once their details are confirmed; required items then stay on their list and in the reminders."
                 />
                 <AutoAssignSelect value={settings.automation.autoAssign} />
               </div>

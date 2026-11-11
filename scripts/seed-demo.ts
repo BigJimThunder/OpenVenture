@@ -26,6 +26,9 @@ import {
   DEFAULT_ONBOARDING_TASKS,
   DEFAULT_SOURCES,
 } from "../src/lib/defaults";
+import { defaultTermFor, suggestNextTerm } from "../src/lib/scheduling/terms";
+import { zonedParts } from "../src/lib/scheduling/time";
+import { demoWeek } from "./demo-schedules";
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -1063,6 +1066,28 @@ async function main() {
   // on real work: two essays reviewed, one drafted, one not started, one bio missing.
   const { seedExampleAnnualReport } = await import("./annual-report-example");
   await seedExampleAnnualReport(org.id, members[0].id);
+
+  // The academic calendar and everyone's class schedule, so "find a time" has
+  // real weeks to work with: the term in session, the one after it, and a
+  // weekly schedule per member (see scripts/demo-schedules.ts for the gaps).
+  const today = zonedParts(new Date(now), org.timezone).day;
+  const term = defaultTermFor("semester", today);
+  await db
+    .update(t.organization)
+    .set({
+      settings: {
+        ...(org.settings as Record<string, unknown>),
+        scheduling: { system: "semester", terms: [term, suggestNextTerm("semester", [term], today)] },
+      },
+    })
+    .where(eq(t.organization.id, org.id));
+  const weeks = members.map((m, i) => ({ member: m, ...demoWeek(i) }));
+  await db.insert(t.availabilityBlock).values(
+    weeks.flatMap((w) => w.blocks.map((b) => ({ ...b, orgId: org.id, memberId: w.member.id, termKey: term.key })))
+  );
+  await db.insert(t.availabilityConfirmation).values(
+    weeks.filter((w) => w.confirmed).map((w) => ({ orgId: org.id, memberId: w.member.id, termKey: term.key }))
+  );
 
   console.log(`Seeded: ${COMPANIES.length} applications, ${fundedCount} funded, ${members.length} members.`);
   console.log("Log in as demo@example.com (magic link prints to the server console in dev).");

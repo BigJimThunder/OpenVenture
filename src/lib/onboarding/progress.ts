@@ -141,17 +141,23 @@ export function entry(
 export type FlowStep =
   | { key: "welcome"; kind: "welcome"; label: string }
   | { key: "profile"; kind: "profile"; label: string }
+  | { key: "schedule"; kind: "schedule"; label: string }
   | { key: string; kind: "item"; label: string; item: JourneyItem }
   | { key: "extras"; kind: "extras"; label: string }
   | { key: "done"; kind: "done"; label: string };
 
-/** Welcome → details → one screen per required item → optional extras → done. */
-export function buildSteps(items: JourneyItem[]): FlowStep[] {
+/** Welcome → details → (class schedule) → one screen per required item → optional extras → done. */
+export function buildSteps(
+  items: JourneyItem[],
+  /** Include the class-schedule step (clubs with a term set up). Never blocks. */
+  opts: { schedule?: boolean } = {}
+): FlowStep[] {
   const required = items.filter((i) => i.required);
   const hasOptional = items.some((i) => !i.required);
   return [
     { key: "welcome", kind: "welcome", label: "Welcome" },
     { key: "profile", kind: "profile", label: "Your details" },
+    ...(opts.schedule ? [{ key: "schedule", kind: "schedule", label: "Your week" } as const] : []),
     ...required.map((item): FlowStep => ({ key: item.id, kind: "item", label: item.title, item })),
     ...(hasOptional ? [{ key: "extras", kind: "extras", label: "Also worth doing" } as const] : []),
     { key: "done", kind: "done", label: "Done" },

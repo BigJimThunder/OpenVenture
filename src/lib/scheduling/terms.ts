@@ -1,5 +1,5 @@
 import type { OrgSettings } from "@/lib/org-settings";
-import { addDays, isValidIsoDay, zonedParts, type IsoDay } from "./time";
+import { addDays, formatDayShort, isValidIsoDay, zonedParts, type IsoDay } from "./time";
 
 /**
  * Academic terms: which one is "now", what the next one probably is, and
@@ -153,7 +153,7 @@ export function validateTerms(terms: readonly Term[]): TermIssue[] {
       issues.push({
         key: sorted[i].key,
         field: "start",
-        message: `Overlaps ${sorted[i - 1].name}, which runs to ${sorted[i - 1].end}.`,
+        message: `Overlaps ${sorted[i - 1].name}, which runs to ${formatDayShort(sorted[i - 1].end)}.`,
       });
     }
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Presence } from "./engine";
+import { conflictPhrase } from "./format";
 import { zonedToUtc } from "./time";
 import { viewPresence } from "./views";
 
@@ -26,8 +27,16 @@ describe("viewPresence", () => {
       label: null,
       startMinute: 840,
       endMinute: 920,
+      tight: false,
     });
     expect(viewPresence(busy("busy", "Therapy"), { memberId: "ana", isAdmin: false }, NY).conflict?.label).toBeNull();
+  });
+
+  it("says when only the walk is in the way", () => {
+    const slot = { start: zonedToUtc("2026-11-12", 920, NY), end: zonedToUtc("2026-11-12", 965, NY) };
+    const view = viewPresence(busy("class", "ECON 201"), { memberId: "ana", isAdmin: false }, NY, slot);
+    expect(view.conflict?.tight).toBe(true);
+    expect(conflictPhrase("Dan", view.conflict!)).toBe("Dan is busy 2:00–3:20 PM, too close to get there");
   });
 
   it("shows it to the member themselves and to admins", () => {

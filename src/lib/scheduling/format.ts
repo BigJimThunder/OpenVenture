@@ -54,9 +54,9 @@ export function attendanceLabel(
  */
 export function conflictPhrase(
   name: string,
-  conflict: Pick<Commitment, "kind" | "label"> & { startMinute: number; endMinute: number }
+  conflict: Pick<Commitment, "kind" | "label"> & { startMinute: number; endMinute: number; tight?: boolean }
 ): string {
-  const time = formatMinuteRange(conflict.startMinute, conflict.endMinute);
+  const time = `${formatMinuteRange(conflict.startMinute, conflict.endMinute)}${conflict.tight ? ", too close to get there" : ""}`;
   if (conflict.kind === "meeting") return `${name} has ${conflict.label ?? "a club meeting"} ${time}`;
   if (conflict.kind === "coffee_chat") return `${name} has a coffee chat${conflict.label ? ` (${conflict.label})` : ""} ${time}`;
   if (conflict.label) return `${name} has ${conflict.label} ${time}`;

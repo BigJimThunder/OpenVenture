@@ -32,6 +32,8 @@ import {
   defaultProcessDoc,
 } from "@/lib/defaults";
 import { atomic } from "@/lib/pipeline/atomic";
+import { defaultTermFor } from "@/lib/scheduling/terms";
+import { zonedParts } from "@/lib/scheduling/time";
 
 const emailDomain = z
   .string()
@@ -56,6 +58,8 @@ const SetupInput = z.object({
   timezone: z.string().max(64).optional(),
   /** Open the hosted application form at /apply straight away. */
   openApplications: z.boolean().default(true),
+  /** How the school divides its year; members enter a class schedule per term. */
+  termSystem: z.enum(["quarter", "semester"]).default("semester"),
 });
 
 function validTimezone(tz: string | undefined): string {
@@ -96,6 +100,9 @@ export async function bootstrapOrg(raw: z.input<typeof SetupInput>) {
   const memberId = randomUUID();
   const templateId = randomUUID();
   const trackId = randomUUID();
+  const timezone = validTimezone(input.timezone);
+  // The term in session (or about to start), with typical dates the admin can correct in Settings.
+  const firstTerm = defaultTermFor(input.termSystem, zonedParts(new Date(), timezone).day);
   const processDocId = randomUUID();
 
   try {
@@ -106,9 +113,12 @@ export async function bootstrapOrg(raw: z.input<typeof SetupInput>) {
         slug: slug || "club",
         schoolName: input.schoolName || null,
         allowedEmailDomains: input.emailDomain ? [input.emailDomain] : [],
-        timezone: validTimezone(input.timezone),
+        timezone,
         ingestSecret: randomBytes(32).toString("hex"),
-        settings: { apply: { enabled: input.openApplications } },
+        settings: {
+          apply: { enabled: input.openApplications },
+          scheduling: { system: input.termSystem, terms: [firstTerm] },
+        },
       }),
       q.insert(member).values({
         id: memberId,

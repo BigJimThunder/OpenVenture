@@ -6,6 +6,7 @@ import {
   FileTextIcon,
   BanknoteIcon,
   CalendarIcon,
+  CalendarClockIcon,
   UsersIcon,
   ChartColumnIcon,
   FlaskConicalIcon,
@@ -31,6 +32,7 @@ export const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
     items: [
       { href: "/inbox", label: "Inbox", icon: InboxIcon, chord: "i" },
       { href: "/my-work", label: "My work", icon: CircleCheckIcon, chord: "w" },
+      { href: "/schedule", label: "Schedule", icon: CalendarClockIcon, chord: "c" },
     ],
   },
   {

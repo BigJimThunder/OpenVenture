@@ -16,6 +16,8 @@ export type ConflictView = {
   label: string | null;
   startMinute: number;
   endMinute: number;
+  /** The commitment itself does not overlap; it is the travel time either side that does. */
+  tight: boolean;
 };
 
 export type PersonView = {
@@ -31,7 +33,12 @@ export type Viewer = { memberId: string; isAdmin: boolean };
  * A member's class and job labels are private to them and the club's admins.
  * Club meetings and coffee chats are on everyone's calendar already.
  */
-export function viewPresence(presence: Presence, viewer: Viewer, timeZone: string): PersonView {
+export function viewPresence(
+  presence: Presence,
+  viewer: Viewer,
+  timeZone: string,
+  slot?: { start: number; end: number }
+): PersonView {
   const c = presence.conflict;
   const mayRead = c && (c.kind === "meeting" || c.kind === "coffee_chat" || viewer.isAdmin || viewer.memberId === presence.memberId);
   return {
@@ -44,6 +51,7 @@ export function viewPresence(presence: Presence, viewer: Viewer, timeZone: strin
           label: mayRead ? c.label : null,
           startMinute: zonedParts(c.rawStart, timeZone).minute,
           endMinute: zonedParts(c.rawEnd - 1, timeZone).minute + 1,
+          tight: slot ? c.rawEnd <= slot.start || c.rawStart >= slot.end : false,
         }
       : null,
   };

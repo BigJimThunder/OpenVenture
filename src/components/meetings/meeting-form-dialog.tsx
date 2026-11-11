@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { CalendarSearchIcon } from "lucide-react";
 import { createMeeting, updateMeeting } from "@/lib/actions/meetings";
 import { MEETING_KINDS, type MeetingKind } from "@/db/schema";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { MEETING_KIND_LABEL, toLocalInputValue } from "./meeting-labels";
 import { Field } from "@/components/patterns/field";
+import { MeetingTimeFinder } from "@/components/scheduling/meeting-time-finder";
 
 export type EditableMeeting = {
   id: string;
@@ -46,11 +48,16 @@ function defaultStart() {
 /** One form for scheduling a meeting and for editing it. */
 export function MeetingFormDialog({
   meeting,
+  initialStart,
+  initialDurationMinutes,
   open,
   onOpenChange,
 }: {
   /** Omit to schedule a new meeting. */
   meeting?: EditableMeeting;
+  /** For a new meeting opened from the time finder: the slot that was picked. */
+  initialStart?: Date;
+  initialDurationMinutes?: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -58,7 +65,12 @@ export function MeetingFormDialog({
   const [busy, setBusy] = React.useState(false);
   const [kind, setKind] = React.useState<MeetingKind>(meeting?.kind ?? "general");
   // Computed on the client only, so the server render and the browser's timezone can't disagree.
-  const [start] = React.useState(() => toLocalInputValue(meeting?.scheduledAt ?? defaultStart()));
+  const [when, setWhen] = React.useState(() =>
+    toLocalInputValue(meeting?.scheduledAt ?? initialStart ?? defaultStart())
+  );
+  const [minutes, setMinutes] = React.useState(String(meeting?.durationMinutes ?? initialDurationMinutes ?? 60));
+  const [finding, setFinding] = React.useState(false);
+  const whenMs = when ? new Date(when).getTime() : NaN;
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -151,20 +163,41 @@ export function MeetingFormDialog({
                 step={5}
                 required
                 className="tnum"
-                defaultValue={meeting?.durationMinutes ?? 60}
+                value={minutes}
+                onChange={(e) => setMinutes(e.target.value)}
               />
             </Field>
           </div>
-          <Field label="When">
-            <Input
-              id="meeting-when"
-              name="scheduledAt"
-              type="datetime-local"
-              required
-              className="tnum"
-              defaultValue={start}
+          <div className="flex flex-col gap-1.5">
+            <Field label="When">
+              <Input
+                id="meeting-when"
+                name="scheduledAt"
+                type="datetime-local"
+                required
+                className="tnum"
+                value={when}
+                onChange={(e) => setWhen(e.target.value)}
+              />
+            </Field>
+            <button
+              type="button"
+              aria-expanded={finding}
+              onClick={() => setFinding((v) => !v)}
+              className="inline-flex min-h-7 cursor-pointer items-center gap-1.5 self-start rounded-sm text-xs font-medium text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/40 max-md:min-h-10"
+            >
+              <CalendarSearchIcon className="size-3.5" />
+              {finding ? "Hide suggested times" : "Find a time when people are free"}
+            </button>
+          </div>
+          {finding && (
+            <MeetingTimeFinder
+              durationMinutes={Number(minutes) || 60}
+              excludeMeetingId={meeting?.id}
+              selected={Number.isNaN(whenMs) ? null : whenMs}
+              onPick={(start) => setWhen(toLocalInputValue(start))}
             />
-          </Field>
+          )}
           <Field label="Location">
             <Input
               id="meeting-location"

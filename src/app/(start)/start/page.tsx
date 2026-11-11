@@ -35,6 +35,7 @@ import {
   FinishLaterButton,
   ItemStep,
   ProfileStep,
+  ScheduleFlowStep,
   SignOutLink,
 } from "@/components/onboarding/start-steps";
 
@@ -77,13 +78,15 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
 
   let journey = await getJourney(ctx.org.id, ctx.member.id);
   if (!journey) redirect("/login");
-  let steps = buildSteps(journey.items);
+  // Offer the class-schedule step only when the club has a term set up.
+  const flow = { schedule: orgSettings(ctx.org).scheduling.terms.length > 0 };
+  let steps = buildSteps(journey.items, flow);
   let index = resolveStep(steps, journey.member, requested);
   if (steps[index].kind === "done" && !journey.member.onboardedAt) {
     // Everything required is done but the marker is behind (e.g. an admin
     // waived the last item while this tab was open). Catch it up.
     journey = (await syncOnboarding(ctx.org.id, ctx.member.id))?.journey ?? journey;
-    steps = buildSteps(journey.items);
+    steps = buildSteps(journey.items, flow);
     index = resolveStep(steps, journey.member, requested);
   }
   const step = steps[index];
@@ -138,6 +141,15 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
               linkedinUrl: m.linkedinUrl,
             }}
           />
+        </StepBody>
+      )}
+      {step.kind === "schedule" && (
+        <StepBody
+          eyebrow="Your week"
+          title="When are you in class?"
+          lede="Add your classes once and nobody has to ask when you're free. Coffee chats and meetings are suggested around them. Only you and the club's admins see what each block is."
+        >
+          <ScheduleFlowStep backKey={back} nextKey={next} />
         </StepBody>
       )}
       {step.kind === "item" && <Item orgId={ctx.org.id} step={step} backKey={back} nextKey={next} />}

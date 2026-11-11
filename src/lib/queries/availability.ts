@@ -15,15 +15,13 @@ import {
 } from "@/db/schema";
 import { orgSettings } from "@/lib/org-settings";
 import type { ScheduleBlock } from "@/lib/scheduling/blocks";
-import type { EngineEvent, EngineInput } from "@/lib/scheduling/engine";
+import { COFFEE_CHAT_MINUTES, type EngineEvent, type EngineInput } from "@/lib/scheduling/engine";
 import { MANUAL_REMINDER_KIND, REMINDER_KIND } from "@/lib/scheduling/reminders";
 import { currentTerm, type Term } from "@/lib/scheduling/terms";
 import { addDays, MINUTE, zonedParts, zonedToUtc, type IsoDay } from "@/lib/scheduling/time";
 
 type Org = typeof organization.$inferSelect;
 
-/** A coffee chat has no end time on file; this is how long we hold for one. */
-export const COFFEE_CHAT_MINUTES = 45;
 const LOAD_WINDOW_DAYS = 30;
 
 export async function getScheduleBlocks(orgId: string, memberId: string, termKey: string): Promise<ScheduleBlock[]> {

@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { db } from "@/db";
 import {
+  apiToken,
   activity,
   member,
   onboardingTrack,
@@ -461,6 +462,12 @@ export const offboardMember = authedAction({
       .update(member)
       .set({ status: "alumni", offboardedAt: new Date(), updatedAt: new Date() })
       .where(eq(member.id, target.id));
+    // Their access tokens already stop working (context.ts); revoke them too
+    // so nothing stale is left listed against the club.
+    await db
+      .update(apiToken)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(apiToken.memberId, target.id), isNull(apiToken.revokedAt)));
     revalidatePath("/members");
     return {
       data: { ok: true },
