@@ -27,6 +27,32 @@ export async function getCapTablesList(orgId: string) {
     .orderBy(desc(capTable.updatedAt));
 }
 
+/** Every live table's ledger in one query, keyed by table — the Lab index folds each for its ownership bar. */
+export async function getCapEventsByTable(orgId: string) {
+  const rows = await db
+    .select({
+      capTableId: capEvent.capTableId,
+      seq: capEvent.seq,
+      effectiveDate: capEvent.effectiveDate,
+      label: capEvent.label,
+      payload: capEvent.payload,
+    })
+    .from(capEvent)
+    .innerJoin(capTable, eq(capEvent.capTableId, capTable.id))
+    .where(and(eq(capTable.orgId, orgId), isNull(capTable.archivedAt)))
+    .orderBy(asc(capEvent.seq));
+  const byTable: Record<string, CapEventInput[]> = {};
+  for (const r of rows) {
+    (byTable[r.capTableId] ??= []).push({
+      seq: r.seq,
+      effectiveDate: r.effectiveDate.toISOString(),
+      label: r.label ?? undefined,
+      payload: r.payload as CapEventInput["payload"],
+    });
+  }
+  return byTable;
+}
+
 export async function getCapTableDetail(orgId: string, capTableId: string) {
   const [t] = await db
     .select({

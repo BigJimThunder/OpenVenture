@@ -1,4 +1,4 @@
-import { and, eq, isNull, asc, desc } from "drizzle-orm";
+import { and, eq, isNull, asc, desc, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   memo,
@@ -19,6 +19,7 @@ export async function getMemosList(orgId: string) {
   return db
     .select({
       id: memo.id,
+      ref: memo.ref,
       title: memo.title,
       status: memo.status,
       recommendation: memo.recommendation,
@@ -29,6 +30,19 @@ export async function getMemosList(orgId: string) {
       authorName: member.displayName,
       companyName: company.name,
       applicationId: application.id,
+      openComments: sql<number>`(
+        select count(*)::int from ${memoComment}
+        where ${memoComment}."memo_id" = ${memo}."id" and ${memoComment}."resolved_at" is null
+      )`,
+      sectionsFilled: sql<number>`(
+        select count(*)::int from ${memoSection}
+        where ${memoSection}."memo_id" = ${memo}."id"
+          and ${memoSection}."version_id" is null and ${memoSection}."word_count" > 0
+      )`,
+      sectionsTotal: sql<number>`(
+        select count(*)::int from ${memoSection}
+        where ${memoSection}."memo_id" = ${memo}."id" and ${memoSection}."version_id" is null
+      )`,
     })
     .from(memo)
     .innerJoin(application, eq(memo.applicationId, application.id))
@@ -66,6 +80,7 @@ export async function getMemoDetail(orgId: string, memoId: string) {
         contentText: memoSection.contentText,
         wordCount: memoSection.wordCount,
         guidance: memoTemplateSection.guidance,
+        required: memoTemplateSection.required,
       })
       .from(memoSection)
       .leftJoin(memoTemplateSection, eq(memoSection.templateSectionId, memoTemplateSection.id))

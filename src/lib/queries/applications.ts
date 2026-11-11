@@ -1,4 +1,4 @@
-import { and, eq, asc, desc, inArray, isNull } from "drizzle-orm";
+import { and, eq, asc, desc, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "@/db";
 import {
   application,
@@ -15,10 +15,38 @@ import {
   memo,
   voteRound,
   grant,
+  grantPool,
+  sector,
+  companySector,
+  dealSource,
 } from "@/db/schema";
 
+/** Members, sectors and deal sources — what the pipeline's pickers and filters offer. */
+export async function getPipelineLookups(orgId: string) {
+  const [members, sectors, sources] = await Promise.all([
+    db
+      .select({ id: member.id, displayName: member.displayName })
+      .from(member)
+      .where(and(eq(member.orgId, orgId), eq(member.status, "active")))
+      .orderBy(asc(member.displayName)),
+    db
+      .select({ id: sector.id, name: sector.name, colorToken: sector.colorToken })
+      .from(sector)
+      .where(and(eq(sector.orgId, orgId), isNull(sector.archivedAt)))
+      .orderBy(asc(sector.position), asc(sector.name)),
+    db
+      .select({ id: dealSource.id, name: dealSource.name })
+      .from(dealSource)
+      .where(and(eq(dealSource.orgId, orgId), isNull(dealSource.archivedAt)))
+      .orderBy(asc(dealSource.name)),
+  ]);
+  return { members, sectors, sources };
+}
+
+export type PipelineLookups = Awaited<ReturnType<typeof getPipelineLookups>>;
+
 export async function getPipeline(orgId: string) {
-  const [stages, apps] = await Promise.all([
+  const [stages, rows, sectorLinks] = await Promise.all([
     db
       .select()
       .from(pipelineStage)
@@ -36,6 +64,7 @@ export async function getPipeline(orgId: string) {
         appliedAt: application.appliedAt,
         enteredStageAt: application.enteredStageAt,
         declineReason: application.declineReason,
+        nextStep: application.nextStep,
         companyId: company.id,
         companyName: company.name,
         companyDomain: company.domain,
@@ -49,7 +78,19 @@ export async function getPipeline(orgId: string) {
       .leftJoin(member, eq(application.ownerMemberId, member.id))
       .where(and(eq(application.orgId, orgId), isNull(application.archivedAt)))
       .orderBy(asc(application.position), desc(application.appliedAt)),
+    db
+      .select({ companyId: companySector.companyId, sectorId: companySector.sectorId })
+      .from(companySector)
+      .innerJoin(company, eq(companySector.companyId, company.id))
+      .where(eq(company.orgId, orgId)),
   ]);
+  const sectorsByCompany = new Map<string, string[]>();
+  for (const link of sectorLinks) {
+    const list = sectorsByCompany.get(link.companyId);
+    if (list) list.push(link.sectorId);
+    else sectorsByCompany.set(link.companyId, [link.sectorId]);
+  }
+  const apps = rows.map((a) => ({ ...a, sectorIds: sectorsByCompany.get(a.companyId) ?? [] }));
   return { stages, apps };
 }
 
@@ -82,8 +123,10 @@ export async function getApplicationPeek(orgId: string, id: string) {
       appliedAt: application.appliedAt,
       enteredStageAt: application.enteredStageAt,
       declineReason: application.declineReason,
+      declineNote: application.declineNote,
       nextStep: application.nextStep,
       nextStepDue: application.nextStepDue,
+      companyId: company.id,
       companyName: company.name,
       companyOneLiner: company.oneLiner,
       companyDomain: company.domain,
@@ -101,7 +144,7 @@ export async function getApplicationPeek(orgId: string, id: string) {
   // Computed server-side: client components can't call Date.now() in render.
   const nextStepOverdue = app.nextStepDue != null && app.nextStepDue.getTime() < Date.now();
 
-  const [criteria, scores, activities, latestMemoRows, latestRoundRows] = await Promise.all([
+  const [criteria, scores, activities, latestMemoRows, latestRoundRows, sectors, grants] = await Promise.all([
     db
       .select()
       .from(screeningCriterion)
@@ -130,11 +173,36 @@ export async function getApplicationPeek(orgId: string, id: string) {
       .where(eq(memo.applicationId, id))
       .orderBy(desc(memo.createdAt))
       .limit(1),
+    // Round STATUS only — vote rows stay behind getVoteRoundResults().
     db
-      .select({ id: voteRound.id, memoId: voteRound.memoId, status: voteRound.status })
+      .select({
+        id: voteRound.id,
+        memoId: voteRound.memoId,
+        status: voteRound.status,
+        closesAt: voteRound.closesAt,
+        outcome: voteRound.outcome,
+      })
       .from(voteRound)
-      .where(and(eq(voteRound.applicationId, id), inArray(voteRound.status, ["open", "revealed"])))
+      .where(
+        and(eq(voteRound.applicationId, id), inArray(voteRound.status, ["open", "closed", "revealed"]))
+      )
       .orderBy(desc(voteRound.createdAt))
+      .limit(1),
+    db
+      .select({ id: sector.id, name: sector.name, colorToken: sector.colorToken })
+      .from(companySector)
+      .innerJoin(sector, eq(companySector.sectorId, sector.id))
+      .where(eq(companySector.companyId, app.companyId)),
+    db
+      .select({
+        id: grant.id,
+        status: grant.status,
+        amountAwarded: grant.amountAwarded,
+        poolName: grantPool.name,
+      })
+      .from(grant)
+      .innerJoin(grantPool, eq(grant.poolId, grantPool.id))
+      .where(and(eq(grant.applicationId, id), ne(grant.status, "cancelled")))
       .limit(1),
   ]);
 
@@ -153,6 +221,8 @@ export async function getApplicationPeek(orgId: string, id: string) {
     activities,
     latestMemo: latestMemoRows[0] ?? null,
     activeRound: latestRoundRows[0] ?? null,
+    sectors,
+    grant: grants[0] ?? null,
   };
 }
 
@@ -168,8 +238,20 @@ export async function getApplicationDetail(orgId: string, id: string) {
 
   const [co] = await db.select().from(company).where(eq(company.id, app.companyId)).limit(1);
 
-  const [stages, history, notes, chats, criteria, scores, activities, memos, grants, owner] =
-    await Promise.all([
+  const [
+    stages,
+    history,
+    notes,
+    chats,
+    criteria,
+    scores,
+    activities,
+    memos,
+    grants,
+    owner,
+    rounds,
+    companySectors,
+  ] = await Promise.all([
       db
         .select()
         .from(pipelineStage)
@@ -216,16 +298,53 @@ export async function getApplicationDetail(orgId: string, id: string) {
         .from(screeningScore)
         .where(eq(screeningScore.applicationId, id)),
       db
-        .select()
+        .select({
+          id: activity.id,
+          verb: activity.verb,
+          summary: activity.summary,
+          occurredAt: activity.occurredAt,
+          actorName: member.displayName,
+        })
         .from(activity)
+        .leftJoin(member, eq(activity.actorMemberId, member.id))
         .where(and(eq(activity.entityType, "application"), eq(activity.entityId, id)))
         .orderBy(desc(activity.occurredAt))
-        .limit(30),
-      db.select().from(memo).where(eq(memo.applicationId, id)),
-      db.select().from(grant).where(eq(grant.applicationId, id)),
+        .limit(40),
+      db.select().from(memo).where(eq(memo.applicationId, id)).orderBy(desc(memo.createdAt)),
+      db
+        .select({
+          id: grant.id,
+          status: grant.status,
+          amountAwarded: grant.amountAwarded,
+          poolName: grantPool.name,
+          createdAt: grant.createdAt,
+        })
+        .from(grant)
+        .innerJoin(grantPool, eq(grant.poolId, grantPool.id))
+        .where(eq(grant.applicationId, id))
+        .orderBy(desc(grant.createdAt)),
       app.ownerMemberId
         ? db.select().from(member).where(eq(member.id, app.ownerMemberId)).limit(1)
         : Promise.resolve([]),
+      // Round STATUS only — vote rows stay behind getVoteRoundResults().
+      db
+        .select({
+          id: voteRound.id,
+          memoId: voteRound.memoId,
+          status: voteRound.status,
+          closesAt: voteRound.closesAt,
+          revealedAt: voteRound.revealedAt,
+          outcome: voteRound.outcome,
+          outcomeNote: voteRound.outcomeNote,
+        })
+        .from(voteRound)
+        .where(eq(voteRound.applicationId, id))
+        .orderBy(desc(voteRound.createdAt)),
+      db
+        .select({ id: sector.id, name: sector.name, colorToken: sector.colorToken })
+        .from(companySector)
+        .innerJoin(sector, eq(companySector.sectorId, sector.id))
+        .where(eq(companySector.companyId, app.companyId)),
     ]);
 
   const chatIds = chats.map((c) => c.id);
@@ -264,6 +383,66 @@ export async function getApplicationDetail(orgId: string, id: string) {
     activities,
     memos,
     grants,
+    rounds,
+    sectors: companySectors,
     owner: owner[0] ?? null,
+  };
+}
+
+/**
+ * What the vote page needs to record a decision and to show what a recorded
+ * decision did: the application's state and its live grant. No vote rows.
+ */
+export async function getDecisionContext(orgId: string, applicationId: string) {
+  const [app] = await db
+    .select({
+      id: application.id,
+      ref: application.ref,
+      status: application.status,
+      amountRequested: application.amountRequested,
+      useOfFundsNarrative: application.useOfFundsNarrative,
+      applicantEmail: application.applicantEmail,
+      declineReason: application.declineReason,
+      declineNote: application.declineNote,
+      decidedAt: application.decidedAt,
+      nextStep: application.nextStep,
+      stageName: pipelineStage.name,
+    })
+    .from(application)
+    .innerJoin(pipelineStage, eq(application.stageId, pipelineStage.id))
+    .where(and(eq(application.id, applicationId), eq(application.orgId, orgId)))
+    .limit(1);
+  if (!app) return null;
+
+  const [[liveGrant], terminalStages] = await Promise.all([
+    db
+      .select({
+        id: grant.id,
+        status: grant.status,
+        amountAwarded: grant.amountAwarded,
+        poolName: grantPool.name,
+      })
+      .from(grant)
+      .innerJoin(grantPool, eq(grant.poolId, grantPool.id))
+      .where(and(eq(grant.applicationId, applicationId), ne(grant.status, "cancelled")))
+      .limit(1),
+    db
+      .select({ name: pipelineStage.name, kind: pipelineStage.kind })
+      .from(pipelineStage)
+      .where(
+        and(
+          eq(pipelineStage.orgId, orgId),
+          isNull(pipelineStage.archivedAt),
+          inArray(pipelineStage.kind, ["won", "lost"])
+        )
+      )
+      .orderBy(asc(pipelineStage.position)),
+  ]);
+
+  return {
+    app,
+    grant: liveGrant ?? null,
+    wonStageName: terminalStages.find((s) => s.kind === "won")?.name ?? null,
+    lostStageName: terminalStages.find((s) => s.kind === "lost")?.name ?? null,
   };
 }

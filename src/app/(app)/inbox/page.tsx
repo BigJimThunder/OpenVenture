@@ -1,247 +1,225 @@
 import Link from "next/link";
-import { formatDistanceToNowStrict, format } from "date-fns";
-import { ChevronDownIcon, VoteIcon, CalendarIcon } from "lucide-react";
+import type { Metadata, Route } from "next";
+import { format, formatDistanceToNowStrict } from "date-fns";
+import { CircleCheckIcon, InboxIcon } from "lucide-react";
 import { requireCtx } from "@/lib/actions/context";
-import { getDashboardData, isOverdue, slaBreachDays } from "@/lib/queries/dashboard";
-import { formatMoney, initials, cn } from "@/lib/utils";
-import { formatRef } from "@/lib/refs";
+import { getInbox, isOverdue } from "@/lib/queries/dashboard";
+import { can } from "@/lib/permissions";
+import { formatMoney, formatPct } from "@/lib/utils";
 import { ScreenHeader, ScreenFooter } from "@/components/shell/screen-header";
+import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/patterns/kbd";
-import { StageDot } from "@/components/patterns/entity-ref";
-import { PriorityGlyph, PRIORITY_ORDER } from "@/components/patterns/priority-glyph";
 import { EmptyState } from "@/components/patterns/empty-state";
-import { ActionItemRow } from "@/components/meetings/action-item-row";
+import { PRIORITY_ORDER } from "@/components/patterns/priority-glyph";
+import { StatStrip, StatStripItem, StatMeter } from "@/components/patterns/data-stat-strip";
+import { ListSection } from "@/components/patterns/data-list";
+import { ListKeys } from "@/components/patterns/data-list-keys";
+import { ApplicationRow, BallotRow, MeetingRow, MemoRow } from "./rows";
+import { TaskRow } from "./task-row";
 
+export const metadata: Metadata = { title: "Inbox" };
 export const dynamic = "force-dynamic";
 
 /**
- * Inbox — the triage queue, one row per thing that wants a decision. Replaces
- * the old card dashboard: same data, but scannable in one pass and workable
- * from the keyboard.
+ * Inbox — personal triage. Three questions, in order: what is waiting on me,
+ * what is waiting on nobody in particular, and what is about to happen. The
+ * sidebar badge counts the first section exactly (see getNeedsMe).
  */
 export default async function InboxPage() {
   const ctx = await requireCtx();
-  const data = await getDashboardData(ctx.org.id, ctx.member.id);
-
-  const activeCount = data.stages
-    .filter((s) => s.kind === "active")
-    .reduce((n, s) => n + s.count, 0);
+  const data = await getInbox(ctx.org.id, ctx.member.id);
+  const { needsMe } = data;
+  const isAdmin = can(ctx.member.role, "manageClub");
+  const canContribute = can(ctx.member.role, "contribute");
 
   // Urgent first, then longest-waiting — the order you'd actually work them.
-  const needsAction = [...data.needsAction].sort(
-    (a, b) =>
-      PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] ||
-      new Date(a.enteredStageAt).getTime() - new Date(b.enteredStageAt).getTime()
-  );
+  const byUrgency = <T extends { priority: keyof typeof PRIORITY_ORDER; enteredStageAt: Date }>(
+    rows: T[]
+  ) =>
+    [...rows].sort(
+      (a, b) =>
+        PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] ||
+        a.enteredStageAt.getTime() - b.enteredStageAt.getTime()
+    );
+  const myApplications = byUrgency(needsMe.applications);
+  const needsSomeone = byUrgency(data.needsSomeone);
 
-  const total = needsAction.length + data.openVotes.length;
-  const todayCount = (data.nextMeeting ? 1 : 0) + data.myActionItems.length;
+  const comingUp = (data.nextMeeting ? 1 : 0) + needsMe.ballotsCast.length;
+  const brandNew =
+    !data.hasHistory && needsMe.count === 0 && needsSomeone.length === 0 && comingUp === 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ScreenHeader title="Inbox" meta={`${total} ${total === 1 ? "item" : "items"}`} />
+      <ListKeys />
+      <ScreenHeader
+        title="Inbox"
+        meta={needsMe.count === 0 ? "All clear" : `${needsMe.count} waiting on you`}
+      />
 
-      <div className="flex h-14 shrink-0 items-center border-b border-border px-4">
-        <Stat label="Budget remaining">
-          <div className="mt-[3px] flex items-center gap-2.5">
-            <span className="tnum text-[15px] font-semibold">
-              {data.budget ? formatMoney(data.budget.remaining) : "—"}
-            </span>
-            {data.budget && data.budget.total > 0 && (
-              <>
-                <div className="h-1 w-30 overflow-hidden rounded-sm bg-bg-subtle">
-                  <div
-                    className="h-full rounded-sm bg-accent"
-                    style={{
-                      width: `${Math.min(100, (data.budget.deployed / data.budget.total) * 100)}%`,
-                    }}
-                  />
+      <StatStrip>
+        <StatStripItem
+          label="Budget remaining"
+          value={data.budget ? formatMoney(data.budget.remaining) : "—"}
+          hint={
+            data.budget
+              ? `${formatPct(data.budget.usedFraction, 0)} of ${formatMoney(data.budget.total)} committed`
+              : "No grant pool yet"
+          }
+          tone={data.budget && data.budget.remaining < 0 ? "danger" : "default"}
+          href="/grants/budget"
+        >
+          {data.budget && (
+            <StatMeter fraction={data.budget.usedFraction} label="Share of the pool committed" />
+          )}
+        </StatStripItem>
+        <StatStripItem
+          label="Open applications"
+          value={data.openApplications}
+          hint={needsSomeone.length > 0 ? `${needsSomeone.length} need attention` : "All on track"}
+          href="/pipeline"
+        />
+        <StatStripItem
+          label="Votes open"
+          value={data.openVotes}
+          hint={
+            needsMe.ballots.length > 0
+              ? `${needsMe.ballots.length} waiting on your ballot`
+              : data.openVotes > 0
+                ? "Nothing owed by you"
+                : "None right now"
+          }
+          href="/memos"
+        />
+        <StatStripItem
+          label="Next meeting"
+          value={data.nextMeeting ? format(data.nextMeeting.scheduledAt, "EEE p") : "—"}
+          hint={
+            data.nextMeeting
+              ? `in ${formatDistanceToNowStrict(data.nextMeeting.scheduledAt)} · ${data.nextMeeting.title}`
+              : "Nothing scheduled"
+          }
+          href={(data.nextMeeting ? `/meetings/${data.nextMeeting.id}` : "/meetings") as Route}
+        />
+      </StatStrip>
+
+      <div className="flex-1 overflow-y-auto pb-12">
+        {brandNew ? (
+          <div className="p-4 md:p-6">
+            <EmptyState
+              icon={<InboxIcon />}
+              title="Your inbox fills itself"
+              description="Nothing has happened in this club yet. Once it does, this is the one screen a member needs to open each week."
+              steps={[
+                "Applications arrive from your website form and land on the Pipeline.",
+                "Anything you own that goes stale, every ballot you owe and every action item assigned to you shows up here.",
+                "Clear the list, close the tab. That is the whole weekly routine.",
+              ]}
+              action={
+                isAdmin ? (
+                  <Button asChild>
+                    <Link href={"/welcome" as Route}>Set up the club</Link>
+                  </Button>
+                ) : (
+                  <Button asChild variant="secondary">
+                    <Link href="/pipeline">Open the pipeline</Link>
+                  </Button>
+                )
+              }
+              secondaryAction={
+                isAdmin ? (
+                  <Button asChild variant="ghost">
+                    <Link href="/pipeline">Open the pipeline</Link>
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+        ) : (
+          <>
+            <ListSection title="Needs you" count={needsMe.count}>
+              {needsMe.count === 0 ? (
+                <div className="flex items-center gap-3 border-b border-border px-4 py-5 md:px-5">
+                  <CircleCheckIcon className="size-5 shrink-0 text-success" strokeWidth={1.5} />
+                  <div>
+                    <div className="text-sm font-medium">Nothing is waiting on you</div>
+                    <p className="text-xs text-fg-muted">
+                      {canContribute
+                        ? "Ballots you owe, applications of yours that go stale and action items assigned to you appear here."
+                        : "You have read-only access, so nothing is ever assigned to you."}
+                    </p>
+                  </div>
                 </div>
-                <span className="tnum text-2xs text-fg-subtle">
-                  {Math.round((data.budget.deployed / data.budget.total) * 100)}% deployed
-                </span>
-              </>
+              ) : (
+                <>
+                  {needsMe.ballots.map((r) => (
+                    <BallotRow key={r.id} round={r} cast={false} />
+                  ))}
+                  {myApplications.map((a) => (
+                    <ApplicationRow key={a.id} app={a} />
+                  ))}
+                  {needsMe.tasks.map((t) => (
+                    <TaskRow key={t.id} item={t} overdue={isOverdue(t.dueAt)} />
+                  ))}
+                  {needsMe.memos.map((m) => (
+                    <MemoRow
+                      key={m.id}
+                      memo={m}
+                      meta={
+                        <span className="truncate">
+                          {m.authorName} circulated it
+                          {m.circulatedAt
+                            ? ` ${formatDistanceToNowStrict(m.circulatedAt, { addSuffix: true })}`
+                            : ""}{" "}
+                          · no comment from you yet
+                        </span>
+                      }
+                      action="Read"
+                    />
+                  ))}
+                </>
+              )}
+            </ListSection>
+
+            {needsSomeone.length > 0 && (
+              <ListSection
+                title="Needs someone"
+                count={needsSomeone.length}
+                note="unowned, or past its stage target"
+              >
+                {needsSomeone.map((a) => (
+                  <ApplicationRow key={a.id} app={a} showOwner />
+                ))}
+              </ListSection>
             )}
-          </div>
-        </Stat>
-        <Divider />
-        <Stat label="Open applications">
-          <div className="tnum mt-[3px] text-[15px] font-semibold">{activeCount}</div>
-        </Stat>
-        <Divider />
-        <Stat label="Votes open">
-          <div className="tnum mt-[3px] text-[15px] font-semibold">{data.openVotes.length}</div>
-        </Stat>
-        <Divider />
-        <Stat label="Next meeting">
-          <div className="tnum mt-[3px] text-[15px] font-semibold">
-            {data.nextMeeting ? format(data.nextMeeting.scheduledAt, "EEE p") : "—"}
-          </div>
-        </Stat>
+
+            {comingUp > 0 && (
+              <ListSection title="Coming up" count={comingUp}>
+                {data.nextMeeting && <MeetingRow meeting={data.nextMeeting} />}
+                {needsMe.ballotsCast.map((r) => (
+                  <BallotRow key={r.id} round={r} cast />
+                ))}
+              </ListSection>
+            )}
+          </>
+        )}
       </div>
 
-      <main className="flex-1 overflow-y-auto pb-12">
-        <GroupHeader title="Needs action" count={needsAction.length} />
-        {needsAction.length === 0 ? (
-          <EmptyState
-            title="Nothing waiting on you"
-            description="New applications from your website form land here."
-            className="py-8"
-          />
-        ) : (
-          needsAction.map((a) => {
-            const breach = slaBreachDays(a.enteredStageAt, a.slaDays);
-            return (
-              <Row key={a.id} href={`/pipeline?peek=${a.id}`}>
-                <PriorityGlyph priority={a.priority} />
-                <Ref>{formatRef("application", a.ref)}</Ref>
-                <span className="truncate text-sm font-medium">{a.companyName}</span>
-                <span className="inline-flex shrink-0 items-center gap-1.5 text-[11.5px] text-fg-muted">
-                  <StageDot colorToken={a.stageColor} />
-                  {a.stageName}
-                </span>
-                {breach && (
-                  <span className="shrink-0 text-[11.5px] text-danger">SLA {breach}d breached</span>
-                )}
-                {a.nextStep && isOverdue(a.nextStepDue) && (
-                  <span className="shrink-0 truncate text-[11.5px] text-danger">
-                    overdue: {a.nextStep}
-                  </span>
-                )}
-                <span className="tnum ml-auto shrink-0 text-xs text-fg-muted">
-                  {a.amountRequested ? formatMoney(a.amountRequested) : ""}
-                </span>
-                <span className="w-14 shrink-0 text-right text-[11.5px] text-fg-subtle">
-                  {formatDistanceToNowStrict(a.enteredStageAt)}
-                </span>
-                <Owner name={a.ownerName} />
-              </Row>
-            );
-          })
-        )}
-
-        {data.openVotes.length > 0 && (
-          <>
-            <GroupHeader
-              title="Open votes"
-              count={data.openVotes.length}
-              note="blind until reveal"
-            />
-            {data.openVotes.map((v) => (
-              <Row key={v.id} href={v.memoId ? `/memos/${v.memoId}/vote` : "/memos"}>
-                <VoteIcon className="size-3.5 shrink-0 text-fg-muted" />
-                <Ref>{v.memoRef != null ? formatRef("memo", v.memoRef) : ""}</Ref>
-                <span className="truncate text-sm font-medium">{v.title}</span>
-                <span className="inline-flex shrink-0 items-center gap-1.5 text-[11.5px] text-fg-muted">
-                  <StageDot colorToken="cat-4" />
-                  {v.submitted} of {v.eligible} ballots in
-                </span>
-                {v.iVoted && (
-                  <span className="shrink-0 text-[11.5px] text-success">your ballot is in</span>
-                )}
-                {v.closesAt && (
-                  <span className="ml-auto shrink-0 text-[11.5px] text-warning">
-                    closes in {formatDistanceToNowStrict(v.closesAt)}
-                  </span>
-                )}
-                <Kbd className="shrink-0">V</Kbd>
-              </Row>
-            ))}
-          </>
-        )}
-
-        {todayCount > 0 && (
-          <>
-            <GroupHeader title="Today" count={todayCount} />
-            {data.nextMeeting && (
-              <Row href={`/meetings/${data.nextMeeting.id}`}>
-                <CalendarIcon className="size-3.5 shrink-0 text-fg-muted" />
-                <Ref>{formatRef("meeting", data.nextMeeting.ref)}</Ref>
-                <span className="truncate text-sm font-medium">{data.nextMeeting.title}</span>
-                <span className="shrink-0 text-[11.5px] text-fg-muted">
-                  {format(data.nextMeeting.scheduledAt, "EEE p")}
-                  {data.nextMeeting.location ? ` · ${data.nextMeeting.location}` : ""}
-                </span>
-                <span className="ml-auto shrink-0 text-[11.5px] text-fg-subtle">agenda</span>
-                <Kbd className="shrink-0">O</Kbd>
-              </Row>
-            )}
-            {data.myActionItems.map((t) => (
-              <ActionItemRow
-                key={t.id}
-                item={t}
-                overdue={isOverdue(t.dueAt)}
-                trailing={<Owner name={ctx.member.displayName} />}
-              />
-            ))}
-          </>
-        )}
-      </main>
-
-      <ScreenFooter>
+      <ScreenFooter note="Votes are blind until reveal. This screen only ever shows your own ballot status.">
         <span>
-          <Kbd>C</Kbd> new
+          <Kbd>J</Kbd> <Kbd>K</Kbd> move
         </span>
         <span>
-          <Kbd>V</Kbd> vote
+          <Kbd>↵</Kbd> open
         </span>
+        {canContribute && (
+          <span>
+            <Kbd>C</Kbd> new application
+          </span>
+        )}
         <span>
-          <Kbd>⌘K</Kbd> commands
+          <Kbd>⌘K</Kbd> search
         </span>
       </ScreenFooter>
     </div>
-  );
-}
-
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0 flex-1 px-4 first:pl-0 last:pr-0">
-      <div className="text-[10.5px] font-medium tracking-[0.06em] uppercase text-fg-subtle">
-        {label}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Divider() {
-  return <div className="h-7 w-px shrink-0 bg-border" />;
-}
-
-function GroupHeader({ title, count, note }: { title: string; count: number; note?: string }) {
-  return (
-    <div className="flex h-8.5 items-center gap-2 border-b border-border bg-bg-subtle px-4">
-      <ChevronDownIcon className="size-3 text-fg-subtle" />
-      <span className="text-xs font-semibold">{title}</span>
-      <span className="tnum text-[11.5px] text-fg-subtle">{count}</span>
-      {note && <span className="ml-auto text-2xs text-fg-subtle">{note}</span>}
-    </div>
-  );
-}
-
-function Row({ href, children }: { href?: string; children: React.ReactNode }) {
-  const className = "flex h-9 items-center gap-2.5 border-b border-border px-4 transition-colors";
-  if (!href) return <div className={className}>{children}</div>;
-  return (
-    <Link href={href} className={cn(className, "hover:bg-bg-subtle")}>
-      {children}
-    </Link>
-  );
-}
-
-function Ref({ children }: { children: React.ReactNode }) {
-  return <span className="w-14 shrink-0 font-mono text-[11.5px] text-fg-subtle">{children}</span>;
-}
-
-function Owner({ name }: { name: string | null }) {
-  if (!name) {
-    return (
-      <span className="size-5 shrink-0 rounded-full border border-dashed border-border-strong" />
-    );
-  }
-  return (
-    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-[9px] font-semibold text-accent">
-      {initials(name)}
-    </span>
   );
 }

@@ -1,139 +1,182 @@
 import Link from "next/link";
-import type { Metadata } from "next";
-import { formatDistanceToNowStrict } from "date-fns";
-import { ChevronDownIcon, FileTextIcon } from "lucide-react";
+import type { Metadata, Route } from "next";
+import { format, formatDistanceToNowStrict } from "date-fns";
+import { CircleCheckIcon, SproutIcon } from "lucide-react";
 import { requireCtx } from "@/lib/actions/context";
-import { getMyWork, slaBreachDays, isOverdue } from "@/lib/queries/dashboard";
-import { formatMoney, cn } from "@/lib/utils";
+import { getMyWork, isOverdue } from "@/lib/queries/dashboard";
+import { can } from "@/lib/permissions";
 import { formatRef } from "@/lib/refs";
 import { ScreenHeader, ScreenFooter } from "@/components/shell/screen-header";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Kbd } from "@/components/patterns/kbd";
 import { StageDot } from "@/components/patterns/entity-ref";
-import { PriorityGlyph, PRIORITY_ORDER } from "@/components/patterns/priority-glyph";
+import { PRIORITY_ORDER } from "@/components/patterns/priority-glyph";
 import { EmptyState } from "@/components/patterns/empty-state";
-import { ActionItemRow } from "@/components/meetings/action-item-row";
+import { ListRow, ListSection } from "@/components/patterns/data-list";
+import { ListKeys } from "@/components/patterns/data-list-keys";
+import { ApplicationRow, MemoRow } from "../inbox/rows";
+import { TaskRow } from "../inbox/task-row";
 
 export const metadata: Metadata = { title: "My work" };
 export const dynamic = "force-dynamic";
 
+const MEMO_STATUS: Record<string, string> = {
+  draft: "Draft — not circulated yet",
+  circulated: "Circulated for comment",
+  final: "Final",
+  decided: "Decided",
+};
+
+const SOURCED_STATUS: Record<string, { label: string; variant: "success" | "neutral" | "outline" }> = {
+  funded: { label: "Funded", variant: "success" },
+  declined: { label: "Declined", variant: "neutral" },
+  withdrawn: { label: "Withdrawn", variant: "neutral" },
+  on_hold: { label: "On hold", variant: "outline" },
+};
+
+/**
+ * My work — the ledger of everything with this member's name on it, whether
+ * or not it needs anything today. The Inbox is the subset that is urgent.
+ */
 export default async function MyWorkPage() {
   const ctx = await requireCtx();
   const data = await getMyWork(ctx.org.id, ctx.member.id);
+  const canContribute = can(ctx.member.role, "contribute");
 
   const owned = [...data.owned].sort(
     (a, b) =>
       PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] ||
-      new Date(a.enteredStageAt).getTime() - new Date(b.enteredStageAt).getTime()
+      a.enteredStageAt.getTime() - b.enteredStageAt.getTime()
   );
-
-  const total = owned.length + data.tasks.length + data.memos.length;
+  const total = owned.length + data.tasks.length + data.memos.length + data.sourced.length;
+  const fundedSourced = data.sourced.filter((s) => s.status === "funded").length;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <ListKeys />
       <ScreenHeader
         title="My work"
-        meta={`${owned.length} owned · ${data.sourcedCount} sourced all-time`}
+        meta={`${owned.length} owned · ${data.tasks.length} action ${data.tasks.length === 1 ? "item" : "items"}`}
+        actions={
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/members/me/insights">My investor profile</Link>
+          </Button>
+        }
       />
 
-      <main className="flex-1 overflow-y-auto pb-12">
-        {total === 0 && (
-          <EmptyState
-            title="Nothing assigned to you"
-            description="Applications you own, memos you're writing, and action items land here."
-            className="py-16"
-          />
-        )}
-
-        {owned.length > 0 && (
+      <div className="flex-1 overflow-y-auto pb-12">
+        {total === 0 ? (
+          <div className="p-4 md:p-6">
+            <EmptyState
+              icon={<CircleCheckIcon />}
+              title="Nothing has your name on it yet"
+              description={
+                canContribute
+                  ? "This is your ledger: everything you own, wrote or brought in, whether or not it needs anything today."
+                  : "Read-only members aren't assigned work. The pipeline and insights are open to you."
+              }
+              steps={
+                canContribute
+                  ? [
+                      "Take an application on the Pipeline — set yourself as its owner.",
+                      "Write the memo when it reaches Decision; it is listed here while you draft.",
+                      "Action items from meetings land here with their due dates.",
+                    ]
+                  : undefined
+              }
+              action={
+                <Button asChild>
+                  <Link href="/pipeline">Open the pipeline</Link>
+                </Button>
+              }
+            />
+          </div>
+        ) : (
           <>
-            <GroupHeader title="Applications I own" count={owned.length} />
-            {owned.map((a) => {
-              const breach = slaBreachDays(a.enteredStageAt, a.slaDays);
-              return (
-                <Row key={a.id} href={`/pipeline?peek=${a.id}`}>
-                  <PriorityGlyph priority={a.priority} />
-                  <Ref>{formatRef("application", a.ref)}</Ref>
-                  <span className="truncate text-sm font-medium">{a.companyName}</span>
-                  <span className="inline-flex shrink-0 items-center gap-1.5 text-[11.5px] text-fg-muted">
-                    <StageDot colorToken={a.stageColor} />
-                    {a.stageName}
-                  </span>
-                  {breach && (
-                    <span className="shrink-0 text-[11.5px] text-danger">
-                      SLA {breach}d breached
-                    </span>
-                  )}
-                  <span className="tnum ml-auto shrink-0 text-xs text-fg-muted">
-                    {a.amountRequested ? formatMoney(a.amountRequested) : ""}
-                  </span>
-                  <span className="w-14 shrink-0 text-right text-[11.5px] text-fg-subtle">
-                    {formatDistanceToNowStrict(a.enteredStageAt)}
-                  </span>
-                </Row>
-              );
-            })}
+            {owned.length > 0 && (
+              <ListSection title="Applications I own" count={owned.length}>
+                {owned.map((a) => (
+                  <ApplicationRow key={a.id} app={a} />
+                ))}
+              </ListSection>
+            )}
+
+            {data.tasks.length > 0 && (
+              <ListSection title="Action items" count={data.tasks.length}>
+                {data.tasks.map((t) => (
+                  <TaskRow key={t.id} item={t} overdue={isOverdue(t.dueAt)} />
+                ))}
+              </ListSection>
+            )}
+
+            {data.memos.length > 0 && (
+              <ListSection title="Memos I wrote" count={data.memos.length}>
+                {data.memos.map((m) => (
+                  <MemoRow
+                    key={m.id}
+                    memo={m}
+                    meta={
+                      <>
+                        <span className="shrink-0">{MEMO_STATUS[m.status] ?? m.status}</span>
+                        <span className="shrink-0 text-fg-subtle">
+                          edited {formatDistanceToNowStrict(m.updatedAt, { addSuffix: true })}
+                        </span>
+                      </>
+                    }
+                  />
+                ))}
+              </ListSection>
+            )}
+
+            {data.sourced.length > 0 && (
+              <ListSection
+                title="Companies I brought in"
+                count={data.sourced.length}
+                note={`${fundedSourced} funded`}
+              >
+                {data.sourced.map((s) => {
+                  const closed = SOURCED_STATUS[s.status];
+                  return (
+                    <ListRow
+                      key={s.id}
+                      href={`/pipeline/${s.id}` as Route}
+                      leading={<SproutIcon className="size-4 text-fg-subtle" />}
+                      refLabel={formatRef("application", s.ref)}
+                      title={s.companyName}
+                      meta={
+                        closed ? (
+                          <Badge variant={closed.variant}>{closed.label}</Badge>
+                        ) : (
+                          <span className="inline-flex shrink-0 items-center gap-1.5">
+                            <StageDot colorToken={s.stageColor} />
+                            {s.stageName}
+                          </span>
+                        )
+                      }
+                      trailing={
+                        <span className="tnum text-fg-subtle">{format(s.appliedAt, "MMM yyyy")}</span>
+                      }
+                    />
+                  );
+                })}
+              </ListSection>
+            )}
           </>
         )}
+      </div>
 
-        {data.memos.length > 0 && (
-          <>
-            <GroupHeader title="My memos" count={data.memos.length} />
-            {data.memos.map((m) => (
-              <Row key={m.id} href={`/memos/${m.id}`}>
-                <FileTextIcon className="size-3.5 shrink-0 text-fg-muted" />
-                <Ref>{formatRef("memo", m.ref)}</Ref>
-                <span className="truncate text-sm font-medium">{m.title}</span>
-                <span className="shrink-0 text-[11.5px] text-fg-muted capitalize">{m.status}</span>
-                <span className="ml-auto shrink-0 text-[11.5px] text-fg-subtle">
-                  {formatDistanceToNowStrict(m.updatedAt, { addSuffix: true })}
-                </span>
-              </Row>
-            ))}
-          </>
-        )}
-
-        {data.tasks.length > 0 && (
-          <>
-            <GroupHeader title="Action items" count={data.tasks.length} />
-            {data.tasks.map((t) => (
-              <ActionItemRow key={t.id} item={t} overdue={isOverdue(t.dueAt)} />
-            ))}
-          </>
-        )}
-      </main>
-
-      <ScreenFooter>
+      <ScreenFooter note="Everything with your name on it. The Inbox is the part that needs you now.">
         <span>
-          <Kbd>C</Kbd> new
+          <Kbd>J</Kbd> <Kbd>K</Kbd> move
         </span>
         <span>
-          <Kbd>⌘K</Kbd> commands
+          <Kbd>↵</Kbd> open
+        </span>
+        <span>
+          <Kbd>⌘K</Kbd> search
         </span>
       </ScreenFooter>
     </div>
   );
-}
-
-function GroupHeader({ title, count }: { title: string; count: number }) {
-  return (
-    <div className="flex h-8.5 items-center gap-2 border-b border-border bg-bg-subtle px-4">
-      <ChevronDownIcon className="size-3 text-fg-subtle" />
-      <span className="text-xs font-semibold">{title}</span>
-      <span className="tnum text-[11.5px] text-fg-subtle">{count}</span>
-    </div>
-  );
-}
-
-function Row({ href, children }: { href?: string; children: React.ReactNode }) {
-  const className = "flex h-9 items-center gap-2.5 border-b border-border px-4 transition-colors";
-  if (!href) return <div className={className}>{children}</div>;
-  return (
-    <Link href={href} className={cn(className, "hover:bg-bg-subtle")}>
-      {children}
-    </Link>
-  );
-}
-
-function Ref({ children }: { children: React.ReactNode }) {
-  return <span className="w-14 shrink-0 font-mono text-[11.5px] text-fg-subtle">{children}</span>;
 }

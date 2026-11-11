@@ -25,7 +25,12 @@ export async function getRoster(orgId: string) {
       status: member.status,
       cohort: member.cohort,
       classYear: member.classYear,
+      title: member.title,
       joinedAt: member.joinedAt,
+      lastActiveAt: sql<Date | null>`greatest(${member}."last_active_at", (
+        select max(${activity}."occurred_at") from ${activity}
+        where ${activity}."actor_member_id" = ${member}."id"
+      ))`.mapWith((v) => (v ? new Date(v as string) : null)),
       applicationsOwned: sql<number>`(
         select count(*)::int from ${application}
         where ${application}."owner_member_id" = ${member}."id"
@@ -133,13 +138,50 @@ export async function getMemberOnboarding(memberId: string) {
   };
 }
 
+/** Every track with its tasks and how many members are on it (admin manager + picker). */
+export async function getOnboardingTracks(orgId: string) {
+  const tracks = await db
+    .select({
+      id: onboardingTrack.id,
+      name: onboardingTrack.name,
+      description: onboardingTrack.description,
+      isDefault: onboardingTrack.isDefault,
+      archivedAt: onboardingTrack.archivedAt,
+      assignedCount: sql<number>`(
+        select count(*)::int from ${onboardingAssignment}
+        join ${member} on ${member}."id" = ${onboardingAssignment}."member_id"
+        where ${onboardingAssignment}."track_id" = ${onboardingTrack}."id"
+          and ${member}."status" in ('invited','active')
+      )`,
+    })
+    .from(onboardingTrack)
+    .where(eq(onboardingTrack.orgId, orgId))
+    .orderBy(desc(onboardingTrack.isDefault), asc(onboardingTrack.name));
+  if (tracks.length === 0) return [];
+  const tasks = await db
+    .select()
+    .from(onboardingTask)
+    .where(
+      inArray(
+        onboardingTask.trackId,
+        tracks.map((t) => t.id)
+      )
+    )
+    .orderBy(asc(onboardingTask.position), asc(onboardingTask.title));
+  return tracks.map((t) => ({ ...t, tasks: tasks.filter((k) => k.trackId === t.id) }));
+}
+
 /** Members × tasks matrix for /onboarding, least-complete members first. */
-export async function getOnboardingMatrix(orgId: string) {
+export async function getOnboardingMatrix(orgId: string, trackId?: string) {
   const [track] = await db
     .select()
     .from(onboardingTrack)
     .where(
-      and(eq(onboardingTrack.orgId, orgId), eq(onboardingTrack.isDefault, true), isNull(onboardingTrack.archivedAt))
+      and(
+        eq(onboardingTrack.orgId, orgId),
+        trackId ? eq(onboardingTrack.id, trackId) : eq(onboardingTrack.isDefault, true),
+        isNull(onboardingTrack.archivedAt)
+      )
     )
     .limit(1);
   if (!track) return null;
@@ -148,8 +190,7 @@ export async function getOnboardingMatrix(orgId: string) {
     .select()
     .from(onboardingTask)
     .where(eq(onboardingTask.trackId, track.id))
-    .orderBy(asc(onboardingTask.position));
-
+    .orderBy(asc(onboardingTask.position), asc(onboardingTask.title));
   const assignments = await db
     .select({
       assignmentId: onboardingAssignment.id,

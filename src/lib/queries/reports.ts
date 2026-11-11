@@ -133,6 +133,8 @@ export async function getQuarterlyReport(
 
   return {
     window: { start, end },
+    /** The quarter hasn't closed yet — figures are to date. */
+    inProgress: end.getTime() > Date.now(),
     applicationsReceived: received[0]?.count ?? 0,
     funded: decided[0]?.funded ?? 0,
     declined: decided[0]?.declined ?? 0,

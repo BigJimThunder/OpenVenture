@@ -53,7 +53,7 @@ export function NewCapTableDialog() {
           New cap table
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New cap table</DialogTitle>
           <DialogDescription>

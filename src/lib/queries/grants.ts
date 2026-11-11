@@ -10,7 +10,9 @@ import {
   outcomeUpdate,
   pipelineStage,
 } from "@/db/schema";
-import { summarizePool, COMMITTED_STATUSES } from "@/lib/grants/budget";
+import Decimal from "decimal.js";
+import type { GrantStatus } from "@/db/schema";
+import { summarizePool, canApprove, COMMITTED_STATUSES } from "@/lib/grants/budget";
 
 export async function getPools(orgId: string) {
   return db
@@ -28,11 +30,52 @@ export async function getPoolSummary(orgId: string, poolId: string) {
     .limit(1);
   if (!pool) return null;
   const rows = await db
-    .select({ status: grant.status, amountAwarded: grant.amountAwarded })
+    .select({ id: grant.id, status: grant.status, amountAwarded: grant.amountAwarded })
     .from(grant)
     .where(eq(grant.poolId, poolId));
-  return { pool, ...summarizePool(pool, rows) };
+  const summary = summarizePool(pool, rows);
+
+  // Lifecycle roll-up for the status pipeline: count and dollars per status.
+  const lifecycle = {} as Record<GrantStatus, { count: number; total: string }>;
+  for (const status of ["proposed", "approved", "issued", "cashed", "reconciled", "cancelled"] as const) {
+    const inStatus = rows.filter((r) => r.status === status);
+    lifecycle[status] = {
+      count: inStatus.length,
+      total: inStatus.reduce((sum, r) => sum.add(r.amountAwarded), new Decimal(0)).toFixed(2),
+    };
+  }
+
+  // What approving each proposed grant would do to the pool — computed here so
+  // the UI can explain the over-pool guard BEFORE the click, with no client math.
+  // Proposed grants don't count against the pool, so "the rest" is every row.
+  const approvals: Record<string, { ok: boolean; remaining: number; after: number; shortfall: number }> = {};
+  for (const r of rows) {
+    if (r.status !== "proposed") continue;
+    const check = canApprove(pool, rows, r.amountAwarded);
+    approvals[r.id] = {
+      ...check,
+      after: new Decimal(check.remaining).sub(r.amountAwarded).toNumber(),
+    };
+  }
+
+  return {
+    pool,
+    ...summary,
+    lifecycle,
+    approvals,
+    /** Shares of the pool for the part-of-whole bar, 0..1 each. */
+    shares:
+      summary.total > 0
+        ? {
+            deployed: summary.deployed / summary.total,
+            committed: summary.committed / summary.total,
+            remaining: Math.max(0, summary.remaining) / summary.total,
+          }
+        : { deployed: 0, committed: 0, remaining: 0 },
+  };
 }
+
+export type PoolSummary = NonNullable<Awaited<ReturnType<typeof getPoolSummary>>>;
 
 export async function getGrantsList(orgId: string, poolId?: string) {
   // NB: correlated subquery — fully qualify columns (see dashboard.ts note).
@@ -43,6 +86,8 @@ export async function getGrantsList(orgId: string, poolId?: string) {
       amountRequested: grant.amountRequested,
       amountAwarded: grant.amountAwarded,
       useOfFunds: grant.useOfFunds,
+      useOfFundsNarrative: grant.useOfFundsNarrative,
+      cashedAt: grant.cashedAt,
       paymentMethod: grant.paymentMethod,
       paymentRef: grant.paymentRef,
       approvedAt: grant.approvedAt,
@@ -74,6 +119,29 @@ export async function getGrantsList(orgId: string, poolId?: string) {
 }
 
 export type GrantRow = Awaited<ReturnType<typeof getGrantsList>>[number];
+
+/** Every receipt filed against a pool's grants, keyed by grant — for the ledger's per-grant drawer. */
+export async function getReceiptsByGrant(orgId: string, poolId: string) {
+  const rows = await db
+    .select({
+      id: receipt.id,
+      grantId: receipt.grantId,
+      amount: receipt.amount,
+      vendor: receipt.vendor,
+      description: receipt.description,
+      submittedAt: receipt.submittedAt,
+      verifiedAt: receipt.verifiedAt,
+    })
+    .from(receipt)
+    .innerJoin(grant, eq(receipt.grantId, grant.id))
+    .where(and(eq(receipt.orgId, orgId), eq(grant.poolId, poolId)))
+    .orderBy(desc(receipt.submittedAt));
+  const byGrant: Record<string, typeof rows> = {};
+  for (const r of rows) (byGrant[r.grantId] ??= []).push(r);
+  return byGrant;
+}
+
+export type ReceiptRow = Awaited<ReturnType<typeof getReceiptsByGrant>>[string][number];
 
 export async function getReceipts(orgId: string, grantId: string) {
   return db
@@ -124,6 +192,26 @@ export async function getUseOfFundsBreakdown(orgId: string, poolId: string) {
       )
     )
     .groupBy(grant.useOfFunds);
+}
+
+/** Check-size facts for the budget page (committed statuses only). */
+export async function getCheckStats(orgId: string, poolId: string) {
+  const [row] = await db
+    .select({
+      count: sql<number>`count(*)::int`,
+      average: sql<string | null>`round(avg(${grant.amountAwarded}), 2)`,
+      largest: sql<string | null>`max(${grant.amountAwarded})`,
+      smallest: sql<string | null>`min(${grant.amountAwarded})`,
+    })
+    .from(grant)
+    .where(
+      and(
+        eq(grant.orgId, orgId),
+        eq(grant.poolId, poolId),
+        inArray(grant.status, [...COMMITTED_STATUSES])
+      )
+    );
+  return row ?? { count: 0, average: null, largest: null, smallest: null };
 }
 
 /** Applications eligible for a new grant: open + late-stage (or funded), no existing live grant. */

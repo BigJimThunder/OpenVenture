@@ -1,31 +1,16 @@
 "use client";
 
 import * as React from "react";
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-  Cell,
-} from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from "recharts";
 import { format } from "date-fns";
-import {
-  ChartFrame,
-  ChartTooltip,
-  axisProps,
-  gridProps,
-  CHART_PALETTE,
-} from "@/components/patterns/chart";
-import { USE_OF_FUNDS_LABELS } from "./new-grant-dialog";
-import { formatCompact } from "@/lib/utils";
+import { ChartFrame, ChartTooltip, axisProps, gridProps } from "@/components/patterns/chart";
+import { Panel } from "@/components/patterns/data-panel";
+import { BarList } from "@/components/patterns/data-bar-list";
+import { USE_OF_FUNDS_LABELS } from "./use-of-funds";
+import { formatCompact, formatMoney } from "@/lib/utils";
 import type { UseOfFunds } from "@/db/schema";
 
-const money = (v: number | string) => `$${Number(v).toLocaleString("en-US")}`;
+const money = (v: number | string) => formatMoney(Number(v));
 
 export function BudgetCharts({
   total,
@@ -44,116 +29,127 @@ export function BudgetCharts({
   const [nowT] = React.useState(() => Date.now());
 
   // Cumulative deployment by month, with a straight-line pacing reference.
-  const burnDown = React.useMemo(() => {
+  const { months, todayLabel } = React.useMemo(() => {
     const start = new Date(fyStart).getTime();
     const end = new Date(fyEnd).getTime();
-    const months: { t: number; label: string; deployed: number | null; pace: number }[] = [];
+    const rows: { t: number; label: string; deployed: number | null; pace: number }[] = [];
     let cursor = new Date(fyStart);
     let cumulative = 0;
     const sorted = [...series].sort(
       (a, b) => new Date(a.issuedAt).getTime() - new Date(b.issuedAt).getTime()
     );
     let idx = 0;
+    let today: string | null = null;
     while (cursor.getTime() <= end) {
       const t = cursor.getTime();
       while (idx < sorted.length && new Date(sorted[idx].issuedAt).getTime() <= t) {
         cumulative += sorted[idx].amount;
         idx++;
       }
-      months.push({
+      const label = format(cursor, "MMM");
+      if (t <= nowT) today = label;
+      rows.push({
         t,
-        label: format(cursor, "MMM"),
+        label,
         deployed: t <= nowT ? cumulative : null, // no line into the future
         pace: Math.round(((t - start) / (end - start)) * total),
       });
       cursor = new Date(cursor);
       cursor.setUTCMonth(cursor.getUTCMonth() + 1);
     }
-    return months;
+    return { months: rows, todayLabel: nowT < end ? today : null };
   }, [series, fyStart, fyEnd, total, nowT]);
 
-  const catData = breakdown
-    .map((b) => ({ ...b, label: USE_OF_FUNDS_LABELS[b.useOfFunds] }))
-    .sort((a, b) => b.total - a.total);
+  const categories = breakdown
+    .map((b) => ({
+      key: b.useOfFunds,
+      label: USE_OF_FUNDS_LABELS[b.useOfFunds],
+      value: b.total,
+      display: formatMoney(b.total),
+      note: `${b.count} ${b.count === 1 ? "grant" : "grants"}`,
+    }))
+    .sort((a, b) => b.value - a.value);
 
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
+    <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
       <ChartFrame
-        title="Deployment burn-down"
-        description="Cumulative dollars out the door vs. straight-line pacing to fiscal year end"
-        empty={series.length === 0 && "No grants issued from this pool yet."}
+        title="Deployment against pace"
+        description="are we on track to use the pool?"
+        empty={series.length === 0 && "Nothing has been paid out of this pool yet."}
+        legend={[
+          { label: "Paid out, cumulative", color: "var(--cat-1)" },
+          { label: "Even pace to year end", color: "var(--fg-subtle)" },
+        ]}
       >
-        <AreaChart data={burnDown} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+        <AreaChart data={months} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
           <CartesianGrid {...gridProps} />
-          <XAxis dataKey="label" {...axisProps} />
-          <YAxis {...axisProps} tickFormatter={(v: number) => `$${formatCompact(v)}`} width={52} />
-          <Tooltip content={<ChartTooltip formatter={money} />} />
+          <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" minTickGap={12} />
+          <YAxis
+            {...axisProps}
+            axisLine={false}
+            tickFormatter={(v: number) => `$${formatCompact(v)}`}
+            width={44}
+            domain={[0, total]}
+          />
+          <Tooltip
+            content={<ChartTooltip formatter={money} />}
+            cursor={{ stroke: "var(--border-strong)" }}
+          />
+          <ReferenceLine
+            y={total}
+            stroke="var(--border-strong)"
+            label={{
+              value: `Pool ${money(total)}`,
+              position: "insideBottomRight",
+              fill: "var(--fg-muted)",
+              fontSize: 11,
+            }}
+          />
+          {todayLabel && (
+            <ReferenceLine
+              x={todayLabel}
+              stroke="var(--border-strong)"
+              strokeDasharray="2 3"
+              label={{ value: "Today", position: "insideTopLeft", fill: "var(--fg-muted)", fontSize: 11 }}
+            />
+          )}
           <Area
-            type="monotone"
+            type="linear"
             dataKey="pace"
-            name="Pacing"
+            name="Even pace"
             stroke="var(--fg-subtle)"
             strokeDasharray="4 4"
             fill="none"
             strokeWidth={1.5}
             dot={false}
+            activeDot={false}
+            isAnimationActive={false}
           />
           <Area
             type="stepAfter"
             dataKey="deployed"
-            name="Deployed"
-            stroke="var(--accent)"
-            fill="var(--accent)"
-            fillOpacity={0.12}
+            name="Paid out"
+            stroke="var(--cat-1)"
+            fill="var(--cat-1)"
+            fillOpacity={0.1}
             strokeWidth={2}
             dot={false}
             connectNulls={false}
-          />
-          <ReferenceLine
-            y={total}
-            stroke="var(--border-strong)"
-            strokeDasharray="2 2"
-            label={{
-              value: `Pool ${money(total)}`,
-              position: "insideTopRight",
-              fill: "var(--fg-subtle)",
-              fontSize: 10,
-            }}
+            isAnimationActive={false}
           />
         </AreaChart>
       </ChartFrame>
 
-      <ChartFrame
-        title="Where the money goes"
-        description="Committed + deployed dollars by use of funds"
-        empty={catData.length === 0 && "No approved grants yet."}
-      >
-        <BarChart
-          data={catData}
-          layout="vertical"
-          margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
-        >
-          <CartesianGrid {...gridProps} horizontal={false} vertical />
-          <XAxis
-            type="number"
-            {...axisProps}
-            tickFormatter={(v: number) => `$${formatCompact(v)}`}
-          />
-          <YAxis
-            type="category"
-            dataKey="label"
-            {...axisProps}
-            width={92}
-            tick={{ fill: "var(--fg-muted)", fontSize: 11 }}
-          />
-          <Tooltip content={<ChartTooltip formatter={money} />} cursor={{ fill: "var(--bg-subtle)" }} />
-          <Bar dataKey="total" name="Total" radius={[0, 4, 4, 0]} barSize={16}>
-            {catData.map((_, i) => (
-              <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ChartFrame>
+      <Panel title="Where the money goes" note="approved or paid, by use of funds">
+        {categories.length === 0 ? (
+          <p className="px-3.5 py-10 text-center text-xs text-fg-muted">
+            Nothing approved yet. Each grant is tagged with what it pays for, and the split shows up
+            here.
+          </p>
+        ) : (
+          <BarList items={categories} />
+        )}
+      </Panel>
     </div>
   );
 }

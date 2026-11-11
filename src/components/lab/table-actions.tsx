@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArchiveIcon, CopyPlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { duplicateAsScenario, archiveCapTable } from "@/lib/actions/captable";
+import { useCan } from "@/components/shell/viewer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,8 +27,12 @@ export function TableActions({
   tableName: string;
 }) {
   const router = useRouter();
-  const [open, setOpen] = React.useState(false);
+  const canContribute = useCan("contribute");
+  const [duplicateOpen, setDuplicateOpen] = React.useState(false);
+  const [archiveOpen, setArchiveOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+
+  if (!canContribute) return null;
 
   async function duplicate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -42,13 +47,12 @@ export function TableActions({
       toast.error(res.error);
       return;
     }
-    setOpen(false);
+    setDuplicateOpen(false);
     toast.success("Scenario created");
     router.push(`/lab/${res.data.capTableId}`);
   }
 
   async function archive() {
-    if (!window.confirm(`Archive “${tableName}”? It disappears from the Lab list.`)) return;
     setBusy(true);
     const res = await archiveCapTable({ capTableId });
     setBusy(false);
@@ -62,18 +66,19 @@ export function TableActions({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={duplicateOpen} onOpenChange={setDuplicateOpen}>
         <DialogTrigger asChild>
           <Button size="sm" variant="secondary">
             <CopyPlusIcon />
             Duplicate as scenario
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Duplicate as scenario</DialogTitle>
             <DialogDescription>
-              Copies the full event ledger into a sandbox branch — the original stays untouched.
+              Copies the whole ledger into a branch you can change freely. The original stays as
+              it is, so you can compare two offers side by side.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={duplicate} className="flex flex-col gap-3">
@@ -96,10 +101,31 @@ export function TableActions({
           </form>
         </DialogContent>
       </Dialog>
-      <Button size="sm" variant="ghost" disabled={busy} onClick={archive}>
-        <ArchiveIcon />
-        Archive
-      </Button>
+
+      <Dialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+        <DialogTrigger asChild>
+          <Button size="sm" variant="ghost">
+            <ArchiveIcon />
+            Archive
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Archive “{tableName}”?</DialogTitle>
+            <DialogDescription>
+              It leaves the Lab list for everyone in the club. Nothing is deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setArchiveOpen(false)}>
+              Keep it
+            </Button>
+            <Button variant="danger" disabled={busy} onClick={archive}>
+              {busy ? "Archiving…" : "Archive"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

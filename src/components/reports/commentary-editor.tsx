@@ -34,17 +34,20 @@ export function CommentaryEditor({
 
   if (!commentaryDoc) {
     return canEdit ? (
-      <div className="rounded-lg border border-dashed border-border p-4 text-center print:hidden">
-        <p className="mb-2 text-sm text-fg-muted">
-          The GP commentary is the part only you can write — what happened, what you learned,
-          what you&apos;re doing next quarter.
+      <div className="rounded-lg border border-dashed border-border-strong/70 bg-bg-subtle/40 p-5 font-sans print:hidden">
+        <div className="text-sm font-semibold">The commentary is the part only you can write</div>
+        <p className="mt-1 max-w-prose text-sm text-fg-muted">
+          Three short paragraphs do it: what happened this quarter, what the club learned, and
+          what you will do differently next quarter. The figures below fill themselves in.
         </p>
-        <Button size="sm" variant="secondary" onClick={start} disabled={busy}>
+        <Button size="sm" className="mt-3 max-md:h-10" onClick={start} disabled={busy}>
           {busy ? "Starting…" : "Write the commentary"}
         </Button>
       </div>
     ) : (
-      <p className="text-sm italic text-fg-subtle print:hidden">Commentary not yet written.</p>
+      <p className="font-sans text-sm text-fg-subtle print:hidden">
+        The partners have not written this quarter&apos;s commentary yet. The figures below are live.
+      </p>
     );
   }
 

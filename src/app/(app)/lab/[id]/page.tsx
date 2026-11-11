@@ -1,4 +1,7 @@
+import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ArrowLeftIcon } from "lucide-react";
 import { requireCtx } from "@/lib/actions/context";
 import { getCapTableDetail } from "@/lib/queries/captable";
 import { foldCapTable } from "@/lib/captable/engine";
@@ -8,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { LabWorkbench } from "@/components/lab/workbench";
 import { TableActions } from "@/components/lab/table-actions";
 
+export const metadata: Metadata = { title: "Cap Table Lab" };
 export const dynamic = "force-dynamic";
 
 export default async function CapTablePage({ params }: PageProps<"/lab/[id]">) {
@@ -27,19 +31,23 @@ export default async function CapTablePage({ params }: PageProps<"/lab/[id]">) {
   return (
     <div className="pb-10">
       <PageHeader
+        eyebrow={
+          <Link href="/lab" className="inline-flex items-center gap-1 hover:text-fg">
+            <ArrowLeftIcon className="size-3" />
+            Cap Table Lab
+          </Link>
+        }
         title={
-          <span className="flex items-center gap-2.5">
+          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             {detail.table.name}
-            {detail.table.isScenario && <Badge variant="info">scenario</Badge>}
+            {detail.table.isScenario && <Badge variant="info">Scenario</Badge>}
             {detail.companyName && <Badge variant="neutral">{detail.companyName}</Badge>}
           </span>
         }
-        description="Immutable event ledger — every derived number expands to show its work. Not legal or financial advice."
-        actions={
-          <TableActions capTableId={detail.table.id} tableName={detail.table.name} />
-        }
+        description="A model for a conversation with a founder, not a record of who owns what. Not legal or financial advice."
+        actions={<TableActions capTableId={detail.table.id} tableName={detail.table.name} />}
       />
-      <div className="px-6">
+      <div className="px-4 md:px-6">
         <LabWorkbench
           capTableId={detail.table.id}
           events={detail.events}

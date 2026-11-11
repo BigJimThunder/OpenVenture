@@ -6,7 +6,8 @@ import { PlusIcon, ChevronDownIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createGrant } from "@/lib/actions/grants";
 import { USE_OF_FUNDS, type UseOfFunds } from "@/db/schema";
-import { formatMoney } from "@/lib/utils";
+import { cn, formatMoney } from "@/lib/utils";
+import { USE_OF_FUNDS_LABELS } from "./use-of-funds";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,18 +38,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-export const USE_OF_FUNDS_LABELS: Record<UseOfFunds, string> = {
-  incorporation: "Incorporation",
-  legal: "Legal",
-  api_credits: "API credits",
-  hosting: "Hosting",
-  hardware: "Hardware",
-  design: "Design",
-  marketing: "Marketing",
-  travel: "Travel",
-  prototyping: "Prototyping",
-  other: "Other",
-};
+export { USE_OF_FUNDS_LABELS };
 
 type GrantableApp = {
   id: string;
@@ -65,12 +55,15 @@ export function NewGrantDialog({
   applications,
   prefillApplicationId,
   triggerLabel = "New grant",
+  remaining,
 }: {
   pools: { id: string; name: string }[];
   defaultPoolId: string;
   applications: GrantableApp[];
   prefillApplicationId?: string;
   triggerLabel?: string;
+  /** What the default pool has left — lets the form warn before an admin has to refuse. */
+  remaining?: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
@@ -83,6 +76,8 @@ export function NewGrantDialog({
   const [narrative, setNarrative] = React.useState("");
 
   const selectedApp = applications.find((a) => a.id === appId);
+  const poolRemaining = poolId === defaultPoolId ? remaining : undefined;
+  const overPool = poolRemaining != null && Number(amount) > poolRemaining;
 
   function selectApp(a: GrantableApp) {
     setAppId(a.id);
@@ -127,8 +122,8 @@ export function NewGrantDialog({
         <DialogHeader>
           <DialogTitle>Propose a grant</DialogTitle>
           <DialogDescription>
-            Proposals don&apos;t reserve budget — approval does, and approval is
-            budget-guarded.
+            A proposal records what the club agreed to. It doesn&apos;t reserve budget — an
+            admin&apos;s approval does.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
@@ -157,7 +152,7 @@ export function NewGrantDialog({
                 <Command>
                   <CommandInput placeholder="Search applications…" />
                   <CommandList>
-                    <CommandEmpty>No grantable applications.</CommandEmpty>
+                    <CommandEmpty>No application is ready for a grant.</CommandEmpty>
                     <CommandGroup>
                       {applications.map((a) => (
                         <CommandItem key={a.id} value={a.companyName} onSelect={() => selectApp(a)}>
@@ -180,6 +175,7 @@ export function NewGrantDialog({
               <Input
                 id="amount"
                 type="number"
+                inputMode="decimal"
                 min={1}
                 step={1}
                 required
@@ -204,6 +200,19 @@ export function NewGrantDialog({
               </Select>
             </div>
           </div>
+
+          {poolRemaining != null && (
+            <p
+              className={cn(
+                "tnum -mt-1 text-xs",
+                overPool ? "text-danger" : "text-fg-subtle"
+              )}
+            >
+              {overPool
+                ? `The pool has ${formatMoney(poolRemaining)} left. You can still propose this, but it can't be approved until the award is lowered or the pool grows.`
+                : `The pool has ${formatMoney(poolRemaining)} left to approve against.`}
+            </p>
+          )}
 
           {pools.length > 1 && (
             <div className="flex flex-col gap-1.5">

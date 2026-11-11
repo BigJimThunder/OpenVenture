@@ -1,4 +1,4 @@
-import { and, eq, asc, desc, gte, lt, inArray, isNull } from "drizzle-orm";
+import { and, eq, asc, desc, gte, lt, ne, not, or, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   meeting,
@@ -12,22 +12,42 @@ import {
   voteRound,
 } from "@/db/schema";
 
+/** A meeting stays "upcoming" for a few hours after its start so one that
+ *  is running late (or simply not started in the app) doesn't vanish into Past. */
+const GRACE_MS = 3 * 60 * 60 * 1000;
+
 export async function getMeetingsList(orgId: string) {
-  const now = new Date();
+  const cutoff = new Date(Date.now() - GRACE_MS);
+  const counts = {
+    agendaCount: sql<number>`(
+      select count(*)::int from ${agendaItem} where ${agendaItem}."meeting_id" = ${meeting}."id"
+    )`,
+    attendedCount: sql<number>`(
+      select count(*)::int from ${attendance}
+      where ${attendance}."meeting_id" = ${meeting}."id"
+        and ${attendance}."status" in ('present','remote','late')
+    )`,
+    openActionCount: sql<number>`(
+      select count(*)::int from ${actionItem}
+      where ${actionItem}."meeting_id" = ${meeting}."id" and ${actionItem}."status" = 'open'
+    )`,
+  };
+  const isUpcoming = or(
+    eq(meeting.status, "in_progress"),
+    and(eq(meeting.status, "scheduled"), gte(meeting.scheduledAt, cutoff))
+  )!;
   const [upcoming, past] = await Promise.all([
     db
-      .select()
+      .select({ meeting, ...counts })
       .from(meeting)
-      .where(
-        and(eq(meeting.orgId, orgId), gte(meeting.scheduledAt, now), eq(meeting.status, "scheduled"))
-      )
+      .where(and(eq(meeting.orgId, orgId), isUpcoming))
       .orderBy(asc(meeting.scheduledAt)),
     db
-      .select()
+      .select({ meeting, ...counts })
       .from(meeting)
-      .where(and(eq(meeting.orgId, orgId), lt(meeting.scheduledAt, now)))
+      .where(and(eq(meeting.orgId, orgId), not(isUpcoming)))
       .orderBy(desc(meeting.scheduledAt))
-      .limit(20),
+      .limit(30),
   ]);
   return { upcoming, past };
 }
@@ -65,15 +85,17 @@ export async function getMeetingDetail(orgId: string, meetingId: string) {
     db
       .select({
         id: actionItem.id,
+        ref: actionItem.ref,
         title: actionItem.title,
         status: actionItem.status,
         dueAt: actionItem.dueAt,
+        agendaItemId: actionItem.agendaItemId,
         assigneeName: member.displayName,
         assigneeId: actionItem.assigneeMemberId,
       })
       .from(actionItem)
       .leftJoin(member, eq(actionItem.assigneeMemberId, member.id))
-      .where(eq(actionItem.meetingId, meetingId))
+      .where(and(eq(actionItem.meetingId, meetingId), ne(actionItem.status, "cancelled")))
       .orderBy(asc(actionItem.createdAt)),
     db
       .select({ id: member.id, displayName: member.displayName })

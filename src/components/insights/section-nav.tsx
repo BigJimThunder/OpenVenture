@@ -38,14 +38,14 @@ export function SectionNav({ sections }: { sections: [string, string][] }) {
   }, [sections]);
 
   return (
-    <nav className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border px-3">
+    <nav className="scrollbar-none sticky top-0 z-20 flex h-10 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border bg-bg px-2 md:px-3">
       {sections.map(([id, label]) => (
         <a
           key={id}
           href={`#${id}`}
           onClick={() => setActive(id)}
           className={cn(
-            "flex h-9 items-center px-2.5 text-[12.5px] transition-colors",
+            "flex h-10 shrink-0 items-center px-2.5 text-sm transition-colors",
             active === id
               ? "font-medium text-fg shadow-[inset_0_-2px_0_var(--accent)]"
               : "text-fg-muted hover:text-fg"

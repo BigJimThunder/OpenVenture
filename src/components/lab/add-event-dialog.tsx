@@ -36,9 +36,9 @@ type Kind =
   | "stock_split";
 
 const KIND_OPTIONS: { value: Kind; label: string }[] = [
-  { value: "share_issuance", label: "Issue shares (founder / investor)" },
-  { value: "pool_create", label: "Create / increase option pool" },
-  { value: "option_grant", label: "Option grant from pool" },
+  { value: "share_issuance", label: "Issue shares (founder or investor)" },
+  { value: "pool_create", label: "Create or grow the option pool" },
+  { value: "option_grant", label: "Grant options from the pool" },
   { value: "safe_issue", label: "SAFE" },
   { value: "note_issue", label: "Convertible note" },
   { value: "stock_split", label: "Stock split" },
@@ -174,12 +174,12 @@ export function AddEventDialog({
           Add event
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add ledger event</DialogTitle>
+          <DialogTitle>Add a ledger event</DialogTitle>
           <DialogDescription>
-            The event is validated by folding the whole ledger before it saves — inconsistent
-            entries are rejected with the reason.
+            Something that happened to the company&apos;s ownership. The whole ledger is recomputed
+            before it saves, so an event that can&apos;t be true is refused with the reason.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
@@ -219,12 +219,12 @@ export function AddEventDialog({
               <div className="flex flex-col gap-1.5">
                 <Label>Type</Label>
                 <Select value={holderKind} onValueChange={setHolderKind}>
-                  <SelectTrigger>
+                  <SelectTrigger className="capitalize">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {["founder", "employee", "advisor", "angel", "fund", "accelerator"].map((k) => (
-                      <SelectItem key={k} value={k}>
+                      <SelectItem key={k} value={k} className="capitalize">
                         {k}
                       </SelectItem>
                     ))}

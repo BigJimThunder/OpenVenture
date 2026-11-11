@@ -17,7 +17,7 @@ export function QuarterPicker({ fiscalYear, quarter }: { fiscalYear: number; qua
   return (
     <div className="flex items-center gap-1.5">
       <Select value={String(fiscalYear)} onValueChange={(v) => router.push(`${pathname}?fy=${v}&q=${quarter}`)}>
-        <SelectTrigger className="w-28">
+        <SelectTrigger className="w-28" aria-label="Fiscal year">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -29,7 +29,7 @@ export function QuarterPicker({ fiscalYear, quarter }: { fiscalYear: number; qua
         </SelectContent>
       </Select>
       <Select value={String(quarter)} onValueChange={(v) => router.push(`${pathname}?fy=${fiscalYear}&q=${v}`)}>
-        <SelectTrigger className="w-20">
+        <SelectTrigger className="w-20" aria-label="Quarter">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
