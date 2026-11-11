@@ -1,59 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
-import { z } from "zod";
-import { and, eq, isNull } from "drizzle-orm";
-import { db } from "@/db";
-import {
-  organization,
-  company,
-  application,
-  applicationDemographics,
-  pipelineStage,
-  stageHistory,
-  activity,
-} from "@/db/schema";
-import { withRef } from "@/lib/refs-server";
+import { intakeSchema, loadSoleOrg, receiveApplication } from "@/lib/intake";
 
 /**
- * Write-only application intake. The club's existing website form POSTs here —
- * no founder-facing UI exists or is implied. Auth: HMAC-SHA256 of the raw body
- * with the org's ingest secret, sent as `x-openventure-signature: sha256=<hex>`.
+ * Write-only application intake for clubs that already have a form on their
+ * own website (the hosted alternative is /apply). Auth: HMAC-SHA256 of the raw
+ * body with the org's ingest secret, sent as
+ * `x-openventure-signature: sha256=<hex>`.
  *
- * Replaces the website → Airtable → Slack hop: the application lands in the
- * entry stage instantly and (optionally) pings the club's Slack webhook.
+ * What happens after validation — owner rotation, duplicate check, the
+ * "we received it" email, the Slack ping — is shared with the hosted form in
+ * src/lib/intake.ts.
  */
-
-const IngestSchema = z.object({
-  companyName: z.string().min(1).max(120),
-  website: z.string().max(200).optional(),
-  pitchSummary: z.string().max(5000).optional(),
-  amountRequested: z.coerce.number().min(0).max(1_000_000).optional(),
-  useOfFunds: z.string().max(5000).optional(),
-
-  applicantName: z.string().max(120).optional(),
-  applicantEmail: z.string().email().optional(),
-
-  // Academic / team analytics fields (low-sensitivity, displayable)
-  department: z.string().max(120).optional(),
-  major: z.string().max(120).optional(),
-  school: z.string().max(120).optional(),
-  classYear: z.coerce.number().int().min(2000).max(2100).optional(),
-  teamSize: z.coerce.number().int().min(1).max(50).optional(),
-  teamComposition: z.enum(["solo", "cofounded"]).optional(),
-  teamStudentMix: z.enum(["all_students", "mixed", "non_students"]).optional(),
-  campusSource: z.string().max(200).optional(),
-  howHeard: z.string().max(500).optional(),
-
-  // Optional self-reported demographics — write-once, aggregate-read only.
-  demographics: z
-    .object({
-      gender: z.string().max(60).optional(),
-      raceEthnicity: z.string().max(120).optional(),
-      firstGeneration: z.boolean().optional(),
-      international: z.boolean().optional(),
-    })
-    .optional(),
-});
 
 function verifySignature(raw: string, header: string | null, secret: string) {
   if (!header) return false;
@@ -74,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Single-org deployment: the one org row holds the secret.
-  const [org] = await db.select().from(organization).limit(1);
+  const org = await loadSoleOrg();
   if (!org?.ingestSecret) {
     return NextResponse.json({ error: "Ingest not configured" }, { status: 503 });
   }
@@ -85,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   let parsed;
   try {
-    parsed = IngestSchema.safeParse(JSON.parse(raw));
+    parsed = intakeSchema.safeParse(JSON.parse(raw));
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -95,132 +53,10 @@ export async function POST(req: NextRequest) {
       { status: 422 }
     );
   }
-  const input = parsed.data;
 
-  const [entry] = await db
-    .select()
-    .from(pipelineStage)
-    .where(
-      and(
-        eq(pipelineStage.orgId, org.id),
-        eq(pipelineStage.isEntryStage, true),
-        isNull(pipelineStage.archivedAt)
-      )
-    )
-    .limit(1);
-  if (!entry) {
+  const result = await receiveApplication(org, parsed.data, "webhook");
+  if (!result.ok) {
     return NextResponse.json({ error: "No entry stage configured" }, { status: 503 });
   }
-
-  const domain = input.website
-    ?.trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, "")
-    .replace(/^www\./, "")
-    .split("/")[0];
-
-  // Reuse an existing company on domain match; otherwise create.
-  let companyId: string | null = null;
-  if (domain) {
-    const existing = await db
-      .select({ id: company.id })
-      .from(company)
-      .where(and(eq(company.orgId, org.id), eq(company.domain, domain)))
-      .limit(1);
-    companyId = existing[0]?.id ?? null;
-  }
-  if (!companyId) {
-    const [co] = await db
-      .insert(company)
-      .values({
-        orgId: org.id,
-        name: input.companyName,
-        domain: domain || null,
-        websiteUrl: domain ? `https://${domain}` : null,
-        oneLiner: input.pitchSummary?.slice(0, 200),
-      })
-      .returning();
-    companyId = co.id;
-  }
-
-  const app = await withRef(
-    application,
-    application.orgId,
-    application.ref,
-    org.id,
-    async (ref) => {
-      const [inserted] = await db
-        .insert(application)
-        .values({
-          orgId: org.id,
-          ref,
-          companyId,
-          stageId: entry.id,
-          pitchSummary: input.pitchSummary,
-          amountRequested:
-            input.amountRequested != null ? String(input.amountRequested) : null,
-          useOfFundsNarrative: input.useOfFunds,
-          applicantName: input.applicantName,
-          applicantEmail: input.applicantEmail,
-          department: input.department,
-          major: input.major,
-          school: input.school,
-          classYear: input.classYear,
-          teamSize: input.teamSize,
-          teamComposition: input.teamComposition,
-          teamStudentMix: input.teamStudentMix,
-          campusSource: input.campusSource,
-          howHeard: input.howHeard,
-        })
-        .returning();
-      return inserted;
-    }
-  );
-
-  await db.insert(stageHistory).values({
-    orgId: org.id,
-    applicationId: app.id,
-    toStageId: entry.id,
-  });
-
-  if (input.demographics && Object.values(input.demographics).some((v) => v != null)) {
-    await db.insert(applicationDemographics).values({
-      orgId: org.id,
-      applicationId: app.id,
-      gender: input.demographics.gender,
-      raceEthnicity: input.demographics.raceEthnicity,
-      firstGeneration: input.demographics.firstGeneration,
-      international: input.demographics.international,
-    });
-  }
-
-  await db.insert(activity).values({
-    orgId: org.id,
-    actorType: "integration",
-    verb: "application.received",
-    entityType: "application",
-    entityId: app.id,
-    entityLabel: input.companyName,
-    summary: `New application: ${input.companyName}${
-      input.amountRequested ? ` asking $${input.amountRequested.toLocaleString()}` : ""
-    }`,
-  });
-
-  // Slack ping — best-effort, never blocks the response.
-  if (org.slackWebhookUrl) {
-    const base = process.env.BETTER_AUTH_URL ?? "";
-    fetch(org.slackWebhookUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        text: `🆕 New application: *${input.companyName}*${
-          input.amountRequested ? ` — asking $${input.amountRequested.toLocaleString()}` : ""
-        }${input.pitchSummary ? `\n> ${input.pitchSummary.slice(0, 280)}` : ""}${
-          base ? `\n<${base}/pipeline/${app.id}|Open in OpenVenture>` : ""
-        }`,
-      }),
-    }).catch(() => {});
-  }
-
-  return NextResponse.json({ ok: true, applicationId: app.id }, { status: 201 });
+  return NextResponse.json({ ok: true, applicationId: result.applicationId }, { status: 201 });
 }

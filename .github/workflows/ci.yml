@@ -29,5 +29,57 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # No DATABASE_URL here, so the build's migrate step skips itself.
       - name: Build
         run: pnpm build
+
+  # Migrations are applied automatically on every deploy, so prove they work
+  # on both kinds of database a club can have: brand new, and one that was
+  # created with `drizzle-kit push` before migrations were the rule.
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      FRESH_URL: postgresql://postgres:postgres@localhost:5432/fresh
+      PUSHED_URL: postgresql://postgres:postgres@localhost:5432/pushed
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create databases
+        run: |
+          psql postgresql://postgres:postgres@localhost:5432/postgres -c "create database fresh" -c "create database pushed"
+
+      - name: Fresh database — migrate, then migrate again (idempotent)
+        run: |
+          DATABASE_URL=$FRESH_URL node scripts/migrate.mjs
+          DATABASE_URL=$FRESH_URL node scripts/migrate.mjs
+
+      - name: Migrations match the schema (nothing left for push to do)
+        run: |
+          DATABASE_URL=$FRESH_URL pnpm exec drizzle-kit push 2>&1 | tee push.log
+          grep -q "No changes detected" push.log
+
+      - name: Push-created database — migrations are recorded, not re-run
+        run: |
+          DATABASE_URL=$PUSHED_URL pnpm exec drizzle-kit push --force
+          DATABASE_URL=$PUSHED_URL node scripts/migrate.mjs
+          DATABASE_URL=$PUSHED_URL node scripts/migrate.mjs --status | tee status.log
+          grep -q "Up to date" status.log

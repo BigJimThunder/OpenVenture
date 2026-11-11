@@ -5,8 +5,14 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    // Migrations use the DIRECT (non-pooled) URL; the app uses the pooled one.
-    url: process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL ?? "",
+    // Schema tooling prefers a direct (non-pooled) URL; the app uses the pooled
+    // one. Deploys don't use this file at all — scripts/migrate.mjs applies the
+    // SQL in ./drizzle during the build.
+    url:
+      process.env.DATABASE_URL_DIRECT ??
+      process.env.DATABASE_URL_UNPOOLED ??
+      process.env.DATABASE_URL ??
+      "",
   },
   casing: "snake_case",
 });

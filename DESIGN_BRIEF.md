@@ -56,9 +56,11 @@ Fifteen or fewer people, all undergraduates, all unpaid, all busy.
 - Attention is scarce and voluntary. There is no manager. If a screen is tedious, members
   simply stop using it and the club reverts to a spreadsheet.
 
-**Explicit non-user: founders.** There is no founder-facing surface at all. Applications
-arrive through a signed ingest endpoint from the club's existing website form. Every
-screen in this app is internal.
+**Founders see exactly one screen: the application form.** `/apply` is a public, hosted
+form a club can switch on and share as a single link (or keep its own form and post to
+the signed ingest endpoint instead). Founders never sign in and never see the pipeline;
+they hear from the club by email — application received, and, if the club opts in,
+declined or funded. Everything else in this app is internal.
 
 ---
 
@@ -89,31 +91,36 @@ tokens only, never raw color values.** Both themes ship; dark mode is genuinely 
 
 ### Color
 
+Cool graphite neutrals with a single cobalt accent. Values live in `globals.css`; the
+roles are what matter:
+
 ```
-Neutrals (light)          Neutrals (dark)
---bg        0.985/275     0.16/275     page background
---bg-subtle 0.968/275     0.19/275     inset / hover
---panel     1.0           0.205/275    cards, sidebar
---border    0.912/275     0.285/275
---fg        0.235/275     0.93/275     primary text
---fg-muted  0.475/275     0.72/275     labels, secondary
---fg-subtle 0.62/275      0.56/275     timestamps, micro
+--chrome      the app canvas: sidebar and the gutter around the working sheet
+--bg          the working sheet (main content)
+--bg-subtle   inset / hover
+--panel       cards, inputs, menus
+--border, --border-strong
+--fg, --fg-muted (labels, secondary), --fg-subtle (timestamps, micro)
 ```
 
-**One accent: deep indigo** `oklch(0.55 0.19 275)`. Primary actions and focus rings only
-— never decoration. If two things on screen are indigo, one of them is wrong.
+**One accent: cobalt** (`--accent`). Primary actions, selection, links and focus rings
+only — never decoration. If two unrelated things on screen are cobalt, one of them is wrong.
 
-**Semantic:** `success` (green 155), `warning` (amber 75–85), `danger` (red 25), `info`
-(blue 240) — each with a `-bg` and `-border` companion for badge/callout surfaces.
+**Semantic:** `success`, `warning`, `danger`, `info` — each with a `-bg` and `-border`
+companion for badge/callout surfaces.
 
-**Categorical (`--cat-1` … `--cat-10`):** indigo, blue, teal, green, yellow, orange, red,
-pink, purple, slate — fixed hues at pinned lightness and chroma so any subset harmonizes.
-Used for pipeline stages, sectors, outcome tiers, and chart series. Never pick a chart
-color outside this set.
+**Categorical (`--cat-1` … `--cat-10`):** cobalt, teal, amber, violet, green, pink, sky,
+orange, plum, slate — pinned lightness and chroma so any subset harmonizes. Used for
+pipeline stages, sectors, outcome tiers, and chart series. Never pick a chart color
+outside this set.
+
+**Elevation:** `shadow-xs` on cards and inputs, `shadow-md` on menus, `shadow-lg` on
+dialogs. Hierarchy still comes mostly from borders and background steps.
 
 ### Type
 
-Geist Sans / Geist Mono. The scale is deliberately compressed for density:
+Geist Sans / Geist Mono for the tool. A serif (Source Serif 4) appears in exactly one
+place: document surfaces. The scale is deliberately compressed for density:
 
 | Token | Size | Use |
 |---|---|---|
@@ -129,14 +136,16 @@ Two required utilities:
 
 - **`.tnum`** (tabular numerals) is **mandatory on every money or metric column.** Ragged
   digits in a budget table is the single most common way this app looks amateur.
-- **`.prose-surface`** (15px / 1.65 / max 70ch) is the *only* place comfortable reading
-  typography is allowed: memos, docs, LP letters. Everything else stays dense.
+- **`.prose-surface`** (serif, 17px / 1.7 / max 68ch) is the *only* place comfortable
+  reading typography is allowed: memos, docs, LP letters. Everything else stays dense
+  and sans.
+
+On touch devices form controls render at 16px so phones don't zoom the page on focus.
 
 ### Shape and motion
 
-`--radius: 0.5rem` (8px), with sm/md/lg/xl derived. Shadows are near-absent — hierarchy
-comes from borders and background steps. Motion is functional only: no decorative
-animation, no page transitions.
+`--radius: 0.5rem` (8px), with sm/md/lg/xl derived. Motion is functional only: no
+decorative animation, no page transitions.
 
 ### Existing components
 
@@ -150,14 +159,30 @@ tooltip.
 
 ### Shell
 
-Fixed left sidebar (220px) with a workspace switcher at top (which also holds Settings,
-Docs, Onboarding and sign-out), a "New application" button carrying its `C` hint, grouped
-nav, and the member name + theme toggle pinned at the bottom. There is no global topbar:
-each screen renders its own 44px header, and ⌘K is available everywhere. Nav groups:
+**Desktop:** a 240px sidebar sits directly on the chrome — club name, a search field
+(⌘K) with a new-application button beside it, grouped nav, the admin's
+getting-started progress card until setup is complete, and the account menu (profile,
+theme, sign out) pinned at the bottom. The main content is a rounded sheet lifted off
+the chrome. There is no global topbar: each screen renders its own 48px header.
 
-- **Personal** — Inbox (unread badge), My work
+**Phone:** the sidebar is replaced by a bottom tab bar — Inbox, Pipeline, a centred
+new-application button, Meetings, Menu. Menu opens a sheet with every destination,
+search, theme and sign-out. Dialogs become bottom sheets.
+
+Nav groups:
+
+- *(personal)* — Inbox (count of what needs you), My work
 - **Operate** — Pipeline (open count), Memos, Grants, Meetings, Members
 - **Learn** — Insights, Outcomes, Cap Table Lab, LP Reports
+- **Club** — Docs, Onboarding, Settings (admins only)
+
+**Keyboard:** ⌘K or `/` searches everything (companies, founders, memos, members,
+meetings, docs) and runs commands; `C` creates an application; `G` then a letter jumps
+to a screen (the letters are listed in ⌘K). A keyboard hint is only ever shown next to
+a shortcut that works.
+
+**Roles in the UI:** controls a member's role can't use are hidden or disabled with a
+reason (`useCan` / `<Can>`), mirroring — never replacing — the server-side check.
 
 ---
 
@@ -341,10 +366,11 @@ Dry, specific, first-person-plural. Never marketing voice, never exclamation poi
    "Not shown (small group)".
 3. **`.tnum` on every money and metric column.** No exceptions.
 4. **Semantic tokens only** — no raw hex, no Tailwind palette colors like `blue-500`.
-5. **One accent color.** Indigo is for primary action and focus, nothing else.
+5. **One accent color.** Cobalt is for primary action, selection and focus, nothing else.
 6. **Money is never a float.** Displayed via the `Money` component; the cap-table engine
    is the only place arithmetic happens.
-7. **No founder-facing surfaces.** If a mockup implies a founder logs in, it's out of scope.
+7. **Founders never sign in.** The only founder-facing surface is the public `/apply`
+   form and the emails the club sends. If a mockup implies a founder account, it's out of scope.
 8. **Both themes.** Every screen must work in light and dark.
 
 ---

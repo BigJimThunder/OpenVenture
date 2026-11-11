@@ -9,11 +9,18 @@ Bookmark this; hand it to your successor every spring.
 |---|---|---|
 | **Vercel** | The app itself | vercel.com → your project |
 | **Neon** | The database (all club data) | console.neon.tech |
-| **Resend** | Sign-in and recap emails | resend.com → Domains |
+| **Resend** | Sign-in links, reminders, digests, replies to founders | resend.com → Domains |
+| **GitHub** | Your copy of the code (Vercel deploys from it) | github.com → your repository |
 
-All three have free/hobby tiers that comfortably fit a 15-person club. If the app
-is down, check Vercel first (Deployments tab — is the latest one red?), then Neon
-(is the database suspended or over quota?).
+All of them have free/hobby tiers that comfortably fit a 15-person club.
+
+**The one link to remember: `https://your-site/api/health`.** It says, in plain
+words, whether the database is reachable and up to date, whether email is
+connected, and whether the daily schedule is protected. It never shows a secret,
+so it's safe to paste into a message when asking for help.
+
+If the app is down, check `/api/health` first, then Vercel (Deployments tab — is
+the latest one red?), then Neon (is the database suspended or over quota?).
 
 ## Everyday admin
 
@@ -31,17 +38,67 @@ Members → their profile → **Offboard**. Their history (votes, memos, sourcin
 credit) is preserved; they just can't sign in. Never delete rows in the database
 to remove someone.
 
+### Open or close applications
+Settings → Intake → **Application form**. When it's on, founders apply at
+`https://your-site/apply` (the link is also on the Getting started page). When
+it's off, that page shows your "we're closed" message instead — write one that
+says when you reopen. Closing the form never touches applications you already
+have.
+
 ### Rotate the intake secret
-If the website-form secret leaks (or annually, out of caution): Settings →
-Application intake → **Rotate secret**, then paste the new secret into wherever
+Only matters if your own website form posts applications to OpenVenture. If
+that secret leaks (or annually, out of caution): Settings → Intake →
+**Rotate secret**, then paste the new secret into wherever
 your website form is hosted. The old secret stops working immediately. Rotating
 also changes the calendar-feed URL — re-subscribe in Google/Apple Calendar.
 
 ### Email health
-If magic links stop arriving: Resend dashboard → Domains → your domain should
-show SPF and DKIM as **Verified**. If Resend is down or the key is missing,
-there's a fallback: sign-in offers a 6-digit code as well as a link, and in local
-development codes print to the server console.
+If sign-in emails stop arriving: Resend dashboard → Domains → your domain should
+show SPF and DKIM as **Verified**, and `EMAIL_FROM` in Vercel must use that
+domain. Until a domain is verified, Resend only delivers to the address that
+owns the Resend account — so the first admin can sign in, but nobody they invite
+can. Every sign-in email carries a 6-digit code as well as a link, because some
+university mail scanners "click" links before you do.
+
+Resend's free tier allows 100 emails a day. OpenVenture is built to stay well
+under it: reminders are batched into one email per person, never one per event.
+
+## Scheduling
+
+Reminders, the Monday digest and auto-closing votes all come from **one request
+a day** to `/api/cron/daily`. It is safe to run more than once: everything it
+sends is remembered, so nobody is emailed twice.
+
+| What it does | When |
+|---|---|
+| Closes vote rounds whose deadline has passed (it never reveals them) and tells partners they're ready | Daily |
+| Reminds every eligible voter that a vote closes soon | The day before it closes |
+| Nudges the owner of an application that has sat past its stage deadline (admins, if nobody owns it) | Once per application per stage |
+| Sends each member a digest of what needs them | Mondays, in the club's timezone |
+| Reminds the owner to check in with a funded company | When 90 days pass without an update, at most once a quarter |
+
+Each one has a switch in Settings → Automations.
+
+**On Vercel** this is already set up (`vercel.json` schedules it for 12:00 UTC,
+early morning in the Americas). It only needs the `CRON_SECRET` environment
+variable to exist — any long random string. Check Vercel → your project →
+Settings → Cron Jobs to see the last run. On the Hobby plan Vercel may run it
+any time within that hour, which is fine.
+
+**On any other host**, have a scheduler make the same request once a day:
+
+```
+curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://your-site/api/cron/daily
+```
+
+A crontab line for 12:00 UTC: `0 12 * * * curl -fsS -H "Authorization: Bearer YOUR_SECRET" https://your-site/api/cron/daily`.
+A free scheduled GitHub Action or cron-job.org does the same job. The response
+is a short JSON summary of what each job did.
+
+**Did it run?** Open the response, or look at Vercel → Logs for
+`/api/cron/daily`. `401` means the secret doesn't match; `503` means
+`CRON_SECRET` isn't set. If emails say "only printed to the server log",
+`RESEND_API_KEY` is missing.
 
 ## The annual handover checklist (do this every spring)
 
@@ -50,12 +107,20 @@ development codes print to the server console.
 3. Transfer ownership of the Vercel project, Neon project, and Resend account to
    club-owned logins (use a shared club email like `vcclub@school.edu`, not a
    personal one that graduates too).
-4. **Download an export** (Settings → Export everything → Full JSON dump) and put
-   it in the club's shared drive. This is your offline backup of every decision
-   the club has ever made.
-5. Rotate the intake secret and `BETTER_AUTH_SECRET` (Vercel → Settings →
-   Environment Variables) if any graduating member had infrastructure access.
-6. Walk the successor through this runbook. Twenty minutes now saves a lost year.
+   Do the same for the GitHub repository (Settings → Transfer, or add the
+   successor as an owner).
+4. **Download an export** (Settings → Data → Full JSON dump) and put it in the
+   club's shared drive. This is your offline backup of every decision the club
+   has ever made.
+5. Rotate the intake secret, `BETTER_AUTH_SECRET` and `CRON_SECRET` (Vercel →
+   Settings → Environment Variables, then Redeploy) if any graduating member had
+   infrastructure access. Changing `BETTER_AUTH_SECRET` signs everyone out once.
+6. Create next year's grant pool (Settings → Money) so approvals keep working
+   after the fiscal year turns over.
+7. Sit down with the successor at the app's **Getting started** page
+   (`/welcome`). It is the one-page version of how a week works, written to be
+   read aloud. Then skim this runbook together. Twenty minutes now saves a lost
+   year.
 
 ## Locked out (break-glass admin)
 
@@ -71,9 +136,64 @@ Every admin graduated and nobody was promoted? There's a hatch:
 This requires access to the Vercel account — which is why step 3 of the handover
 checklist matters.
 
+## Backups
+
+You have two, and you should use both:
+
+- **Neon keeps point-in-time history** on its own (about a day on the free
+  plan, longer on paid). Neon console → Branches → Restore. This is for "we
+  broke something an hour ago".
+- **Your export is the long-term backup.** Settings → Data → Full JSON dump,
+  once a term and at every handover, saved to the club's shared drive. This is
+  for "the account was deleted" or "we're moving hosts".
+
+## Upgrades
+
+To pick up a new version of OpenVenture, how you do it depends on how the club's
+copy of the code was made:
+
+- **It's a fork** (the repository page says "forked from …"): click
+  **Sync fork → Update branch**. Vercel notices and deploys it. That's the whole
+  process.
+- **It was created by the Deploy button** (no "forked from"): there is no sync
+  button. Ask a member who uses git to run the three commands under "For the
+  technically inclined" below — a five-minute job once or twice a year.
+
+Database changes that come with a new version are applied **automatically
+during that deploy**, before the new code goes live. You never run a database
+command. If a database change fails, the deploy fails, nothing is changed, and
+the previous version keeps running — open the red deployment in Vercel and read
+the lines starting with `[migrate]`; they say what went wrong in plain words.
+
+`/api/health` shows `migrations: N of N applied` when the database matches the
+code.
+
+<details>
+<summary>For the technically inclined</summary>
+
+`pnpm build` runs `scripts/migrate.mjs` before `next build`. It applies the SQL
+files in `drizzle/` inside one transaction behind an advisory lock and records
+them in `drizzle.__drizzle_migrations` (the same table `drizzle-kit` uses). A
+database that was originally created with `drizzle-kit push` is detected: any
+migration whose tables and columns already exist is recorded instead of re-run.
+If a migration is only half present the script stops without changing anything
+and prints what is there and what is missing. `pnpm db:status` reports without
+changing anything; `SKIP_DB_MIGRATE=1` builds without touching the database.
+
+
+Updating a non-fork copy:
+
+```
+git remote add upstream https://github.com/BigJimThunder/OpenVenture.git
+git pull upstream main
+git push
+```
+
+</details>
+
 ## Exports and what's deliberately missing
 
-Settings → **Export everything** gives a full JSON dump plus CSVs for
+Settings → **Data** gives a full JSON dump plus CSVs for
 applications, grants, members, and outcomes. Two things never leave the system,
 by design, and this is not configurable:
 
@@ -91,6 +211,8 @@ by design, and this is not configurable:
 
 ## When something breaks
 
+0. Open `https://your-site/api/health`. Anything marked `"ok": false` tells you
+   where to look.
 1. Vercel → Deployments: red build? Open it and read the error. A rollback is
    one click ("Instant Rollback" on the last green deployment).
 2. Neon → is the project suspended (free-tier idle) or out of storage?

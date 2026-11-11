@@ -60,3 +60,6 @@ export const DEFAULT_SOURCES = [
   { name: "Campus org", kind: "campus_org" },
   { name: "Other", kind: "other" },
 ] as const;
+
+/** Used when the admin's browser doesn't report a timezone during setup. */
+export const DEFAULT_TIMEZONE = "America/New_York";

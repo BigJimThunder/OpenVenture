@@ -4,6 +4,9 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { organization } from "@/db/schema";
+import { getCtx } from "@/lib/actions/context";
+import { seasonLabel, seasonStartYear } from "@/lib/utils";
+import { AuthFrame } from "../auth-frame";
 import { SetupForm } from "./setup-form";
 
 export const metadata: Metadata = { title: "Set up your club" };
@@ -12,34 +15,38 @@ export const dynamic = "force-dynamic";
 export default async function SetupPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/login");
+  // Already a member (a stale tab, a bookmarked link): nothing to set up.
+  if (await getCtx()) redirect("/inbox");
 
-  const existing = await db.select({ id: organization.id }).from(organization).limit(1);
+  const existing = await db.select({ name: organization.name }).from(organization).limit(1);
 
-  return (
-    <div className="flex min-h-svh items-center justify-center bg-bg p-4">
-      <div className="w-full max-w-md">
-        {existing.length > 0 ? (
-          <div className="text-center">
-            <h1 className="text-lg font-semibold">You&apos;re not a member yet</h1>
-            <p className="mt-2 text-sm text-fg-muted">
-              This club is already set up. Ask an admin to invite{" "}
-              <span className="font-medium text-fg">{session.user.email}</span> from
-              Settings → Members.
-            </p>
-          </div>
-        ) : (
+  if (existing.length > 0) {
+    return (
+      <AuthFrame
+        title="You're not a member yet"
+        description={
           <>
-            <div className="mb-6 text-center">
-              <h1 className="text-lg font-semibold">Set up your club</h1>
-              <p className="mt-1 text-xs text-fg-muted">
-                Takes under a minute. You&apos;ll be the first admin; everything here can be
-                changed later in Settings.
-              </p>
-            </div>
-            <SetupForm defaultFiscalYear={new Date().getFullYear()} />
+            {existing[0].name} is already set up here. Ask one of its admins to invite{" "}
+            <span className="font-medium text-fg">{session.user.email}</span> from the Members
+            page, then sign in again.
           </>
-        )}
-      </div>
-    </div>
+        }
+      />
+    );
+  }
+
+  const fiscalYear = seasonStartYear(new Date());
+  return (
+    <AuthFrame
+      wide
+      title="Set up your club"
+      description="Three short steps. You'll be the first admin, and everything here can be changed later in Settings."
+    >
+      <SetupForm
+        defaultFiscalYear={fiscalYear}
+        fiscalYearLabel={seasonLabel(fiscalYear)}
+        defaultName={session.user.name && session.user.name !== session.user.email ? session.user.name : ""}
+      />
+    </AuthFrame>
   );
 }
