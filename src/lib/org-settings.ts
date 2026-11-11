@@ -51,8 +51,40 @@ export const orgSettingsSchema = z.object({
       voteReminders: z.boolean().default(true),
       /** Quarterly "how is the grantee doing?" reminder to the owner. */
       checkinReminders: z.boolean().default(true),
+      /** Remind new members who haven't finished onboarding, and tell their inviter. */
+      onboardingNudges: z.boolean().default(true),
+      /** At the start of each term, ask members to enter their new class schedule. */
+      scheduleReminders: z.boolean().default(true),
       /** Who owns an application that arrives without one. */
       autoAssign: z.enum(["off", "round_robin"]).default("round_robin"),
+    })
+    .prefault({}),
+  /** Academic calendar and the hours the scheduler may suggest. */
+  scheduling: z
+    .object({
+      /** How the school divides its year; sets the default term names. */
+      system: z.enum(["quarter", "semester"]).default("semester"),
+      /**
+       * Terms, in order. `key` is stable ("2026-fall"); dates are inclusive
+       * ISO days (YYYY-MM-DD) in the org timezone. The current term is the
+       * one containing today, else the next one to start.
+       */
+      terms: z
+        .array(
+          z.object({
+            key: z.string().min(1).max(40),
+            name: z.string().min(1).max(60),
+            start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          })
+        )
+        .max(24)
+        .default([]),
+      /** Earliest and latest minute-of-day the scheduler suggests (org timezone). */
+      dayStartMinute: z.number().int().min(0).max(1439).default(8 * 60),
+      dayEndMinute: z.number().int().min(1).max(1440).default(22 * 60),
+      /** Offer weekend times. */
+      weekends: z.boolean().default(false),
     })
     .prefault({}),
   /** Reports the club sends up (funding requests, LP letters, annual report). */
@@ -67,6 +99,15 @@ export const orgSettingsSchema = z.object({
       mission: z.string().max(2000).default(""),
       /** What the club looks for in a founder; quoted in reports and AI drafts. */
       thesis: z.string().max(3000).default(""),
+    })
+    .prefault({}),
+  /** How strict new-member onboarding is. */
+  onboarding: z
+    .object({
+      /** Required items must be done before a new member can use the app. */
+      blockUntilComplete: z.boolean().default(true),
+      /** Days a new member has to finish, from the invite. */
+      dueDays: z.number().int().min(1).max(120).default(14),
     })
     .prefault({}),
   ai: z
@@ -91,7 +132,9 @@ export const orgSettingsPatchSchema = z.object({
   apply: orgSettingsSchema.shape.apply.unwrap().partial().optional(),
   founderEmails: orgSettingsSchema.shape.founderEmails.unwrap().partial().optional(),
   automation: orgSettingsSchema.shape.automation.unwrap().partial().optional(),
+  scheduling: orgSettingsSchema.shape.scheduling.unwrap().partial().optional(),
   reports: orgSettingsSchema.shape.reports.unwrap().partial().optional(),
+  onboarding: orgSettingsSchema.shape.onboarding.unwrap().partial().optional(),
   ai: orgSettingsSchema.shape.ai.unwrap().partial().optional(),
 });
 export type OrgSettingsPatch = z.infer<typeof orgSettingsPatchSchema>;
