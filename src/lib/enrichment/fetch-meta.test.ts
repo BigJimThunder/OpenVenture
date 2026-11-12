@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSiteMeta, assertPublicHost } from "./fetch-meta";
+import { parseSiteMeta } from "./fetch-meta";
 
 const FULL_PAGE = `<!doctype html>
 <html>
@@ -88,30 +88,5 @@ describe("parseSiteMeta", () => {
       "https://xss.example/"
     );
     expect(m.faviconUrl).toBeNull();
-  });
-});
-
-describe("assertPublicHost", () => {
-  it.each([
-    "http://localhost/",
-    "http://127.0.0.1/x",
-    "https://10.0.0.5/",
-    "https://192.168.1.1/",
-    "https://172.16.0.9/",
-    "https://169.254.169.254/latest/meta-data",
-    "https://router.local/",
-    "https://db.internal/",
-  ])("rejects %s", (u) => {
-    expect(() => assertPublicHost(new URL(u))).toThrow(/private or local/i);
-  });
-
-  it("rejects non-http protocols", () => {
-    expect(() => assertPublicHost(new URL("ftp://example.com/"))).toThrow(/non-http/i);
-  });
-
-  it("allows ordinary public hosts", () => {
-    expect(() => assertPublicHost(new URL("https://looplabs.example/"))).not.toThrow();
-    // 172.32.x is public — only 172.16–31 is RFC1918.
-    expect(() => assertPublicHost(new URL("https://172.32.0.1/"))).not.toThrow();
   });
 });

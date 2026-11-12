@@ -45,6 +45,13 @@ export function authedAction<S extends z.ZodType, T>(opts: {
    * money, emails founders, changes roles, manages tokens, or deletes.
    */
   allowToken?: boolean;
+  /**
+   * The fallback audit entry, for a change that needs no hand-written
+   * summary: who, did what, to which record. Used when the handler returns no
+   * `activity` of its own. `did` is a past-tense phrase ("archived a cap
+   * table"); `id` names the input field holding the record's id.
+   */
+  record?: { did: string; entity: string; id: keyof z.output<S> & string };
   handler: (input: z.output<S>, ctx: Ctx) => Promise<{ data: T; activity?: ActivitySpec }>;
 }) {
   return async (raw: z.input<S>): Promise<ActionResult<T>> => {
@@ -63,7 +70,19 @@ export function authedAction<S extends z.ZodType, T>(opts: {
       if (ctx.via === "token" && (ctx.tokenScope !== "write" || !opts.allowToken)) {
         throw new ForbiddenError();
       }
-      const { data, activity: act } = await opts.handler(parsed.data, ctx);
+      const { data, activity: returned } = await opts.handler(parsed.data, ctx);
+      let act = returned;
+      if (!act && opts.record) {
+        const { did, entity, id } = opts.record;
+        const entityId = (parsed.data as Record<string, unknown>)[id];
+        act = {
+          verb: `${entity}.${did.split(" ")[0]}`,
+          entityType: entity,
+          // An entry always points at something; the club itself if nothing narrower.
+          entityId: typeof entityId === "string" && entityId ? entityId : ctx.org.id,
+          summary: `${ctx.member.displayName} ${did}`,
+        };
+      }
       if (act) {
         // Structurally impossible to forget the audit log — it's written here.
         // The change itself has already committed, so a failure to record it

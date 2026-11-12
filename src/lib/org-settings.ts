@@ -110,6 +110,25 @@ export const orgSettingsSchema = z.object({
       dueDays: z.number().int().min(1).max(120).default(14),
     })
     .prefault({}),
+  /** The meetings calendar feed. Not a preference: changed only by its own action. */
+  calendar: z
+    .object({
+      /**
+       * The secret in the feed's link. Empty means "not reset yet": the link
+       * is then the original one, derived from the signing secret.
+       */
+      feedToken: z.string().max(80).default(""),
+    })
+    .prefault({}),
+  /** What founders are told about their data, and who to ask. */
+  privacy: z
+    .object({
+      /** The club's own notice. Empty uses the built-in plain-language one. */
+      notice: z.string().max(8000).default(""),
+      /** Where a founder writes to ask for a copy or deletion of their data. */
+      contactEmail: z.string().max(200).default(""),
+    })
+    .prefault({}),
   ai: z
     .object({
       /** Master switch; AI also needs ANTHROPIC_API_KEY in the environment. */
@@ -135,6 +154,7 @@ export const orgSettingsPatchSchema = z.object({
   scheduling: orgSettingsSchema.shape.scheduling.unwrap().partial().optional(),
   reports: orgSettingsSchema.shape.reports.unwrap().partial().optional(),
   onboarding: orgSettingsSchema.shape.onboarding.unwrap().partial().optional(),
+  privacy: orgSettingsSchema.shape.privacy.unwrap().partial().optional(),
   ai: orgSettingsSchema.shape.ai.unwrap().partial().optional(),
 });
 export type OrgSettingsPatch = z.infer<typeof orgSettingsPatchSchema>;

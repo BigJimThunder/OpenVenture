@@ -103,6 +103,46 @@ function Section({
   );
 }
 
+/** Required: the founder confirms they've read how their information is handled. */
+function Consent({ orgName }: { orgName: string }) {
+  const { values, errors } = React.useContext(FormCtx);
+  const error = errors.consent;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-start gap-3">
+        <input
+          id="consent"
+          name="consent"
+          type="checkbox"
+          value="yes"
+          required
+          defaultChecked={values.consent === "yes"}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "consent-error" : undefined}
+          className="mt-0.5 size-5 shrink-0 cursor-pointer rounded border-border-strong accent-[var(--accent)] outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-chrome"
+        />
+        <label htmlFor="consent" className="text-sm leading-relaxed text-fg">
+          I&apos;ve read{" "}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener"
+            className="font-medium text-accent underline underline-offset-2"
+          >
+            how {orgName} handles my information
+          </a>{" "}
+          and agree to it storing this application.
+        </label>
+      </div>
+      {error && (
+        <p id="consent-error" role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function ApplyForm({
   token,
   orgName,
@@ -314,6 +354,8 @@ export function ApplyForm({
             </div>
           </Section>
         )}
+
+        <Consent orgName={orgName} />
 
         <div className="flex flex-col gap-3 pt-2">
           {formError && (

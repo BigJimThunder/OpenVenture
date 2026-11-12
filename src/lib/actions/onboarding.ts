@@ -137,6 +137,7 @@ export const createOnboardingTrack = authedAction({
 });
 
 export const updateOnboardingTrack = authedAction({
+  record: { did: "edited an onboarding track", entity: "onboarding_track", id: "trackId" },
   minRole: "admin",
   input: z.object({ trackId: z.string().uuid(), ...trackFields }),
   handler: async (input, ctx) => {
@@ -252,6 +253,7 @@ async function checkedTaskFields(orgId: string, input: TaskFields): Promise<Task
 }
 
 export const addOnboardingTask = authedAction({
+  record: { did: "added an onboarding task", entity: "onboarding_track", id: "trackId" },
   minRole: "admin",
   input: z.object({ trackId: z.string().uuid(), ...taskFields }),
   handler: async (input, ctx) => {
@@ -275,6 +277,7 @@ export const addOnboardingTask = authedAction({
 });
 
 export const updateOnboardingTask = authedAction({
+  record: { did: "edited an onboarding task", entity: "onboarding_task", id: "taskId" },
   minRole: "admin",
   input: z.object({ taskId: z.string().uuid(), ...taskFields }),
   handler: async (input, ctx) => {
@@ -557,6 +560,7 @@ export const waiveOnboardingItem = authedAction({
 });
 
 export const setOnboardingDueDate = authedAction({
+  record: { did: "changed a member's onboarding due date", entity: "member", id: "memberId" },
   minRole: "admin",
   input: z.object({
     memberId: z.string().uuid(),

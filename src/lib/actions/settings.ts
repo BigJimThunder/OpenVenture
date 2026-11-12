@@ -7,7 +7,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { organization } from "@/db/schema";
 import { authedAction } from "./safe-action";
-import { mergeOrgSettings, orgSettingsPatchSchema } from "@/lib/org-settings";
+import { mergeOrgSettings, orgSettings, orgSettingsPatchSchema } from "@/lib/org-settings";
+import { calendarFeedToken, newCalendarFeedToken } from "@/lib/calendar";
 
 const DOMAIN_RE = /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i;
 
@@ -100,9 +101,17 @@ export const rotateIngestSecret = authedAction({
   input: z.object({}),
   handler: async (_input, ctx) => {
     const secret = randomBytes(32).toString("hex");
+    // The calendar link used to be derived from this secret. Pin the link
+    // the club is already subscribed to, so rotating the webhook secret no
+    // longer breaks everyone's calendar.
+    const current = calendarFeedToken(ctx.org);
+    const settings =
+      current && !orgSettings(ctx.org).calendar.feedToken
+        ? withCalendarToken(ctx.org.settings, current)
+        : ctx.org.settings;
     await db
       .update(organization)
-      .set({ ingestSecret: secret, updatedAt: new Date() })
+      .set({ ingestSecret: secret, settings, updatedAt: new Date() })
       .where(eq(organization.id, ctx.org.id));
     revalidatePath("/settings");
     return {
@@ -112,6 +121,37 @@ export const rotateIngestSecret = authedAction({
         entityType: "organization",
         entityId: ctx.org.id,
         summary: `${ctx.member.displayName} rotated the ingest secret`,
+      },
+    };
+  },
+});
+
+function withCalendarToken(settings: unknown, feedToken: string): Record<string, unknown> {
+  const base = (settings && typeof settings === "object" ? settings : {}) as Record<string, unknown>;
+  return { ...base, calendar: { ...(base.calendar as object | undefined), feedToken } };
+}
+
+/**
+ * Give the calendar feed a new link. The old link stops working at once, so
+ * anyone who should no longer see the club's meetings loses them; everyone
+ * else subscribes again with the new one.
+ */
+export const resetCalendarFeed = authedAction({
+  minRole: "admin",
+  input: z.object({}),
+  handler: async (_input, ctx) => {
+    await db
+      .update(organization)
+      .set({ settings: withCalendarToken(ctx.org.settings, newCalendarFeedToken()), updatedAt: new Date() })
+      .where(eq(organization.id, ctx.org.id));
+    revalidatePath("/settings");
+    return {
+      data: { ok: true },
+      activity: {
+        verb: "settings.calendar_feed_reset",
+        entityType: "organization",
+        entityId: ctx.org.id,
+        summary: `${ctx.member.displayName} reset the calendar feed link`,
       },
     };
   },

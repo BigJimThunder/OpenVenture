@@ -7,6 +7,8 @@
  * network access; fetchSiteMeta is the thin I/O wrapper around it.
  */
 
+import { safeGet } from "@/lib/safe-fetch";
+
 export type SiteMeta = {
   title: string | null;
   description: string | null;
@@ -107,77 +109,31 @@ export function parseSiteMeta(html: string, baseUrl: string): SiteMeta {
   };
 }
 
-/**
- * SSRF guard: this fetch runs server-side against a member-supplied domain.
- * Refuse anything that obviously points inside the deployment's own network.
- * (Cloud metadata IPs, localhost, RFC1918 literals. DNS-rebinding-grade
- * defense is out of scope for a club tool — this blocks the honest mistakes.)
- */
-export function assertPublicHost(url: URL): void {
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new Error(`Refusing non-http(s) URL: ${url.protocol}`);
-  }
-  const host = url.hostname.toLowerCase();
-  const privatePatterns = [
-    /^localhost$/,
-    /\.local$/,
-    /\.internal$/,
-    /^127\./,
-    /^10\./,
-    /^192\.168\./,
-    /^172\.(1[6-9]|2\d|3[01])\./,
-    /^169\.254\./, // link-local / cloud metadata
-    /^0\./,
-    /^\[?::1\]?$/,
-    /^\[?f[cd][0-9a-f]{2}:/, // IPv6 ULA
-    /^\[?fe80:/, // IPv6 link-local
-  ];
-  if (privatePatterns.some((p) => p.test(host))) {
-    throw new Error(`Refusing private or local host: ${host}`);
-  }
-}
-
 export type FetchedSite = { meta: SiteMeta; finalUrl: string };
 
-/** Fetch the homepage for a domain or URL and parse its metadata. */
+/**
+ * Fetch the homepage for a domain or URL and parse its metadata. The address
+ * is founder-supplied, so the request goes through `safeGet`, which refuses
+ * anything that resolves or redirects to a private network.
+ */
 export async function fetchSiteMeta(domainOrUrl: string): Promise<FetchedSite> {
   const raw = domainOrUrl.trim();
   const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
-  assertPublicHost(url);
 
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    redirect: "follow",
+  const res = await safeGet(url, {
+    timeoutMs: FETCH_TIMEOUT_MS,
+    maxBytes: MAX_BYTES,
     headers: {
       // A browser-like UA — plenty of company sites serve bots an empty shell.
       "user-agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
       accept: "text/html,application/xhtml+xml",
+      "accept-encoding": "identity",
     },
   });
-  if (!res.ok) throw new Error(`Site responded ${res.status}`);
-  const contentType = res.headers.get("content-type") ?? "";
+  if (res.status < 200 || res.status >= 300) throw new Error(`Site responded ${res.status}`);
+  const contentType = String(res.headers["content-type"] ?? "");
   if (!contentType.includes("html")) throw new Error(`Not an HTML page (${contentType || "unknown type"})`);
 
-  // Stream with a byte cap instead of res.text() — don't buffer arbitrary bodies.
-  const reader = res.body?.getReader();
-  let html = "";
-  if (reader) {
-    const decoder = new TextDecoder("utf-8", { fatal: false });
-    let bytes = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      bytes += value.byteLength;
-      html += decoder.decode(value, { stream: true });
-      if (bytes >= MAX_BYTES) {
-        await reader.cancel();
-        break;
-      }
-    }
-    html += new TextDecoder("utf-8").decode();
-  }
-
-  const finalUrl = res.url || url.toString();
-  return { meta: parseSiteMeta(html, finalUrl), finalUrl };
+  return { meta: parseSiteMeta(res.body, res.url), finalUrl: res.url };
 }

@@ -85,6 +85,8 @@ const formSchema = z.object({
   raceEthnicity: optional(z.enum(values(RACE_OPTIONS))),
   firstGeneration: yesNo,
   international: yesNo,
+  // A checkbox: present ("yes") only when ticked.
+  consent: z.literal("yes", { error: "Tick the box to confirm you've read how your information is handled" }),
 });
 
 const FIELDS = Object.keys(formSchema.shape);
@@ -185,6 +187,7 @@ export async function submitApplication(_prev: ApplyState, formData: FormData): 
     teamStudentMix: form.teamStudentMix,
     howHeard: form.howHeard,
     demographics,
+    consentAt: new Date(),
   });
   if (!input.success) {
     return fail(token, echoed, { message: "Something in the form didn't look right. Check it and try again." });

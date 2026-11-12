@@ -72,6 +72,7 @@ export const createMeeting = authedAction({
 });
 
 export const addAgendaItem = authedAction({
+  record: { did: "added an agenda item", entity: "meeting", id: "meetingId" },
   minRole: "analyst",
   input: z.object({
     meetingId: z.string().uuid(),
@@ -125,6 +126,7 @@ export const addAgendaItem = authedAction({
 });
 
 export const removeAgendaItem = authedAction({
+  record: { did: "removed an agenda item", entity: "agenda_item", id: "agendaItemId" },
   minRole: "analyst",
   input: z.object({ agendaItemId: z.string().uuid() }),
   handler: async (input, ctx) => {
@@ -211,11 +213,21 @@ export const createActionItem = authedAction({
     );
     if (input.meetingId) revalidatePath(`/meetings/${input.meetingId}`);
     revalidatePath("/inbox");
-    return { data: { actionItemId: row.id } };
+    return {
+      data: { actionItemId: row.id },
+      activity: {
+        verb: "action_item.created",
+        entityType: "action_item",
+        entityId: row.id,
+        entityLabel: row.title,
+        summary: `${ctx.member.displayName} created the action item “${row.title}”`,
+      },
+    };
   },
 });
 
 export const toggleActionItem = authedAction({
+  record: { did: "completed or reopened an action item", entity: "action_item", id: "actionItemId" },
   // Assistants may do this through the MCP endpoint.
   allowToken: true,
   minRole: "analyst",
@@ -525,6 +537,7 @@ async function loadAgendaItem(orgId: string, agendaItemId: string) {
 }
 
 export const updateAgendaItem = authedAction({
+  record: { did: "edited an agenda item", entity: "agenda_item", id: "agendaItemId" },
   minRole: "analyst",
   input: z.object({
     agendaItemId: z.string().uuid(),
@@ -604,6 +617,7 @@ function revalidateActionItem(row: { meetingId: string | null }) {
 }
 
 export const updateActionItem = authedAction({
+  record: { did: "edited an action item", entity: "action_item", id: "actionItemId" },
   minRole: "analyst",
   input: z.object({
     actionItemId: z.string().uuid(),
@@ -636,6 +650,7 @@ export const updateActionItem = authedAction({
 
 /** Soft delete: the row stays (status cancelled) so refs like TSK-84 never dangle. */
 export const cancelActionItem = authedAction({
+  record: { did: "cancelled an action item", entity: "action_item", id: "actionItemId" },
   minRole: "analyst",
   input: z.object({ actionItemId: z.string().uuid(), cancelled: z.boolean().default(true) }),
   handler: async (input, ctx) => {
@@ -666,6 +681,7 @@ export const saveAgendaNotes = authedAction({
 
 /** "Mark the rest present": one round trip instead of one per member. */
 export const setAttendanceBulk = authedAction({
+  record: { did: "recorded attendance for a meeting", entity: "meeting", id: "meetingId" },
   minRole: "analyst",
   input: z.object({
     meetingId: z.string().uuid(),

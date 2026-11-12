@@ -137,6 +137,7 @@ export const createStage = authedAction({
 });
 
 export const reorderStage = authedAction({
+  record: { did: "reordered the pipeline stages", entity: "pipeline_stage", id: "stageId" },
   minRole: "admin",
   input: z.object({
     stageId: z.string().uuid(),

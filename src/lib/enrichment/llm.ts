@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AI_MODEL } from "@/lib/ai";
+import { aiConfigured, aiObject } from "@/lib/ai";
 
 /**
  * Optional LLM enrichment pass — strictly additive on top of the deterministic
@@ -25,7 +25,7 @@ const ExtractionSchema = z.object({
 export type LlmExtraction = z.infer<typeof ExtractionSchema>;
 
 export function llmEnrichmentAvailable(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return aiConfigured();
 }
 
 export async function llmExtract(input: {
@@ -33,43 +33,34 @@ export async function llmExtract(input: {
   pageText: string;
   sectorNames: string[];
 }): Promise<LlmExtraction | null> {
-  if (!llmEnrichmentAvailable()) return null;
-
-  // Dynamic imports keep the SDK out of every other server bundle.
-  const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const { zodOutputFormat } = await import("@anthropic-ai/sdk/helpers/zod");
-
-  const client = new Anthropic();
-  const response = await client.messages.parse({
-    model: AI_MODEL,
-    max_tokens: 2000,
-    messages: [
-      {
-        role: "user",
-        content: [
-          `Here is the homepage text of a company called "${input.companyName}":`,
-          "",
-          "<homepage>",
-          input.pageText.slice(0, 4000),
-          "</homepage>",
-          "",
-          `Available sectors: ${input.sectorNames.join(", ") || "(none configured)"}`,
-          "",
-          "Write the one-liner and pick the sector. If the page text is too thin or",
-          "generic to tell what the company does, still write the best honest one-liner",
-          "you can from what's there — never invent specifics.",
-        ].join("\n"),
-      },
-    ],
-    output_config: { effort: "low", format: zodOutputFormat(ExtractionSchema) },
+  // Through the app's one door to the model: same timeout, same daily
+  // ceiling, and the same rule that page text is data, never instructions —
+  // a homepage is written by the applicant.
+  const parsed = await aiObject({
+    schema: ExtractionSchema,
+    system:
+      "You read a company's homepage text and describe the company in one plain sentence. Use only what the text says; never invent specifics.",
+    prompt: [
+      `Here is the homepage text of a company called "${input.companyName.replace(/"/g, "'")}":`,
+      "",
+      "<homepage>",
+      input.pageText.slice(0, 4000),
+      "</homepage>",
+      "",
+      `Available sectors: ${input.sectorNames.join(", ") || "(none configured)"}`,
+      "",
+      "Write the one-liner and pick the sector. If the page text is too thin or",
+      "generic to tell what the company does, still write the best honest one-liner",
+      "you can from what's there.",
+    ].join("\n"),
+    effort: "low",
+    maxTokens: 2000,
   });
-
-  const parsed = response.parsed_output;
   if (!parsed) return null;
   // Trust but verify: the guess must actually be one of the org's sectors.
   const sectorGuess =
     parsed.sectorGuess && input.sectorNames.includes(parsed.sectorGuess)
       ? parsed.sectorGuess
       : null;
-  return { oneLiner: parsed.oneLiner.trim(), sectorGuess };
+  return { oneLiner: parsed.oneLiner.trim().slice(0, 300), sectorGuess };
 }

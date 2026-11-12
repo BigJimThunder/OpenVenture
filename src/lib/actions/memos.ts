@@ -173,6 +173,7 @@ export const updateMemoSection = authedAction({
 });
 
 export const updateMemoMeta = authedAction({
+  record: { did: "changed a memo's recommendation or amount", entity: "memo", id: "memoId" },
   minRole: "analyst",
   input: z.object({
     memoId: z.string().uuid(),
@@ -444,6 +445,7 @@ export const addMemoComment = authedAction({
 });
 
 export const resolveMemoComment = authedAction({
+  record: { did: "resolved a memo comment", entity: "memo_comment", id: "commentId" },
   minRole: "analyst",
   input: z.object({ commentId: z.string().uuid() }),
   handler: async (input, ctx) => {
@@ -755,6 +757,7 @@ const sectionFields = {
 };
 
 export const addMemoTemplateSection = authedAction({
+  record: { did: "added a section to a memo template", entity: "memo_template", id: "templateId" },
   minRole: "admin",
   input: z.object({ templateId: z.string().uuid(), ...sectionFields }),
   handler: async (input, ctx) => {
@@ -781,6 +784,7 @@ export const addMemoTemplateSection = authedAction({
 });
 
 export const updateMemoTemplateSection = authedAction({
+  record: { did: "edited a memo template section", entity: "memo_template_section", id: "sectionId" },
   minRole: "admin",
   input: z.object({ sectionId: z.string().uuid(), ...sectionFields }),
   handler: async (input, ctx) => {
@@ -826,6 +830,7 @@ export const moveMemoTemplateSection = authedAction({
  * lose the link back to its guidance.
  */
 export const deleteMemoTemplateSection = authedAction({
+  record: { did: "deleted a memo template section", entity: "memo_template_section", id: "sectionId" },
   minRole: "admin",
   input: z.object({ sectionId: z.string().uuid() }),
   handler: async (input, ctx) => {

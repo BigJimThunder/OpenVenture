@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { CheckIcon, ChevronRightIcon, PlusIcon, SparklesIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { draftAnnualEssay } from "@/lib/actions/annual-report";
-import { essayQuestions } from "@/lib/ai/annual-report";
+import { essayQuestions } from "@/lib/ai/essay-questions";
 import { ConfirmDialog } from "@/components/patterns/form-confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

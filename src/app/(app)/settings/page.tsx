@@ -13,7 +13,7 @@ import {
 } from "@/db/schema";
 import { requireCtx } from "@/lib/actions/context";
 import { aiConfigured } from "@/lib/ai";
-import { calendarToken } from "@/lib/calendar";
+import { calendarFeedToken } from "@/lib/calendar";
 import { defaultFounderEmail, type FounderEmailKind } from "@/lib/founder-emails";
 import { summarizePool } from "@/lib/grants/budget";
 import { appUrl } from "@/lib/notify";
@@ -27,6 +27,7 @@ import { NoAccess } from "@/components/patterns/no-access";
 import { PageHeader } from "@/components/patterns/page-header";
 import { CopyField } from "@/components/patterns/form-copy-field";
 import { AutoAssignSelect } from "@/components/settings/auto-assign-select";
+import { CalendarFeed } from "@/components/settings/calendar-feed";
 import { CalendarSection } from "@/components/settings/calendar-section";
 import { ClubSettings } from "@/components/settings/club-settings";
 import { DailyRun } from "@/components/settings/daily-run";
@@ -119,6 +120,7 @@ export default async function SettingsPage() {
 
   const settings = orgSettings(ctx.org);
   const lastRun = await lastDailyRun();
+  const feedToken = calendarFeedToken(ctx.org);
   const [pools, poolGrants, stages, lookups, templates, templateSections, recentlySent] =
     await Promise.all([
       db
@@ -319,6 +321,43 @@ export default async function SettingsPage() {
                     multiline
                   />
                 </div>
+              </div>
+            </SettingsCard>
+
+            <SettingsCard
+              title="Privacy notice"
+              description={
+                <>
+                  What founders are told before they apply, and must agree to. It is public at{" "}
+                  <a href="/privacy" target="_blank" rel="noopener" className="text-accent underline-offset-2 hover:underline">
+                    /privacy
+                  </a>
+                  . Leave the text empty to use the built-in notice, which describes exactly what this
+                  software does with an application.
+                </>
+              }
+            >
+              <div className="flex flex-col gap-4">
+                <PreferenceText
+                  section="privacy"
+                  field="contactEmail"
+                  value={settings.privacy.contactEmail}
+                  label="Privacy contact"
+                  hint="Where a founder writes to ask for a copy or deletion of their data. Falls back to the founder-email reply-to address."
+                  placeholder="privacy@yourclub.org"
+                  maxLength={200}
+                  type="email"
+                />
+                <PreferenceText
+                  section="privacy"
+                  field="notice"
+                  value={settings.privacy.notice}
+                  label="Your own notice"
+                  hint="Optional. Replaces the built-in notice. Use this if your school has wording you must use. Blank lines separate paragraphs."
+                  placeholder="Leave empty to use the built-in notice."
+                  maxLength={8000}
+                  multiline
+                />
               </div>
             </SettingsCard>
 
@@ -651,20 +690,19 @@ export default async function SettingsPage() {
               title="Calendar feed"
               description="Subscribe once in Google or Apple Calendar and every club meeting shows up, and stays up to date."
             >
-              {ctx.org.ingestSecret ? (
-                <CopyField
-                  value={appUrl(`/api/calendar/${calendarToken(ctx.org.ingestSecret)}`)}
-                  label="Calendar feed"
-                />
-              ) : (
-                <p className="text-sm text-fg-muted">
-                  The feed link is derived from the club&apos;s signing secret, and there isn&apos;t one yet.{" "}
-                  <a href="#intake" className="text-accent underline-offset-2 hover:underline">
-                    Generate it under Intake
-                  </a>{" "}
-                  and the link appears here.
-                </p>
-              )}
+              <CalendarFeed url={feedToken ? appUrl(`/api/calendar/${feedToken}`) : null} />
+            </SettingsCard>
+
+            <SettingsCard
+              title="Activity log"
+              description="Every change in the club, who made it and when — including exports, role changes and anything the app did on its own."
+            >
+              <a
+                href="/activity"
+                className="inline-flex h-8 items-center rounded-md border border-border bg-panel px-3 text-sm font-medium shadow-xs transition-colors hover:border-border-strong hover:bg-bg-subtle max-md:h-10"
+              >
+                Open the activity log
+              </a>
             </SettingsCard>
 
             <SettingsCard

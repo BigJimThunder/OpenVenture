@@ -47,7 +47,10 @@ function Shell({ orgName, schoolName, children }: { orgName: string; schoolName?
           <Link href="/" className="underline-offset-2 hover:text-fg-muted hover:underline">
             OpenVenture
           </Link>
-          , open-source software for student grant clubs.
+          , open-source software for student grant clubs.{" "}
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-fg-muted">
+            Privacy
+          </Link>
         </footer>
       </div>
     </div>

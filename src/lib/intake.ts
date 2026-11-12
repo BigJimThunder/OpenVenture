@@ -71,6 +71,12 @@ export const intakeSchema = z.object({
   campusSource: optionalText(200),
   howHeard: optionalText(500),
 
+  /**
+   * When the applicant agreed to the club's privacy notice. The hosted form
+   * sets it; a club's own form can pass the moment its own consent was given.
+   */
+  consentAt: z.coerce.date().optional(),
+
   // Optional self-reported demographics — write-once, aggregate-read only.
   demographics: z
     .object({
@@ -245,6 +251,7 @@ export async function receiveApplication(
           teamStudentMix: input.teamStudentMix,
           campusSource: input.campusSource,
           howHeard: input.howHeard,
+          consentAt: input.consentAt,
           custom: {
             intakeSource: source,
             ...(duplicates.length ? { duplicateCandidates: duplicates } : {}),
