@@ -1,7 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { db } from "@/db";
@@ -24,6 +25,7 @@ import { defaultFounderEmail, sendFounderEmail } from "@/lib/founder-emails";
 import { orgSettings } from "@/lib/org-settings";
 import { decideVoteRound, type DecisionInput } from "@/lib/pipeline/decision";
 import { isVotingOpen } from "@/lib/votes/status";
+import { atomic, guard, guardFailure, lock } from "@/lib/pipeline/atomic";
 
 function revalidateVote(memoId: string | null, applicationId?: string) {
   revalidatePath("/memos");
@@ -94,28 +96,46 @@ export const openVoteRound = authedAction({
 
     const now = new Date();
     const closesAt = new Date(now.getTime() + input.closesInHours * 3600_000);
-    const [round] = await db
-      .insert(voteRound)
-      .values({
-        orgId: ctx.org.id,
-        applicationId: m.applicationId,
-        memoId: m.memo.id,
-        meetingId: input.meetingId,
-        title: `IC vote: ${m.companyName}`,
-        opensAt: now,
-        closesAt,
-        quorum: input.quorum,
-        status: "open",
-      })
-      .returning();
-
-    await db.insert(voteEligibility).values(
-      eligibleVoters.map((v) => ({
-        voteRoundId: round.id,
-        memberId: v.id,
-        isRecused: input.recusedMemberIds.includes(v.id),
-      }))
-    );
+    // One open round per memo, and a round is never left without its voter
+    // list: the round and its eligibility rows are written together, after
+    // re-checking under a lock that nobody opened one a moment ago.
+    const round = { id: randomUUID(), memoId: m.memo.id };
+    try {
+      await atomic((q) => [
+        lock(q, "memo", m.memo.id),
+        guard(
+          q,
+          sql`not exists (select 1 from ${voteRound} where ${voteRound.memoId} = ${m.memo.id} and ${voteRound.status} = 'open')`,
+          "already_open"
+        ),
+        q.insert(voteRound).values({
+          id: round.id,
+          orgId: ctx.org.id,
+          applicationId: m.applicationId,
+          memoId: m.memo.id,
+          meetingId: input.meetingId,
+          title: `IC vote: ${m.companyName}`,
+          opensAt: now,
+          closesAt,
+          quorum: input.quorum,
+          status: "open",
+        }),
+        ...(eligibleVoters.length > 0
+          ? [
+              q.insert(voteEligibility).values(
+                eligibleVoters.map((v) => ({
+                  voteRoundId: round.id,
+                  memberId: v.id,
+                  isRecused: input.recusedMemberIds.includes(v.id),
+                }))
+              ),
+            ]
+          : []),
+      ]);
+    } catch (e) {
+      if (guardFailure(e) === "already_open") throw new ActionError("A vote is already open on this memo");
+      throw e;
+    }
 
     // Ballot-box email to everyone eligible. `after()` keeps the function
     // alive until the sends settle — a bare promise is dropped on serverless.
@@ -191,27 +211,43 @@ export const submitVote = authedAction({
     if (!elig) throw new ActionError("You're not eligible to vote in this round");
     if (elig.isRecused) throw new ActionError("You're recused from this vote");
 
+    // A ballot must never land (or change) after the reveal. The status was
+    // read a moment ago, so the write takes its turn with the reveal on the
+    // round and re-checks that voting is still open as it commits.
     const now = new Date();
-    await db
-      .insert(vote)
-      .values({
-        voteRoundId: round.id,
-        memberId: ctx.member.id,
-        decision: input.decision,
-        conviction: input.conviction,
-        rationale: input.rationale,
-        suggestedAmount: input.suggestedAmount != null ? String(input.suggestedAmount) : null,
-      })
-      .onConflictDoUpdate({
-        target: [vote.voteRoundId, vote.memberId],
-        set: {
-          decision: input.decision,
-          conviction: input.conviction,
-          rationale: input.rationale,
-          suggestedAmount: input.suggestedAmount != null ? String(input.suggestedAmount) : null,
-          updatedAt: now,
-        },
-      });
+    try {
+      await atomic((q) => [
+        lock(q, "round", round.id),
+        guard(
+          q,
+          sql`exists (select 1 from ${voteRound} where ${voteRound.id} = ${round.id} and ${voteRound.status} = 'open' and (${voteRound.closesAt} is null or ${voteRound.closesAt} > now()))`,
+          "not_open"
+        ),
+        q
+          .insert(vote)
+          .values({
+            voteRoundId: round.id,
+            memberId: ctx.member.id,
+            decision: input.decision,
+            conviction: input.conviction,
+            rationale: input.rationale,
+            suggestedAmount: input.suggestedAmount != null ? String(input.suggestedAmount) : null,
+          })
+          .onConflictDoUpdate({
+            target: [vote.voteRoundId, vote.memberId],
+            set: {
+              decision: input.decision,
+              conviction: input.conviction,
+              rationale: input.rationale,
+              suggestedAmount: input.suggestedAmount != null ? String(input.suggestedAmount) : null,
+              updatedAt: now,
+            },
+          }),
+      ]);
+    } catch (e) {
+      if (guardFailure(e) === "not_open") throw new ActionError("This vote has closed");
+      throw e;
+    }
 
     revalidateVote(round.memoId);
     // Deliberately NO activity entry — even "X voted" leaks who's in.
@@ -237,10 +273,35 @@ export const revealVoteRound = authedAction({
       }
     }
     const now = new Date();
-    await db
-      .update(voteRound)
-      .set({ status: "revealed", revealedAt: now, revealedByMemberId: ctx.member.id })
-      .where(eq(voteRound.id, round.id));
+    try {
+      await atomic((q) => [
+        // Takes its turn with ballots in flight (see submitVote).
+        lock(q, "round", round.id),
+        guard(
+          q,
+          sql`exists (select 1 from ${voteRound} where ${voteRound.id} = ${round.id} and ${voteRound.status} in ('open', 'closed'))`,
+          "not_awaiting_reveal"
+        ),
+        ...(round.quorum
+          ? [
+              guard(
+                q,
+                sql`(select count(*) from ${vote} where ${vote.voteRoundId} = ${round.id}) >= ${round.quorum}`,
+                "below_quorum"
+              ),
+            ]
+          : []),
+        q
+          .update(voteRound)
+          .set({ status: "revealed", revealedAt: now, revealedByMemberId: ctx.member.id })
+          .where(and(eq(voteRound.id, round.id), eq(voteRound.orgId, ctx.org.id))),
+      ]);
+    } catch (e) {
+      const failed = guardFailure(e);
+      if (failed === "not_awaiting_reveal") throw new ActionError("This vote was already revealed");
+      if (failed === "below_quorum") throw new ActionError(`Quorum is ${round.quorum}; not enough have voted`);
+      throw e;
+    }
 
     revalidateVote(round.memoId, round.applicationId);
     return {
@@ -268,17 +329,21 @@ export const recordVoteOutcome = authedAction({
     if (round.status !== "revealed") throw new ActionError("Reveal the vote before recording an outcome");
 
     const now = new Date();
-    await db
-      .update(voteRound)
-      .set({ outcome: input.outcome, outcomeNote: input.note, decidedByMemberId: ctx.member.id })
-      .where(eq(voteRound.id, round.id));
-    // Revisit / no quorum decide nothing — the memo stays circulated.
-    if (round.memoId && (input.outcome === "fund" || input.outcome === "decline")) {
-      await db
-        .update(memo)
-        .set({ status: "decided", decidedAt: now, updatedAt: now })
-        .where(eq(memo.id, round.memoId));
-    }
+    await atomic((q) => [
+      q
+        .update(voteRound)
+        .set({ outcome: input.outcome, outcomeNote: input.note, decidedByMemberId: ctx.member.id })
+        .where(and(eq(voteRound.id, round.id), eq(voteRound.orgId, ctx.org.id))),
+      // Revisit / no quorum decide nothing — the memo stays circulated.
+      ...(round.memoId && (input.outcome === "fund" || input.outcome === "decline")
+        ? [
+            q
+              .update(memo)
+              .set({ status: "decided", decidedAt: now, updatedAt: now })
+              .where(and(eq(memo.id, round.memoId), eq(memo.orgId, ctx.org.id))),
+          ]
+        : []),
+    ]);
 
     revalidateVote(round.memoId, round.applicationId);
     return {

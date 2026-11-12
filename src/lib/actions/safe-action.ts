@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { activity, type MemberRole } from "@/db/schema";
 import { requireCtx, AuthError, ForbiddenError, type Ctx } from "./context";
+import { reportError } from "@/lib/report-error";
 
 /**
  * authedAction — every mutation in the app flows through this wrapper:
@@ -56,17 +57,24 @@ export function authedAction<S extends z.ZodType, T>(opts: {
       const { data, activity: act } = await opts.handler(parsed.data, ctx);
       if (act) {
         // Structurally impossible to forget the audit log — it's written here.
-        await db.insert(activity).values({
-          orgId: ctx.org.id,
-          actorMemberId: ctx.member.id,
-          actorType: "member",
-          verb: act.verb,
-          entityType: act.entityType,
-          entityId: act.entityId,
-          entityLabel: act.entityLabel,
-          summary: act.summary,
-          diff: act.diff,
-        });
+        // The change itself has already committed, so a failure to record it
+        // must not be reported as a failure of the action: the user would
+        // retry something that already happened. It is reported loudly instead.
+        try {
+          await db.insert(activity).values({
+            orgId: ctx.org.id,
+            actorMemberId: ctx.member.id,
+            actorType: "member",
+            verb: act.verb,
+            entityType: act.entityType,
+            entityId: act.entityId,
+            entityLabel: act.entityLabel,
+            summary: act.summary,
+            diff: act.diff,
+          });
+        } catch (e) {
+          reportError("audit", e, { verb: act.verb, entityId: act.entityId, member: ctx.member.id });
+        }
       }
       return { ok: true, data };
     } catch (e) {
@@ -74,8 +82,9 @@ export function authedAction<S extends z.ZodType, T>(opts: {
       if (e instanceof ForbiddenError)
         return { ok: false, code: "forbidden", error: "You don't have permission to do that." };
       if (e instanceof ActionError) return { ok: false, code: "error", error: e.message };
-      console.error("[action]", e);
-      return { ok: false, code: "error", error: "Something went wrong." };
+      // A reference the member can quote and an admin can find in the logs.
+      const ref = reportError("action", e);
+      return { ok: false, code: "error", error: `Something went wrong. If it keeps happening, tell an admin: reference ${ref}.` };
     }
   };
 }

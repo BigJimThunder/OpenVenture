@@ -7,6 +7,7 @@ import {
   numeric,
   boolean,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 import { organization, member } from "./core";
 import { application } from "./pipeline";
@@ -74,7 +75,11 @@ export const agendaItem = pgTable("agenda_item", {
   status: text("status").$type<AgendaItemStatus>().notNull().default("pending"),
   startedAt: timestamp("started_at", { withTimezone: true }),
   endedAt: timestamp("ended_at", { withTimezone: true }),
-});
+},
+  (t) => [
+    index("agenda_item_meeting_idx").on(t.meetingId),
+  ]
+);
 
 export const ATTENDANCE_STATUSES = ["present", "remote", "late", "excused", "absent"] as const;
 export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
@@ -119,7 +124,10 @@ export const actionItem = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("action_item_org_ref_idx").on(t.orgId, t.ref)]
+  (t) => [uniqueIndex("action_item_org_ref_idx").on(t.orgId, t.ref),
+    index("action_item_assignee_idx").on(t.assigneeMemberId),
+    index("action_item_meeting_idx").on(t.meetingId),
+  ]
 );
 
 // ——— Onboarding ———
@@ -164,7 +172,11 @@ export const onboardingAssignment = pgTable("onboarding_assignment", {
   assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
   dueAt: timestamp("due_at", { withTimezone: true }),
   completedAt: timestamp("completed_at", { withTimezone: true }),
-});
+},
+  (t) => [
+    index("onboarding_assignment_member_idx").on(t.memberId),
+  ]
+);
 
 export const onboardingCompletion = pgTable(
   "onboarding_completion",

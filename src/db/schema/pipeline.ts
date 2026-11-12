@@ -8,6 +8,7 @@ import {
   jsonb,
   numeric,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 import { organization, member } from "./core";
 
@@ -155,7 +156,11 @@ export const contact = pgTable("contact", {
   notes: text("notes"),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("contact_company_idx").on(t.companyId),
+  ]
+);
 
 export const APPLICATION_STATUSES = ["open", "on_hold", "funded", "declined", "withdrawn"] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
@@ -240,7 +245,12 @@ export const application = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("application_org_ref_idx").on(t.orgId, t.ref)]
+  (t) => [uniqueIndex("application_org_ref_idx").on(t.orgId, t.ref),
+    index("application_org_stage_idx").on(t.orgId, t.stageId),
+    index("application_company_idx").on(t.companyId),
+    index("application_owner_idx").on(t.ownerMemberId),
+    index("application_org_email_idx").on(t.orgId, t.applicantEmail),
+  ]
 );
 
 /**
@@ -282,7 +292,11 @@ export const stageHistory = pgTable("stage_history", {
   movedAt: timestamp("moved_at", { withTimezone: true }).notNull().defaultNow(),
   secondsInPrevStage: integer("seconds_in_prev_stage"),
   note: text("note"),
-});
+},
+  (t) => [
+    index("stage_history_application_idx").on(t.applicationId),
+  ]
+);
 
 // ——— Screening scorecard ———
 
@@ -339,7 +353,11 @@ export const coffeeChat = pgTable("coffee_chat", {
   debrief: text("debrief"),
   verdict: text("verdict").$type<CoffeeChatVerdict>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("coffee_chat_application_idx").on(t.applicationId),
+  ]
+);
 
 export const coffeeChatAttendee = pgTable(
   "coffee_chat_attendee",
@@ -370,7 +388,11 @@ export const applicationNote = pgTable("application_note", {
   body: text("body").notNull(),
   pinned: boolean("pinned").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("application_note_application_idx").on(t.applicationId),
+  ]
+);
 
 export const FILE_KINDS = ["deck", "one_pager", "budget", "receipt", "legal", "other"] as const;
 export type FileKind = (typeof FILE_KINDS)[number];
@@ -390,7 +412,11 @@ export const file = pgTable("file", {
   kind: text("kind").$type<FileKind>().notNull().default("other"),
   uploadedByMemberId: uuid("uploaded_by_member_id").references(() => member.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("file_application_idx").on(t.applicationId),
+  ]
+);
 
 /** Quarterly check-in history per grantee — powers time-to-outcome charts. */
 export const outcomeUpdate = pgTable("outcome_update", {
@@ -405,4 +431,8 @@ export const outcomeUpdate = pgTable("outcome_update", {
   note: text("note"),
   recordedByMemberId: uuid("recorded_by_member_id").references(() => member.id),
   recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("outcome_update_company_idx").on(t.companyId),
+  ]
+);

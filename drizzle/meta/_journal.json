@@ -43,6 +43,13 @@
       "when": 1794438733335,
       "tag": "0005_odd_magma",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794503579189,
+      "tag": "0006_tranquil_tombstone",
+      "breakpoints": true
     }
   ]
 }
