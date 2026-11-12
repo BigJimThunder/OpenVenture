@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { intakeSchema, loadSoleOrg, receiveApplication } from "@/lib/intake";
 import { orgSettings } from "@/lib/org-settings";
+import { demoMode } from "@/lib/demo";
 import { formatRef } from "@/lib/refs";
 import {
   checkFormToken,
@@ -111,6 +112,9 @@ export async function submitApplication(_prev: ApplyState, formData: FormData): 
   const settings = org ? orgSettings(org) : null;
   if (!org || !settings?.apply.enabled) {
     return fail(token, echoed, { message: "Applications are closed right now." });
+  }
+  if (demoMode(org)) {
+    return fail(token, echoed, { message: "This is a demo with a fictional club, so applications aren't taken here." });
   }
 
   // Honeypot: people never see this field. Answer exactly as a success would,

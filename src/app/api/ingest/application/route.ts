@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/db";
 import { notificationLog } from "@/db/schema";
 import { intakeSchema, loadSoleOrg, receiveApplication } from "@/lib/intake";
+import { demoMode } from "@/lib/demo";
 
 /**
  * Write-only application intake for clubs that already have a form on their
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
   if (!org?.ingestSecret) {
     return NextResponse.json({ error: "Ingest not configured" }, { status: 503 });
   }
+  if (demoMode(org)) return NextResponse.json({ error: "This deployment is a read-only demo" }, { status: 403 });
 
   const signature = req.headers.get("x-openventure-signature");
   const timestamp = req.headers.get("x-openventure-timestamp");

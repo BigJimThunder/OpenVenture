@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { verifyUnsubscribe } from "@/lib/email";
 import { setEmailPref } from "@/lib/email-prefs";
+import { demoMode } from "@/lib/demo";
+import { loadSoleOrg } from "@/lib/intake";
 
 /**
  * Public by design: the person clicking has no session, only the signed link
@@ -15,6 +17,7 @@ export async function setSubscription(formData: FormData) {
   const signature = String(formData.get("s") ?? "");
   const on = formData.get("on") === "1";
   if (!verifyUnsubscribe(memberId, category, signature)) redirect("/unsubscribe");
+  if (demoMode(await loadSoleOrg().catch(() => null))) redirect("/unsubscribe");
   await setEmailPref(memberId, category, on);
   const query = new URLSearchParams({ m: memberId, c: category, s: signature, done: on ? "on" : "off" });
   redirect(`/unsubscribe?${query}`);

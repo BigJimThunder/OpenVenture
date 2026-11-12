@@ -6,6 +6,7 @@ import { getCtx } from "@/lib/actions/context";
 import { loadSoleOrg } from "@/lib/intake";
 import { orgSettings } from "@/lib/org-settings";
 import { Landing } from "@/components/marketing/landing";
+import { demoMode } from "@/lib/demo";
 
 const TITLE = "OpenVenture · Run your grant club like a fund";
 const DESCRIPTION =
@@ -43,5 +44,5 @@ export default async function RootPage() {
   // actually opened its form.
   const org = await loadSoleOrg().catch(() => null);
   const applying = org && orgSettings(org).apply.enabled ? { clubName: org.name } : null;
-  return <Landing applying={applying} />;
+  return <Landing applying={applying} demo={demoMode(org)} />;
 }

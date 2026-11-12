@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { activity, type MemberRole } from "@/db/schema";
 import { requireCtx, AuthError, ForbiddenError, type Ctx } from "./context";
 import { reportError } from "@/lib/report-error";
+import { DEMO_REFUSAL, demoMode } from "@/lib/demo";
 
 /**
  * authedAction — every mutation in the app flows through this wrapper:
@@ -65,6 +66,8 @@ export function authedAction<S extends z.ZodType, T>(opts: {
         };
       }
       const ctx = await requireCtx(opts.minRole ?? "analyst");
+      // The public demo is read-only for everyone, whatever their role.
+      if (demoMode(ctx.org)) throw new ActionError(DEMO_REFUSAL);
       // Every authedAction is a mutation. A read-scoped access token stops
       // here, and a write token gets no further than the actions that opted in.
       if (ctx.via === "token" && (ctx.tokenScope !== "write" || !opts.allowToken)) {

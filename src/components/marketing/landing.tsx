@@ -175,7 +175,14 @@ const h2 = "text-[1.75rem] leading-[1.15] font-semibold tracking-[-0.025em] sm:t
  * club has opened its application form — the page never offers a founder a
  * flow that doesn't exist.
  */
-export function Landing({ applying }: { applying: { clubName: string } | null }) {
+export function Landing({
+  applying,
+  demo = false,
+}: {
+  applying: { clubName: string } | null;
+  /** This deployment is the public demo: offer a way in. */
+  demo?: boolean;
+}) {
   return (
     <div className="min-h-svh bg-bg text-fg">
       <SkipLink href="#top" />
@@ -255,6 +262,19 @@ export function Landing({ applying }: { applying: { clubName: string } | null })
             >
               Free to run on hobby tiers. About ten minutes, no terminal.
             </p>
+            {demo && (
+              <Link
+                href="/login"
+                className={cn(
+                  styles.rise,
+                  "mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-md text-sm font-medium text-accent underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/40"
+                )}
+                style={{ "--d": "0.32s" } as React.CSSProperties}
+              >
+                See it running: explore the live demo
+                <ArrowRight className="size-3.5" />
+              </Link>
+            )}
             {applying && (
               <Link
                 href="/apply"

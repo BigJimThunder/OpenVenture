@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { getCtx, withTokenAuth } from "@/lib/actions/context";
+import { demoMode } from "@/lib/demo";
 import { mcpEnabled } from "@/lib/mcp/config";
 import { handleRpc, PROTOCOL_VERSIONS, RPC, rpcError } from "@/lib/mcp/protocol";
 import { createRateLimiter, MCP_REQUESTS_PER_MINUTE } from "@/lib/mcp/rate-limit";
@@ -63,6 +64,10 @@ export async function POST(req: Request) {
       401,
       { "WWW-Authenticate": 'Bearer realm="OpenVenture MCP"' }
     );
+  }
+
+  if (demoMode(ctx.org)) {
+    return json(rpcError(null, RPC.invalidRequest, "This deployment is a read-only demo; the AI connection is off."), 403);
   }
 
   // Keyed by token, so one runaway assistant can't starve the member's other one.

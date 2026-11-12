@@ -171,6 +171,7 @@ async function main() {
 
   // Wipe in FK order.
   for (const table of [
+    t.jobRun, t.fileChunk,
     t.report, t.apiToken,
     t.receipt, t.grant, t.grantPool,
     t.vote, t.voteEligibility, t.voteRound,
@@ -201,6 +202,8 @@ async function main() {
       allowedEmailDomains: [],
       ingestSecret: randomBytes(32).toString("hex"),
       settings: {
+        // The mark DEMO_MODE=1 looks for; no screen can set it (src/lib/demo.ts).
+        demo: { seeded: true },
         setup: { stagesReviewed: true },
         apply: {
           enabled: true,

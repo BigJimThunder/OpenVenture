@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { verifyUnsubscribe } from "@/lib/email";
 import { setEmailPref } from "@/lib/email-prefs";
+import { demoMode } from "@/lib/demo";
+import { loadSoleOrg } from "@/lib/intake";
 
 /**
  * One-click unsubscribe (RFC 8058). Mail clients that show their own
@@ -24,6 +26,7 @@ export async function POST(req: Request) {
   if (!verifyUnsubscribe(memberId, category, signature)) {
     return NextResponse.json({ error: "Invalid link" }, { status: 400 });
   }
+  if (demoMode(await loadSoleOrg().catch(() => null))) return new NextResponse(null, { status: 204 });
   await setEmailPref(memberId, category, false);
   return new NextResponse(null, { status: 204 });
 }

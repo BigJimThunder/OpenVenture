@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink, emailOTP } from "better-auth/plugins";
@@ -38,6 +39,13 @@ export function socialProviders(): ("google" | "microsoft")[] {
   }
   return on;
 }
+
+/**
+ * Demo entry (src/app/api/demo/route.ts) asks for a sign-in link the
+ * ordinary way and collects it here instead of emailing it, so a visitor is
+ * signed in by better-auth's own verification — no session is forged.
+ */
+export const linkCapture = new AsyncLocalStorage<{ url?: string }>();
 
 export const auth = betterAuth({
   // BETTER_AUTH_URL when set (custom domain); otherwise the Vercel production
@@ -90,6 +98,11 @@ export const auth = betterAuth({
     magicLink({
       expiresIn: 60 * 15,
       sendMagicLink: async ({ email, url }) => {
+        const capture = linkCapture.getStore();
+        if (capture) {
+          capture.url = url;
+          return;
+        }
         if (!(await maySignIn(email)) || !(await claimSignInMail(email, "link"))) return;
         await sendEmail({
           to: email,
