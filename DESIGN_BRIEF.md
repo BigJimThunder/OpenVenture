@@ -412,3 +412,52 @@ Better Auth.
 Mockups should be implementable with these. Recharts constrains chart types to the
 conventional set — bar, line, area, pie, scatter, radial — so an exotic visualization is a
 build cost, not a free choice. All colors must come from the `--cat-*` set.
+
+---
+
+## 11. The marketing surface (the public landing page at `/`)
+
+Everything above describes the app. The landing page is the one screen with a different
+job: a stranger decides in ten seconds whether this is serious software. It is built to the
+standard of the best product sites (Linear, Attio, Mercury, Supabase), and several rules
+above are deliberately relaxed for it. Code lives in `src/components/marketing/`.
+
+**The idea: show the product by letting people use it.** No screenshots in fake browser
+chrome and no concept the visitor has to decode. The hero is the pipeline board, rebuilt in
+real DOM, playing on its own until someone drags a card. The tour is five working pieces of
+the app (intake, memo, blind vote, grant ledger, insights). The feature grid is built from
+the same parts. Each replica behaves as the app does and uses the demo seed's fictional data.
+
+**Voice.** Plain, confident and specific: what it does and why that matters. Benefit-led
+headlines of a few words ("Blind votes, revealed together."). No sarcasm, no in-jokes, no
+digs at how clubs ran things before, no framing device (a memo, a letter, a manifesto), no
+exclamation points. §7's dry first-person-plural voice is for text *inside* the product
+replicas (a memo, a quarterly letter), never for the page's own headings.
+
+**Type.** Geist Sans throughout, large and tight (`.display`, `.h2` in
+`landing.module.css`); Geist Mono for eyebrows and micro labels. The serif appears only
+inside a replica of a document surface, exactly as in the app.
+
+**Color and light.** The canvas is `--chrome`, with product windows on `--bg`. The page may
+use cobalt as *light* (the aurora behind the hero, the halo under a window, the pointer
+spotlight on a card), always as a `color-mix` of a token and never as a raw value. Buttons
+are `--fg` on `--bg` so the glow stays the only blue thing at rest. Both themes are
+supported and tested.
+
+**Motion.** Allowed here, where the app forbids it, under three limits: it never hides
+content (the first screen's entrance never starts below 0.12 opacity and is over in 700ms;
+scroll reveals are CSS view timelines that move but never fade, because faded text below
+the fold fails the contrast check; the page must read with scripts off), it respects
+`prefers-reduced-motion`, and inside a replica it is functional (a card gliding to its new
+column, a ballot turning over, a bar growing to its value).
+
+**Interaction.** Every demo has one obvious primary action at rest, a visible result, and a
+reset. Nothing auto-plays once the visitor has touched it. Sizes are reserved so a window
+never changes height between states.
+
+**Still binding from §8:** semantic tokens only, `.tnum` on every number, no tally before a
+reveal, no demographic numbers, founders never sign in, and it must work at 390px.
+
+**Honesty.** No invented customers, logos, testimonials or star counts. Numbers on the page
+are either true of the software or visibly fictional demo data, and the footer says so.
+
