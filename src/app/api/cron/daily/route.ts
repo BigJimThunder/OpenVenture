@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { getCtx } from "@/lib/actions/context";
 import { runDaily } from "@/lib/automation/run";
+import { DEMO_REFUSAL, demoMode } from "@/lib/demo";
 
 /**
  * The daily scheduled run: closes votes at their deadline, sends vote and SLA
@@ -54,5 +55,6 @@ export async function POST(req: Request) {
   if (ctx.member.role !== "admin") {
     return NextResponse.json({ error: "Admins only." }, { status: 403 });
   }
+  if (demoMode(ctx.org)) return NextResponse.json({ error: DEMO_REFUSAL }, { status: 403 });
   return NextResponse.json(await runDaily(new Date(), "admin"));
 }

@@ -12,6 +12,7 @@ import {
   outcomeUpdate,
 } from "@/db/schema";
 import { getCtx, roleAtLeast } from "@/lib/actions/context";
+import { DEMO_REFUSAL, demoMode } from "@/lib/demo";
 import { toCsv } from "@/lib/export/csv";
 
 export const dynamic = "force-dynamic";
@@ -143,6 +144,8 @@ export async function GET(
   if (!roleAtLeast(ctx.member.role, "admin")) {
     return NextResponse.json({ error: "Admin only" }, { status: 403 });
   }
+  // The demo's admin is whoever clicked "Explore the demo".
+  if (demoMode(ctx.org)) return NextResponse.json({ error: DEMO_REFUSAL }, { status: 403 });
   const { entity } = await params;
   if (!(ENTITIES as readonly string[]).includes(entity)) {
     return NextResponse.json(

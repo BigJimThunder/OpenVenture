@@ -7,6 +7,7 @@ import { getShellCounts } from "@/lib/queries/dashboard";
 import { getSetupProgress } from "@/lib/queries/setup-progress";
 import { AppShell } from "@/components/shell/app-shell";
 import { breakGlassEmail } from "@/lib/env";
+import { demoMode } from "@/lib/demo";
 
 // Belt and braces: these screens redirect anyone signed out and robots.ts
 // disallows them, but nothing behind the login should ever be indexed.
@@ -37,9 +38,24 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // Break-glass admin is a standing way around the invite list. While it is
   // set, every admin sees it, on every screen.
   const breakGlass = ctx.member.role === "admin" ? breakGlassEmail() : null;
+  const demo = demoMode(ctx.org);
 
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-chrome print:block print:h-auto print:overflow-visible print:bg-transparent">
+      {demo ? (
+        <p
+          role="status"
+          className="shrink-0 border-b border-info-border bg-info-bg px-4 py-1.5 text-center text-xs text-fg print:hidden"
+        >
+          You&apos;re exploring a read-only demo with fictional data. Nothing you change is saved.{" "}
+          <a
+            href="https://github.com/BigJimThunder/OpenVenture#deploy-your-own"
+            className="font-medium underline decoration-fg/40 underline-offset-2 hover:decoration-fg"
+          >
+            Deploy your own
+          </a>
+        </p>
+      ) : null}
       {breakGlass ? (
         <p
           role="status"

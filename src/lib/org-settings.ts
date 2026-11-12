@@ -110,6 +110,12 @@ export const orgSettingsSchema = z.object({
       dueDays: z.number().int().min(1).max(120).default(14),
     })
     .prefault({}),
+  /**
+   * Set only by `pnpm seed:demo`, never by a screen. Together with the
+   * DEMO_MODE environment variable it makes the deployment a public,
+   * read-only showcase (src/lib/demo.ts). A real club's data never carries it.
+   */
+  demo: z.object({ seeded: z.boolean().default(false) }).prefault({}),
   /** The meetings calendar feed. Not a preference: changed only by its own action. */
   calendar: z
     .object({
