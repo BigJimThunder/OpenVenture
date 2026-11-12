@@ -55,7 +55,7 @@ export function emailLayout(opts: {
   heading: string;
   bodyHtml: string;
   cta?: { label: string; url: string };
-  /** Small grey line under the body, e.g. why the recipient got this. */
+  /** Small gray line under the body, e.g. why the recipient got this. */
   footer?: string;
 }): string {
   const cta = opts.cta

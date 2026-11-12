@@ -60,7 +60,7 @@ export type TemplateRow = {
 type Result = { ok: true } | { ok: false; error: string };
 
 /**
- * Memo templates: the section headings and grey guidance prompts a new memo
+ * Memo templates: the section headings and gray guidance prompts a new memo
  * starts with. Changes apply to memos started afterwards — memos already
  * written keep the sections they have.
  */
@@ -446,7 +446,7 @@ function SectionDialog({
               defaultValue={section?.guidance ?? ""}
             />
             <p className="text-xs text-fg-subtle">
-              Shown in grey in the empty section, and given to the AI draft as the brief for it.
+              Shown in gray in the empty section, and given to the AI draft as the brief for it.
             </p>
           </div>
           <label className="flex cursor-pointer items-start gap-2.5 text-sm">

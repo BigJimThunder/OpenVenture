@@ -11,7 +11,7 @@ export type FieldControlProps = {
 };
 
 /**
- * One labelled form row: label, an "Optional" tag, the control, then a hint
+ * One labeled form row: label, an "Optional" tag, the control, then a hint
  * or the error that replaces it. Wires `htmlFor`, `aria-describedby` and
  * `aria-invalid` so no caller does it by hand.
  *

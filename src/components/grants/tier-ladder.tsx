@@ -4,7 +4,7 @@ import { TIER_META, FIRST_MEANINGFUL_TIER } from "./tiers";
 
 /**
  * The outcome ladder, top rung first. There is no equity, so there is no
- * multiple to report — success is how far up a company climbed. Two colours
+ * multiple to report — success is how far up a company climbed. Two colors
  * carry the one distinction that matters: above or below "meaningful".
  */
 export function TierLadder({

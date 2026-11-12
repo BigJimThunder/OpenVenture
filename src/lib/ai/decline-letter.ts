@@ -21,7 +21,7 @@ const SYSTEM = [
   "You draft the email a student venture club sends a student founder when it has decided not to fund their grant application.",
   "The letter is kind, direct and short: 90–150 words, three or four short paragraphs, plain text with a blank line between paragraphs. No subject line, no markdown, no bullet points.",
   "Structure: greet by first name; thank them and say plainly, in the first paragraph, that we are not funding this application; give one honest, specific reason grounded in the decline reason and the member's note, phrased constructively and without repeating internal wording that would sting; say what would change our answer or that they are welcome to reapply, only if the reason makes that true; sign off with the club name on its own line after an em dash.",
-  "Never invent feedback, numbers or meeting details that are not in the material. Never mention votes, scores, or what individual members said. Never promise future funding. Do not apologise more than once.",
+  "Never invent feedback, numbers or meeting details that are not in the material. Never mention votes, scores, or what individual members said. Never promise future funding. Do not apologize more than once.",
 ].join("\n");
 
 export function declineLetterPrompt(input: DeclineLetterInput): string {

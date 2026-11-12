@@ -8,7 +8,7 @@ import { createHash, randomBytes } from "crypto";
 export const TOKEN_PREFIX = "ov_pat_";
 /** 32 random bytes → 43 base64url characters → 256 bits. */
 const TOKEN_BYTES = 32;
-/** Characters of the token kept in clear so a member can recognise it in a list. */
+/** Characters of the token kept in clear so a member can recognize it in a list. */
 const DISPLAY_PREFIX_LENGTH = TOKEN_PREFIX.length + 6;
 
 export const MAX_TOKENS_PER_MEMBER = 10;

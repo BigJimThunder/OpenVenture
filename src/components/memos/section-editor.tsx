@@ -17,7 +17,7 @@ export type SaveState = "idle" | "saving" | "saved" | "error";
  * member navigates away mid-debounce. Content is stored as Tiptap JSON plus a
  * plain-text mirror for search and diffing.
  *
- * A section the AI drafted is labelled until a member edits it or explicitly
+ * A section the AI drafted is labeled until a member edits it or explicitly
  * keeps it — either way the next save drops the marker.
  */
 export function SectionEditor({

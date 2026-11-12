@@ -113,7 +113,7 @@ describe("input schemas", () => {
     expect(score.safeParse({ application: "APP-1", scores: [] }).success).toBe(false);
   });
 
-  it("recognises tool names without being fooled by object internals", () => {
+  it("recognizes tool names without being fooled by object internals", () => {
     expect(isToolName("whoami")).toBe(true);
     expect(isToolName("constructor")).toBe(false);
     expect(isToolName("toString")).toBe(false);

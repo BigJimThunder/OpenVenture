@@ -37,7 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { EnrolDialog, type EnrolTrack } from "./enrol-dialog";
+import { EnrollDialog, type EnrollTrack } from "./enroll-dialog";
 
 export type BoardItem = {
   id: string;
@@ -125,7 +125,7 @@ export function PipelineBoard({
   emailConfigured,
 }: {
   entries: BoardEntry[];
-  tracks: EnrolTrack[];
+  tracks: EnrollTrack[];
   unenrolled: { id: string; displayName: string }[];
   emailConfigured: boolean;
 }) {
@@ -203,7 +203,7 @@ export function PipelineBoard({
           {tracks.length > 0 && unenrolled.length > 0 && (
             <Button variant="secondary" size="sm" className="ml-auto max-md:h-10" onClick={() => setEnrolling(true)}>
               <UserPlusIcon />
-              Enrol existing members
+              Enroll existing members
               <span className="tnum text-fg-subtle">{unenrolled.length}</span>
             </Button>
           )}
@@ -266,7 +266,7 @@ export function PipelineBoard({
         />
       )}
       {enrolling && (
-        <EnrolDialog
+        <EnrollDialog
           tracks={tracks}
           initialTrackId={(track !== ALL ? track : tracks[0]?.id) ?? ""}
           members={unenrolled}

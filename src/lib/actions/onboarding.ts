@@ -64,7 +64,7 @@ async function recomputeTrackCompletion(orgId: string, trackId: string) {
 }
 
 /**
- * The tracks an invite can enrol on, for the invite dialog. A read, so it is
+ * The tracks an invite can enroll on, for the invite dialog. A read, so it is
  * not an authedAction, but it is still a public endpoint: admin-only.
  */
 export async function loadInviteTracks() {
@@ -206,7 +206,7 @@ export const setOnboardingTrackArchived = authedAction({
 const taskFields = {
   title: z.string().trim().min(1).max(160),
   kind: z.enum(ONBOARDING_TASK_KINDS),
-  /** Instructions for a task; the policy text for an acknowledgement. */
+  /** Instructions for a task; the policy text for an acknowledgment. */
   description: z
     .string()
     .trim()

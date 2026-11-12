@@ -205,7 +205,7 @@ type InviteOptions = {
   dueInDays?: number | null;
 };
 
-/** The track an invite enrols on, with what the email needs to describe it. */
+/** The track an invite enrolls on, with what the email needs to describe it. */
 async function resolveInviteTrack(orgId: string, opts: InviteOptions) {
   if (opts.trackId === null) return null;
   const [track] = await db

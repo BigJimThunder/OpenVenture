@@ -27,9 +27,9 @@ export const metadata: Metadata = { title: "Onboarding" };
 export const dynamic = "force-dynamic";
 
 const VIEWS = [
-  { key: "pipeline", label: "Pipeline" },
-  { key: "matrix", label: "Matrix" },
-  { key: "tracks", label: "Tracks" },
+  { key: "pipeline", label: "People" },
+  { key: "matrix", label: "Checklist grid" },
+  { key: "tracks", label: "Edit what's required" },
 ] as const;
 type View = (typeof VIEWS)[number]["key"];
 
@@ -97,7 +97,17 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
             "Invite someone once; the email, the checklist and the reminders happen on their own."
           )
         }
-        actions={<InviteMemberDialog allowedDomains={ctx.org.allowedEmailDomains} label="Invite members" />}
+        actions={
+          <>
+            <Button variant="secondary" asChild>
+              <Link href="/start?step=welcome">See it as a new member</Link>
+            </Button>
+            <Button variant="secondary" asChild>
+              <Link href="/onboarding?view=tracks">Edit onboarding</Link>
+            </Button>
+            <InviteMemberDialog allowedDomains={ctx.org.allowedEmailDomains} label="Invite members" />
+          </>
+        }
       />
       <div className="flex flex-col gap-5 px-4 md:px-6">
         <nav aria-label="Views" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -345,8 +355,18 @@ function MyOnboarding({ journey }: { journey: Journey | null }) {
         {!journey || items.length === 0 ? (
           <EmptyState
             icon={<GraduationCapIcon />}
-            title="Nothing assigned to you"
-            description="When an admin puts you on an onboarding track, the reading, videos and sign-offs show up here, with a short guided flow to get through them."
+            title="Nothing is assigned to you"
+            description="You joined before the club set up onboarding, so there is nothing you have to do. You can still walk through the welcome flow to check your details and add your class schedule. Only admins can change what new members are asked to do, or assign it to you."
+            action={
+              <Button asChild>
+                <Link href="/start?step=welcome">Open the welcome flow</Link>
+              </Button>
+            }
+            secondaryAction={
+              <Button variant="secondary" asChild>
+                <Link href="/members">See who the admins are</Link>
+              </Button>
+            }
           />
         ) : (
           <div className="rounded-lg border border-border bg-panel shadow-xs">

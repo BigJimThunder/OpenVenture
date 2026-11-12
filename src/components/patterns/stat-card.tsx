@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * One headline number. `tone` colours the value only when the number itself
+ * One headline number. `tone` colors the value only when the number itself
  * is the warning (an overdrawn pool, a breached SLA count).
  */
 export function StatCard({

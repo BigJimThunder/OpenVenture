@@ -64,7 +64,7 @@ describe("holderColors", () => {
     },
   ];
 
-  it("assigns colours in ledger order and keeps them when holders are added", () => {
+  it("assigns colors in ledger order and keeps them when holders are added", () => {
     const before = holderColors(events);
     const after = holderColors(events, ["new-investor"]);
     expect(before("f1")).toBe("var(--cat-1)");

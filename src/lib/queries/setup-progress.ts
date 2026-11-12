@@ -16,7 +16,7 @@ export type SetupStep = {
 /**
  * The getting-started checklist. Every step is derived from real state (a
  * pool exists, a second member exists…) so it can't drift from the truth; only
- * "review your stages" needs an explicit acknowledgement.
+ * "review your stages" needs an explicit acknowledgment.
  */
 export async function getSetupProgress(org: typeof organization.$inferSelect) {
   const settings = orgSettings(org);

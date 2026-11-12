@@ -30,7 +30,7 @@ import type { OnboardingTaskKind } from "@/db/schema";
 import { DEFAULT_CONFIDENTIALITY_TEXT } from "@/lib/defaults";
 import { detectKind, KIND_META, KIND_ORDER, linkHost, videoEmbed } from "@/lib/onboarding/resource";
 import { cn } from "@/lib/utils";
-import { EnrolDialog } from "@/components/onboarding/enrol-dialog";
+import { EnrollDialog } from "@/components/onboarding/enroll-dialog";
 import { ItemStep } from "@/components/onboarding/start-steps";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -163,7 +163,7 @@ export function TrackManager({
               </Button>
               <Button variant="secondary" size="sm" className="max-md:h-10" onClick={() => setAssigning(t)}>
                 <UserPlusIcon />
-                Enrol
+                Enroll
               </Button>
               {!t.isDefault && (
                 <Button
@@ -203,7 +203,7 @@ export function TrackManager({
             {t.tasks.length === 0 && (
               <li className="px-4 py-3 text-sm text-fg-muted">
                 Nothing here yet. Paste a link to a video or an article, or add the confidentiality
-                acknowledgement. Required items come before the member gets into the app.
+                acknowledgment. Required items come before the member gets into the app.
               </li>
             )}
             {t.tasks.map((task, i) => (
@@ -326,7 +326,7 @@ export function TrackManager({
         />
       )}
       {assigning && (
-        <EnrolDialog
+        <EnrollDialog
           key={assigning.id}
           tracks={[{ id: assigning.id, name: assigning.name, assignedMemberIds: assigning.assignedMemberIds }]}
           initialTrackId={assigning.id}

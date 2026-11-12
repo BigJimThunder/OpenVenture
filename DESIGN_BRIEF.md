@@ -159,7 +159,7 @@ tooltip.
 
 ### Forms and writing surfaces
 
-- **One field look.** Every control shares `fieldChrome` (`ui/input.tsx`): strong resting border, darker on hover, accent border with a soft ring on focus, danger when `aria-invalid`, flat grey when disabled. 36px with a mouse, 44px on touch. Never restyle a bare `<input>`, `<textarea>` or `<select>`; use `Input`, `Textarea`, `Select` (or `NativeSelect` for FormData forms), `Checkbox`, `Switch`.
+- **One field look.** Every control shares `fieldChrome` (`ui/input.tsx`): strong resting border, darker on hover, accent border with a soft ring on focus, danger when `aria-invalid`, flat gray when disabled. 36px with a mouse, 44px on touch. Never restyle a bare `<input>`, `<textarea>` or `<select>`; use `Input`, `Textarea`, `Select` (or `NativeSelect` for FormData forms), `Checkbox`, `Switch`.
 - **Every control has a label.** Wrap it in `Field` (`patterns/field.tsx`), which wires `htmlFor`, `aria-describedby` and `aria-invalid`. Pass `optional`, `hint` and `error` rather than writing them into the label. Switch and checkbox rows use `FieldToggle`.
 - **Money and units.** Amounts use `MoneyInput` (decimal string in and out, never a float) or `Input leading="$"` / `trailing="%"`.
 - **Textareas grow** with their text; add `showCount` when a `maxLength` is tight enough to hit.
@@ -213,7 +213,7 @@ own, memos they're writing, action items assigned to them.
 redirect.) Columns are pipeline stages: Applied → Screening → Coffee Chat → Pitched Group
 → Decision → Funded / Declined, each header carrying its count and the sum requested. Drag
 to move (dnd-kit). Cards show mono ref, company name, one-liner, ask amount, owner avatar,
-and time-in-stage coloured against that stage's SLA. Selecting a card opens a 400px **peek
+and time-in-stage colored against that stage's SLA. Selecting a card opens a 400px **peek
 panel** (`?peek=<id>`, so it is linkable): stage stepper, property stack with single-key
 hints, screening scores, activity, and vote/memo/decline actions. Space peeks, ↵ opens,
 Esc closes, ↑/↓ walk the board, and ⌘K acts on the selection. Stages carry rules that the

@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * Typed view over `organization.settings` (jsonb). Everything a club can
  * switch on or off without a schema change lives here, with defaults chosen
- * so a brand-new club gets sensible behaviour before anyone opens Settings.
+ * so a brand-new club gets sensible behavior before anyone opens Settings.
  *
  * Read with `orgSettings(org)`; write with the `updateClubPreferences` action
  * (src/lib/actions/settings.ts), which deep-merges a partial patch.

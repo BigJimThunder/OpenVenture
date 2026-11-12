@@ -375,7 +375,7 @@ export const TOOLS = {
     title: "Score an application",
     summary: "Record your screening scores (1–5 per criterion).",
     description:
-      "Records this member's screening scores for an application: 1 to 5 per criterion, with an optional note each. Scores are the member's own judgement, so only record numbers they gave you. Criteria come from get_club.",
+      "Records this member's screening scores for an application: 1 to 5 per criterion, with an optional note each. Scores are the member's own judgment, so only record numbers they gave you. Criteria come from get_club.",
     group: "Work the pipeline",
     scope: "write",
     minRole: "analyst",

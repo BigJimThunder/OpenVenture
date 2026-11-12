@@ -20,7 +20,7 @@ const THIN = 5;
 /**
  * Investor self-analysis. The tone is the design: this page is a coach, not
  * a scoreboard. Nothing here is ranked against other members, nothing is
- * coloured as pass/fail, and thin samples are called thin.
+ * colored as pass/fail, and thin samples are called thin.
  */
 export default async function SelfInsightsPage() {
   const ctx = await requireCtx();

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 
 /**
  * AI screening brief. Generating needs AI configured (the page decides);
- * the result is always labelled as a draft and only regenerated on request.
+ * the result is always labeled as a draft and only regenerated on request.
  */
 export function ScreeningBriefCard({
   applicationId,

@@ -529,7 +529,7 @@ export type EssayMaterial = {
   grantUse: string | null;
   grantNarrative: string | null;
   memoSections: { title: string; text: string }[];
-  /** Funding request prose, already flattened to labelled paragraphs. */
+  /** Funding request prose, already flattened to labeled paragraphs. */
   fundingRequest: { title: string; text: string }[];
   debriefs: { date: string; text: string }[];
   /** Rationales from REVEALED rounds only, without names. */

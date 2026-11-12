@@ -42,7 +42,7 @@ checks from $200–$4,000) but useful to any student investing group.
 | **Automations** | One daily job: vote reminders and auto-close, stage-deadline nudges, a Monday digest, quarterly grantee check-ins. No per-event email storms; everything is deduplicated. |
 | **Memos & blind IC voting** | Templated memos with section versioning and comments; conviction voting that stays **hidden until reveal** — the cheapest anti-groupthink mechanism there is. |
 | **Grants** | The pool, requests, approve → issue → reconcile, receipts, budget burn-down with an overdraw guard. |
-| **Onboarding** | Invite someone once: they get a guided welcome flow — confirm their details, enter their class schedule, then whatever videos, articles and acknowledgements the club requires. Admins watch a pipeline of who is where; reminders send themselves. |
+| **Onboarding** | Invite someone once: they get a guided welcome flow — confirm their details, enter their class schedule, then whatever videos, articles and acknowledgments the club requires. Admins watch a pipeline of who is where; reminders send themselves. |
 | **Scheduler** | Everyone enters their class schedule once a term (paint it, paste it, or import a calendar file). Coffee chats and meetings are then suggested around it: pick the people and see when they're all free, or pick "any two this week" and get people and times. |
 | **Members & meetings** | Roster, agenda builder, two-tap attendance, run mode, recaps, iCal feed. |
 | **Insights** | Funnel conversion, sector & department mix, per-member sourcing attribution, decline reasons, outcome tiers, and per-member investor self-analysis. |
@@ -226,7 +226,7 @@ a memo section, start a funding request, or email them their digest.
 
 **What it can't do, on purpose.** The assistant reads text that founders wrote, and that text
 could try to steer it. So there is no tool that casts, changes or reveals a vote (the ballot is
-the member's own judgement, and blind votes stay blind: no tallies, no "who hasn't voted" before
+the member's own judgment, and blind votes stay blind: no tallies, no "who hasn't voted" before
 the reveal); none that emails a founder or anyone outside the club (`move_stage` can decline an
 application but never sends the decline email); none that approves or issues money, changes
 roles or settings, deletes anything, or creates tokens. Founder demographics are never returned.
@@ -264,7 +264,7 @@ DATABASE_URL=… pnpm seed:demo   # wipes the database first; refuses on a real 
 applies them automatically (`pnpm build` runs `scripts/migrate.mjs` before `next build`).
 To change the schema: edit `src/db/schema/*`, run `pnpm db:generate`, commit the new
 migration. `pnpm db:push` is fine for throwaway local experiments; a database created that
-way is recognised and recorded rather than re-migrated. `pnpm db:status` shows where a
+way is recognized and recorded rather than re-migrated. `pnpm db:status` shows where a
 database stands.
 
 **Not on Vercel?** Any host that runs `pnpm build && pnpm start` with the same environment

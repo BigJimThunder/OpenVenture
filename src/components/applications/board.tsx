@@ -30,7 +30,7 @@ import { usePipeline } from "./pipeline-view";
  * Staleness is judged against the stage's own SLA, not a flat threshold — an
  * application in Applied is not "late" the way one sitting in Screening past
  * its 7-day SLA is. Stages without an SLA never warn, which keeps the warning
- * colour meaning something on a board where most cards are months old.
+ * color meaning something on a board where most cards are months old.
  */
 export function staleness(
   enteredStageAt: Date | string,
@@ -144,7 +144,7 @@ export function Board() {
       const overIdx = fullColumn.findIndex((a) => a.id === overId);
       if (fromIdx < 0 || overIdx < 0 || fromIdx === overIdx) return;
       // In filtered-column indices, arrayMove semantics land the dragged card
-      // at overIdx whether it travelled up or down.
+      // at overIdx whether it traveled up or down.
       void commitReorder(app, columnWithoutApp, overIdx);
       return;
     }

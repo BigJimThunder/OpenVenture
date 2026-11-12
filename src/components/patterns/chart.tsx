@@ -86,7 +86,7 @@ export function ChartFrame({
   height?: number;
   /** When set, renders the empty message instead of the chart. */
   empty?: string | false;
-  /** Required for two or more series — identity is never colour alone. */
+  /** Required for two or more series — identity is never color alone. */
   legend?: { label: string; color: string }[];
   children: React.ReactElement;
   className?: string;

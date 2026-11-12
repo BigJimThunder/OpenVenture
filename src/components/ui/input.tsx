@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
  * The look every text control shares (Input, Textarea, SelectTrigger,
  * NativeSelect, InputGroup): a visible resting border, a darker one on hover,
  * the accent with a soft ring on focus, danger when `aria-invalid`, and a
- * flat grey fill when disabled or read-only.
+ * flat gray fill when disabled or read-only.
  */
 export const fieldChrome =
   "w-full min-w-0 rounded-md border border-border-strong bg-panel text-sm text-fg shadow-xs outline-none transition-[border-color,box-shadow,background-color] duration-100 placeholder:text-fg-muted/85 hover:border-fg-subtle focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/20 aria-invalid:border-danger aria-invalid:focus-visible:ring-danger/20 disabled:cursor-not-allowed disabled:border-border disabled:bg-bg-subtle disabled:text-fg-muted disabled:shadow-none disabled:hover:border-border";

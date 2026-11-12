@@ -542,7 +542,7 @@ export const recordCoffeeChatVerdict = authedAction({
     revalidatePath(`/pipeline/${chat.applicationId}`);
     revalidatePath("/pipeline");
     // Deliberately no activity row: each attendee's verdict is individual
-    // judgement; the chat-level debrief carries the audit trail.
+    // judgment; the chat-level debrief carries the audit trail.
     return { data: { ok: true } };
   },
 });
@@ -1120,7 +1120,7 @@ export const draftDeclineLetterAction = authedAction({
 
 /**
  * Generate (or regenerate) the AI screening brief and store it on
- * application.custom.aiBrief. It is a labelled draft for the reader, never an
+ * application.custom.aiBrief. It is a labeled draft for the reader, never an
  * input to a decision — and it is built from application fields and notes
  * only: no demographics, no votes.
  */

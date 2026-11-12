@@ -209,7 +209,7 @@ export default async function WelcomePage() {
             What a week looks like
           </h2>
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-fg-muted">
-            Every application takes the same seven steps. The grey line under each is what the
+            Every application takes the same seven steps. The gray line under each is what the
             app does on its own, so nobody has to remember it.
           </p>
           <ol className="mt-5">

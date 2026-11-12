@@ -14,6 +14,7 @@ import {
   UserIcon,
   SparklesIcon,
   PlugIcon,
+  GraduationCapIcon,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { cn, initials } from "@/lib/utils";
@@ -174,6 +175,12 @@ export function Sidebar({
             <Link href="/members/me/insights">
               <SparklesIcon />
               My investor profile
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/start?step=welcome">
+              <GraduationCapIcon />
+              My onboarding
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * The compact summary band under a header: 2-up on phones, one row from `md`.
- * Cells are separated by hairlines (the grid gap shows the border colour), so
+ * Cells are separated by hairlines (the grid gap shows the border color), so
  * the strip never needs fixed widths and never clips at 390px.
  * Use for 2–4 headline numbers; anything richer is a chart.
  */
@@ -46,7 +46,7 @@ export function StatStripItem({
   value: React.ReactNode;
   /** One quiet line under the value — a qualifier, never a second metric. */
   hint?: React.ReactNode;
-  /** Colours the value only when the number itself is the warning. */
+  /** Colors the value only when the number itself is the warning. */
   tone?: "default" | "success" | "warning" | "danger";
   href?: Route;
   /** Optional inline graphic (a meter, a sparkline) beside the value. */

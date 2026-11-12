@@ -14,7 +14,7 @@ export function ownershipSegments(rows: CapTableRow[], colorOf: (id: string) => 
   }));
 }
 
-/** A labelled ownership bar — stack two of these for a before/after read. */
+/** A labeled ownership bar — stack two of these for a before/after read. */
 export function OwnershipBar({
   caption,
   rows,

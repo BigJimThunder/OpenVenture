@@ -75,7 +75,7 @@ export const apiToken = pgTable(
     name: text("name").notNull(),
     /** SHA-256 hex of the full token. */
     tokenHash: text("token_hash").notNull(),
-    /** First characters of the token, for recognising it in a list. */
+    /** First characters of the token, for recognizing it in a list. */
     prefix: text("prefix").notNull(),
     scope: text("scope").$type<ApiTokenScope>().notNull().default("read"),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),

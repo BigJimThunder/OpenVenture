@@ -4,7 +4,7 @@ import type { CapEventInput, CapEventPayload } from "@/lib/captable/types";
 /**
  * Presentation helpers for the Lab. Nothing here computes a cap table — the
  * engine does that. These only turn engine output and ledger payloads into
- * words, and keep one colour per stakeholder across every view.
+ * words, and keep one color per stakeholder across every view.
  */
 
 export const POOL_ID = "__pool__";
@@ -102,8 +102,8 @@ const HOLDER_COLORS = [
 const NEUTRAL = "var(--cat-10)";
 
 /**
- * A stable colour per stakeholder, assigned in the order they first appear in
- * the ledger — so a holder keeps their colour when a round reshuffles the
+ * A stable color per stakeholder, assigned in the order they first appear in
+ * the ledger — so a holder keeps their color when a round reshuffles the
  * ranking. The unissued pool is always slate; past nine holders the rest
  * share slate too rather than inventing hues.
  */

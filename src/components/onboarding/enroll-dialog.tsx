@@ -17,18 +17,18 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export type EnrolTrack = { id: string; name: string; assignedMemberIds: string[] };
+export type EnrollTrack = { id: string; name: string; assignedMemberIds: string[] };
 type Member = { id: string; displayName: string };
 
 /** Put existing members on a track — people who joined before it existed, or an extra track. */
-export function EnrolDialog({
+export function EnrollDialog({
   tracks,
   initialTrackId,
   members,
   onClose,
   onSaved,
 }: {
-  tracks: EnrolTrack[];
+  tracks: EnrollTrack[];
   initialTrackId: string;
   members: Member[];
   onClose: () => void;
@@ -64,7 +64,7 @@ export function EnrolDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Enrol members</DialogTitle>
+          <DialogTitle>Enroll members</DialogTitle>
           <DialogDescription>
             New invites are enrolled on their own. Use this for members who joined before the track existed. It
             does not lock anyone who already uses the app out of it.
@@ -142,7 +142,7 @@ export function EnrolDialog({
             Cancel
           </Button>
           <Button className="max-sm:h-10" onClick={submit} disabled={busy || chosen.length === 0}>
-            {busy ? "Enrolling…" : chosen.length === 0 ? "Enrol" : `Enrol ${chosen.length}`}
+            {busy ? "Enrolling…" : chosen.length === 0 ? "Enroll" : `Enroll ${chosen.length}`}
           </Button>
         </DialogFooter>
       </DialogContent>

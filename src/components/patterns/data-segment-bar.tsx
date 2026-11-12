@@ -5,7 +5,7 @@ export type Segment = {
   label: string;
   /** Share of the whole, 0..1. Supplied by the caller — this component only draws. */
   fraction: number;
-  /** CSS colour, always a token: `var(--cat-2)`. */
+  /** CSS color, always a token: `var(--cat-2)`. */
   color: string;
   /** Preformatted value shown in the legend ("42.50%", "$1,903"). */
   value?: string;
@@ -13,7 +13,7 @@ export type Segment = {
 
 /**
  * One part-of-whole bar: ownership, a pool's commitments, an outcome ladder.
- * Segments are separated by a 2px surface gap and identity is never colour
+ * Segments are separated by a 2px surface gap and identity is never color
  * alone — the legend repeats every label with its value.
  */
 export function SegmentBar({

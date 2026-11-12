@@ -132,7 +132,7 @@ export function safeHref(input: string | null | undefined): string | null {
 
 /**
  * Pasted HTML → something the editor's schema can read cleanly. The schema
- * already drops what it has no node or mark for (fonts, colours, tables,
+ * already drops what it has no node or mark for (fonts, colors, tables,
  * images); this handles the constructs that would otherwise survive as junk.
  */
 export function cleanPastedHtml(html: string): string {

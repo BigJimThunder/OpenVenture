@@ -15,8 +15,8 @@ export type BarListItem = {
 
 /**
  * A ranked list of horizontal bars with every value written out — the honest
- * default for "how much of each category". One colour for the whole list
- * (the bars are one series; colour by rank would mean nothing), labels in
+ * default for "how much of each category". One color for the whole list
+ * (the bars are one series; color by rank would mean nothing), labels in
  * text ink, and it reflows at any width because it is plain HTML.
  */
 export function BarList({

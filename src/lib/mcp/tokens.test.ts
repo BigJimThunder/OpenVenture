@@ -21,7 +21,7 @@ describe("generateToken", () => {
     expect(tokenHash).not.toContain(token.slice(TOKEN_PREFIX.length, TOKEN_PREFIX.length + 8));
   });
 
-  it("keeps a short recognisable prefix that reveals almost nothing", () => {
+  it("keeps a short recognizable prefix that reveals almost nothing", () => {
     const { token, prefix } = generateToken();
     expect(token.startsWith(prefix)).toBe(true);
     expect(prefix).toHaveLength(TOKEN_PREFIX.length + 6);

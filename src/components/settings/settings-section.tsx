@@ -58,7 +58,7 @@ export function SettingsCard({
   );
 }
 
-/** Coloured dot + sentence for "is this wired up?" rows. */
+/** Colored dot + sentence for "is this wired up?" rows. */
 export function StatusLine({
   ok,
   children,

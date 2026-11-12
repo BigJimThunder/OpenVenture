@@ -5,7 +5,7 @@ import type { OnboardingTaskKind } from "@/db/schema";
  * of five strings; this file is the only place that decides what each means on
  * screen, and the only place a pasted URL is turned into an embeddable player.
  *
- * `submit` is the acknowledgement: the member submits their agreement to the
+ * `submit` is the acknowledgment: the member submits their agreement to the
  * policy text held in the item's description.
  */
 export const KIND_META: Record<
@@ -25,8 +25,8 @@ export const KIND_META: Record<
     hint: "YouTube, Vimeo and Loom links play inside the flow. Anything else opens in a new tab.",
   },
   submit: {
-    label: "Acknowledgement",
-    noun: "acknowledgement",
+    label: "Acknowledgment",
+    noun: "acknowledgment",
     confirm: "I agree",
     hint: "A short policy the member has to agree to, such as confidentiality.",
   },
@@ -97,7 +97,7 @@ function loomId(url: URL): string | null {
   return LOOM_ID.test(id) ? id : null;
 }
 
-/** The embeddable player for a recognised video link, or null (link out instead). */
+/** The embeddable player for a recognized video link, or null (link out instead). */
 export function videoEmbed(raw: string | null | undefined): VideoEmbed | null {
   const url = safeHttpUrl(raw);
   if (!url || url.protocol !== "https:") return null;

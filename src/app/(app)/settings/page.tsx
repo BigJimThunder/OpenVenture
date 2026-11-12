@@ -596,7 +596,7 @@ export default async function SettingsPage() {
                     <p className="font-medium">Always a draft</p>
                     <p className="mt-0.5 text-fg-muted">
                       AI output is never saved as a decision, a vote or a sent email on its own. A
-                      member reads and edits it first, and AI-written memo sections stay labelled until
+                      member reads and edits it first, and AI-written memo sections stay labeled until
                       someone does. Votes and founder demographics are never sent to the model.
                     </p>
                   </div>
