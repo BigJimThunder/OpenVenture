@@ -127,6 +127,8 @@ export const createMemo = authedAction({
 });
 
 export const updateMemoSection = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({
     sectionId: z.string().uuid(),

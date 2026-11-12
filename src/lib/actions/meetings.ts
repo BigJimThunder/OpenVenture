@@ -174,6 +174,8 @@ export const setAttendance = authedAction({
 });
 
 export const createActionItem = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({
     title: z.string().min(1).max(300),
@@ -214,6 +216,8 @@ export const createActionItem = authedAction({
 });
 
 export const toggleActionItem = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({ actionItemId: z.string().uuid(), done: z.boolean() }),
   handler: async (input, ctx) => {

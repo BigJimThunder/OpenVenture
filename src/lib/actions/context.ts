@@ -1,14 +1,16 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { cache } from "react";
 import { createHash } from "crypto";
 import { headers } from "next/headers";
 import { eq, and, inArray, isNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { apiToken, member, organization, type ApiTokenScope, type MemberRole } from "@/db/schema";
+import { activity, apiToken, member, organization, type ApiTokenScope, type MemberRole } from "@/db/schema";
+import { breakGlassEmail } from "@/lib/env";
 
 /**
- * Server-side auth context. Auth is enforced here AND in the (app) layout —
- * middleware is only a cheap redirect, never the sole gate.
+ * Server-side auth context. Auth is enforced here AND in the (app) layout.
+ * src/proxy.ts only sets security headers; it is never a gate.
  */
 
 export class AuthError extends Error {
@@ -58,6 +60,18 @@ export function hashApiToken(token: string): string {
 }
 
 /**
+ * Personal access tokens are honored only inside `withTokenAuth` — which only
+ * the MCP endpoint enters. Everywhere else (pages, server actions, exports,
+ * the cron route) a bearer token is not a credential at all: a leaked
+ * assistant token cannot be replayed against the rest of the app.
+ */
+const tokenAuthScope = new AsyncLocalStorage<true>();
+
+export function withTokenAuth<T>(run: () => Promise<T>): Promise<T> {
+  return tokenAuthScope.run(true, run);
+}
+
+/**
  * Resolve `Authorization: Bearer ov_pat_…` to its member. Used by the MCP
  * endpoint; returns null for anything that isn't a live token of a live member.
  */
@@ -95,8 +109,32 @@ async function ctxFromToken(authorization: string | null): Promise<Ctx | null> {
  * you're done. Documented in ADMIN_RUNBOOK.md.
  */
 function isBreakGlassEmail(email: string): boolean {
-  const configured = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
-  return Boolean(configured) && email.toLowerCase() === configured;
+  const configured = breakGlassEmail();
+  return configured !== null && email.toLowerCase() === configured;
+}
+
+/**
+ * Break-glass grants admin outside the normal invite path, so it must never
+ * be silent: every use is written to the club's activity log, and admins see
+ * a banner for as long as the variable stays set (src/app/(app)/layout.tsx).
+ */
+async function recordBreakGlass(orgId: string, memberId: string, email: string, what: "created" | "promoted") {
+  console.warn(`[break-glass] admin member ${what} for ${email}`);
+  await db
+    .insert(activity)
+    .values({
+      orgId,
+      actorType: "system",
+      verb: "member.break_glass",
+      entityType: "member",
+      entityId: memberId,
+      entityLabel: email,
+      summary:
+        what === "created"
+          ? `${email} was made an admin by the deployment's break-glass setting (BOOTSTRAP_ADMIN_EMAIL)`
+          : `${email} was promoted to admin by the deployment's break-glass setting (BOOTSTRAP_ADMIN_EMAIL)`,
+    })
+    .catch((e) => console.error("[break-glass] could not write the activity log", e));
 }
 
 async function maybeBreakGlass(
@@ -117,7 +155,7 @@ async function maybeBreakGlass(
       status: "active",
     })
     .returning();
-  console.warn(`[break-glass] admin member created for ${email}`);
+  if (created[0]) await recordBreakGlass(orgs[0].id, created[0].id, email, "created");
   return created[0] ?? null;
 }
 
@@ -125,7 +163,9 @@ async function maybeBreakGlass(
 export const getCtx = cache(async (): Promise<Ctx | null> => {
   const requestHeaders = await headers();
   const session = await auth.api.getSession({ headers: requestHeaders });
-  if (!session?.user) return ctxFromToken(requestHeaders.get("authorization"));
+  if (!session?.user) {
+    return tokenAuthScope.getStore() ? ctxFromToken(requestHeaders.get("authorization")) : null;
+  }
 
   const rows = await db
     .select()
@@ -171,6 +211,7 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
       .where(eq(member.id, m.id))
       .returning();
     m = updated[0]!;
+    await recordBreakGlass(m.orgId, m.id, session.user.email, "promoted");
   }
 
   const orgs = await db

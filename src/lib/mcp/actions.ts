@@ -76,6 +76,7 @@ const message = {
 };
 
 export const emailMe = authedAction({
+  allowToken: true,
   minRole: "analyst",
   input: z.object(message),
   handler: async (input, ctx) => {
@@ -98,6 +99,7 @@ export const emailMe = authedAction({
 });
 
 export const emailMember = authedAction({
+  allowToken: true,
   minRole: "partner",
   input: z.object({ memberId: z.string().uuid(), ...message }),
   handler: async (input, ctx) => {
@@ -138,6 +140,7 @@ export const emailMember = authedAction({
 });
 
 export const emailMyDigest = authedAction({
+  allowToken: true,
   minRole: "analyst",
   input: z.object({}),
   handler: async (_input, ctx) => {
@@ -161,6 +164,7 @@ export const emailMyDigest = authedAction({
 });
 
 export const runAutomations = authedAction({
+  allowToken: true,
   minRole: "admin",
   input: z.object({}),
   handler: async (_input, ctx) => {

@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { format, formatDistanceToNow } from "date-fns";
 import { ExternalLinkIcon, MailIcon } from "lucide-react";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 import { requireCtx } from "@/lib/actions/context";
+import { getDeviceSessions } from "@/lib/queries/sessions";
 import { can, ROLE_LABEL } from "@/lib/permissions";
 import { getMemberProfile } from "@/lib/queries/members";
 import { cn, initials } from "@/lib/utils";
@@ -15,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { MemberAdminControls } from "@/components/members/member-admin-controls";
 import { EditProfileDialog } from "@/components/members/edit-profile-dialog";
+import { DevicesCard } from "@/components/members/devices-card";
 import { OnboardingChecklist } from "@/components/members/onboarding-checklist";
 import { ROLE_BADGE } from "@/components/members/member-labels";
 import { MemberScheduleCard } from "@/components/scheduling/member-schedule-card";
@@ -34,6 +38,14 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
   const { member: m, recentActivity, apps, memos, attendanceRows, onboarding } = profile;
 
   const isSelf = ctx.member.id === m.id;
+  // Your own profile shows where you are signed in.
+  const devices =
+    isSelf && ctx.userId
+      ? await getDeviceSessions(
+          ctx.userId,
+          (await auth.api.getSession({ headers: await headers() }))?.session.id ?? null
+        )
+      : [];
   const isAdmin = can(ctx.member.role, "manageMembers");
   const attended = attendanceRows.filter((a) => ATTENDED.includes(a.status)).length;
   const attendancePct = attendanceRows.length > 0 ? Math.round((attended / attendanceRows.length) * 100) : null;
@@ -215,6 +227,8 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
           {(isSelf || isAdmin) && m.status === "active" && (
             <MemberScheduleCard org={ctx.org} memberId={m.id} memberName={m.displayName} isSelf={isSelf} />
           )}
+
+          {isSelf && devices.length > 0 && <DevicesCard sessions={devices} />}
 
           {onboarding && (
             <Card>

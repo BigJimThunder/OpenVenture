@@ -10,7 +10,18 @@ import { Field } from "@/components/patterns/field";
 
 const RESEND_AFTER_SECONDS = 30;
 
-export function LoginForm({ emailConfigured }: { emailConfigured: boolean }) {
+const PROVIDER_LABEL = { google: "Google", microsoft: "Microsoft" } as const;
+type Provider = keyof typeof PROVIDER_LABEL;
+
+export function LoginForm({
+  emailConfigured,
+  providers = [],
+  denied = false,
+}: {
+  emailConfigured: boolean;
+  providers?: Provider[];
+  denied?: boolean;
+}) {
   const router = useRouter();
   const [email, setEmail] = React.useState("");
   const [otp, setOtp] = React.useState("");
@@ -42,6 +53,19 @@ export function LoginForm({ emailConfigured }: { emailConfigured: boolean }) {
     }
   }
 
+  async function social(provider: Provider) {
+    setBusy(true);
+    const { error } = await authClient.signIn.social({
+      provider,
+      callbackURL: "/",
+      errorCallbackURL: "/login?error=not_invited",
+    });
+    if (error) {
+      setBusy(false);
+      toast.error(error.message ?? `We couldn't reach ${PROVIDER_LABEL[provider]}. Try the email link instead.`);
+    }
+  }
+
   async function verify(code: string) {
     setBusy(true);
     try {
@@ -65,6 +89,36 @@ export function LoginForm({ emailConfigured }: { emailConfigured: boolean }) {
         }}
         className="flex flex-col gap-4"
       >
+        {denied ? (
+          <p role="alert" className="rounded-lg border border-border bg-panel px-3.5 py-3 text-sm leading-relaxed text-fg-muted shadow-xs">
+            That account isn&apos;t on this club&apos;s member list. Sign in with the address you
+            were invited at, or ask an admin to invite you.
+          </p>
+        ) : null}
+        {providers.length > 0 ? (
+          <>
+            <div className="flex flex-col gap-2">
+              {providers.map((provider) => (
+                <Button
+                  key={provider}
+                  type="button"
+                  variant="secondary"
+                  size="lg"
+                  className="h-11"
+                  disabled={busy}
+                  onClick={() => void social(provider)}
+                >
+                  Continue with {PROVIDER_LABEL[provider]}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-fg-muted" aria-hidden>
+              <span className="h-px flex-1 bg-border" />
+              or
+              <span className="h-px flex-1 bg-border" />
+            </div>
+          </>
+        ) : null}
         <Field label="Email">
           <Input
             id="email"
@@ -110,6 +164,12 @@ export function LoginForm({ emailConfigured }: { emailConfigured: boolean }) {
           </>
         )}
       </p>
+      {emailConfigured ? (
+        <p className="text-xs leading-relaxed text-fg-muted">
+          Nothing after a minute? Only invited members are sent a sign-in email. Check the
+          address, look in spam, or ask an admin to invite you.
+        </p>
+      ) : null}
       <Field label="Six-digit code">
         <Input
           id="otp"

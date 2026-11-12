@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { getCtx } from "@/lib/actions/context";
+import { getCtx, withTokenAuth } from "@/lib/actions/context";
 import { mcpEnabled } from "@/lib/mcp/config";
 import { handleRpc, PROTOCOL_VERSIONS, RPC, rpcError } from "@/lib/mcp/protocol";
 import { createRateLimiter, MCP_REQUESTS_PER_MINUTE } from "@/lib/mcp/rate-limit";
@@ -55,7 +55,8 @@ export async function POST(req: Request) {
   }
 
   const authorization = req.headers.get("authorization");
-  const ctx = authorization ? await getCtx() : null;
+  // The only place a personal access token is a credential.
+  const ctx = authorization ? await withTokenAuth(() => getCtx()) : null;
   if (!ctx || ctx.via !== "token") {
     return json(
       rpcError(null, RPC.invalidRequest, "Send a personal access token: Authorization: Bearer ov_pat_… Create one at /connect."),
@@ -94,7 +95,8 @@ export async function POST(req: Request) {
     return json(rpcError(null, RPC.parseError, "Body is not valid JSON."), 400);
   }
 
-  const response = await handleRpc(payload, createHost(ctx));
+  // Tools call the same actions the screens do; those re-resolve the token.
+  const response = await withTokenAuth(() => handleRpc(payload, createHost(ctx)));
   // Only notifications: accepted, nothing to say.
   if (response === null) return new Response(null, { status: 202, headers: CORS });
   return json(response);

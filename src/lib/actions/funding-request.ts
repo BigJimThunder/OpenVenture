@@ -57,6 +57,8 @@ function revalidate(id: string) {
 
 /** Create the draft (prefilled from the memo and the application) if there isn't one. */
 export const startFundingRequest = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({ applicationId }),
   handler: async (input, ctx) => {

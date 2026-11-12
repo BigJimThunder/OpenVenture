@@ -14,6 +14,7 @@ import {
   onboardingAssignment,
   onboardingTask,
   onboardingCompletion,
+  session,
   MEMBER_ROLES,
   type MemberRole,
 } from "@/db/schema";
@@ -468,6 +469,8 @@ export const offboardMember = authedAction({
       .update(apiToken)
       .set({ revokedAt: new Date() })
       .where(and(eq(apiToken.memberId, target.id), isNull(apiToken.revokedAt)));
+    // And end their browser sessions, so an open tab stops at its next click.
+    if (target.userId) await db.delete(session).where(eq(session.userId, target.userId));
     revalidatePath("/members");
     return {
       data: { ok: true },

@@ -482,6 +482,8 @@ export const createPool = authedAction({
 });
 
 export const setOutcomeTier = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({
     companyId: z.string().uuid(),

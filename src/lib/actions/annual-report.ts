@@ -79,6 +79,8 @@ async function writeContent(ctx: Ctx, row: ReportRow, content: AnnualContent) {
 
 /** Start the report for a fiscal year: a complete first draft assembled from the year's data. */
 export const startAnnualReport = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "partner",
   input: z.object({ fiscalYear: fiscalYearInput }),
   handler: async ({ fiscalYear }, ctx) => {

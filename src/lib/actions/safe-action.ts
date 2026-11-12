@@ -39,6 +39,12 @@ type ActivitySpec = {
 export function authedAction<S extends z.ZodType, T>(opts: {
   input: S;
   minRole?: MemberRole;
+  /**
+   * May a personal access token (an AI assistant) run this? Off unless said
+   * otherwise. Never set it on anything that casts or reveals votes, moves
+   * money, emails founders, changes roles, manages tokens, or deletes.
+   */
+  allowToken?: boolean;
   handler: (input: z.output<S>, ctx: Ctx) => Promise<{ data: T; activity?: ActivitySpec }>;
 }) {
   return async (raw: z.input<S>): Promise<ActionResult<T>> => {
@@ -52,8 +58,11 @@ export function authedAction<S extends z.ZodType, T>(opts: {
         };
       }
       const ctx = await requireCtx(opts.minRole ?? "analyst");
-      // Every authedAction is a mutation; a read-scoped access token stops here.
-      if (ctx.via === "token" && ctx.tokenScope !== "write") throw new ForbiddenError();
+      // Every authedAction is a mutation. A read-scoped access token stops
+      // here, and a write token gets no further than the actions that opted in.
+      if (ctx.via === "token" && (ctx.tokenScope !== "write" || !opts.allowToken)) {
+        throw new ForbiddenError();
+      }
       const { data, activity: act } = await opts.handler(parsed.data, ctx);
       if (act) {
         // Structurally impossible to forget the audit log — it's written here.
