@@ -1,5 +1,3 @@
-import { randomBytes } from "node:crypto";
-
 /**
  * The one place server errors are reported.
  *
@@ -15,8 +13,9 @@ import { randomBytes } from "node:crypto";
 
 export type ErrorContext = Record<string, string | number | boolean | null | undefined>;
 
+/** Eight hex characters. Web Crypto, so this module loads in any runtime. */
 export function errorRef(): string {
-  return randomBytes(4).toString("hex");
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 8);
 }
 
 export function describeError(error: unknown): { name: string; message: string; stack?: string; cause?: string } {

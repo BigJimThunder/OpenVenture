@@ -63,6 +63,7 @@ type RosterMember = {
   email: string;
   displayName: string;
   role: (typeof member.$inferSelect)["role"];
+  emailPrefs: (typeof member.$inferSelect)["emailPrefs"];
 };
 
 export type Roster = {
@@ -74,7 +75,13 @@ export type Roster = {
 
 export async function loadRoster(orgId: string): Promise<Roster> {
   const members = await db
-    .select({ id: member.id, email: member.email, displayName: member.displayName, role: member.role })
+    .select({
+      id: member.id,
+      email: member.email,
+      displayName: member.displayName,
+      role: member.role,
+      emailPrefs: member.emailPrefs,
+    })
     .from(member)
     .where(and(eq(member.orgId, orgId), eq(member.status, "active"), isNull(member.offboardedAt)))
     .orderBy(asc(member.joinedAt));
@@ -89,7 +96,12 @@ export async function loadRoster(orgId: string): Promise<Roster> {
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? "";
 
 function memberFooter(org: Org): string {
-  return `You're getting this because you're a member of ${org.name}. An admin can switch these emails off in Settings → Automations.`;
+  return `You're getting this because you're a member of ${org.name}.`;
+}
+
+/** Marks a scheduled email as optional for its recipient (see lib/email.ts). */
+function audience(recipient: RosterMember, category: "digest" | "reminders") {
+  return { memberId: recipient.id, category, prefs: recipient.emailPrefs };
 }
 
 /**
@@ -289,6 +301,7 @@ export async function voteReminders(org: Org, roster: Roster, now: Date): Promis
       items: rounds.map((r) => ({ ...r, key: r.id })),
       send: (fresh) =>
         sendEmailSafe({
+          audience: audience(recipient, "reminders"),
           to: recipient.email,
           subject:
             fresh.length === 1
@@ -425,6 +438,7 @@ export async function slaNudges(
           flag: "overdue",
         }));
         return sendEmailSafe({
+          audience: audience(recipient, "reminders"),
           to: recipient.email,
           subject:
             fresh.length === 1
@@ -541,6 +555,7 @@ export async function checkinReminders(org: Org, roster: Roster, now: Date): Pro
       items,
       send: (fresh) =>
         sendEmailSafe({
+          audience: audience(recipient, "reminders"),
           to: recipient.email,
           subject:
             fresh.length === 1
@@ -640,6 +655,7 @@ export async function weeklyDigest(org: Org, roster: Roster, now: Date): Promise
       { orgId: org.id, kind: "weekly_digest", key: `${m.id}:${week}`, recipient: m.email, summary: subject },
       () =>
         sendEmailSafe({
+          audience: audience(m, "digest"),
           to: m.email,
           subject: `${org.name} — ${subject}`,
           html: emailLayout({

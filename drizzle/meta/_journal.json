@@ -50,6 +50,13 @@
       "when": 1794503579189,
       "tag": "0006_tranquil_tombstone",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794504350695,
+      "tag": "0007_freezing_baron_zemo",
+      "breakpoints": true
     }
   ]
 }

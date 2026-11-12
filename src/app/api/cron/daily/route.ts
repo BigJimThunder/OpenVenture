@@ -37,7 +37,10 @@ export async function GET(req: Request) {
   } else if (!bearerMatches(req.headers.get("authorization"), secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return NextResponse.json(await runDaily());
+  // 500 when any job failed, so the scheduler's own log shows a red run
+  // instead of a green one with the failure buried in the body.
+  const report = await runDaily(new Date(), "schedule");
+  return NextResponse.json(report, { status: report.ok ? 200 : 500 });
 }
 
 export async function POST(req: Request) {
@@ -51,5 +54,5 @@ export async function POST(req: Request) {
   if (ctx.member.role !== "admin") {
     return NextResponse.json({ error: "Admins only." }, { status: 403 });
   }
-  return NextResponse.json(await runDaily());
+  return NextResponse.json(await runDaily(new Date(), "admin"));
 }

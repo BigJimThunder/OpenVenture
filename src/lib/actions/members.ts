@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { orgSettings } from "@/lib/org-settings";
-import { and, eq, ne, isNull, count } from "drizzle-orm";
+import { and, eq, ne, isNull, count, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { db } from "@/db";
@@ -15,10 +15,12 @@ import {
   onboardingTask,
   onboardingCompletion,
   session,
+  EMAIL_CATEGORIES,
   MEMBER_ROLES,
   type MemberRole,
 } from "@/db/schema";
 import { authedAction, ActionError } from "./safe-action";
+import { setEmailPref } from "@/lib/email-prefs";
 import { notifyMany, sendEmailSafe } from "@/lib/notify";
 import { ROLE_LABEL } from "@/lib/permissions";
 import { inviteEmail, type OnboardingPlan } from "@/lib/onboarding/emails";
@@ -678,5 +680,33 @@ export const updateMemberDetails = authedAction({
         summary: `${ctx.member.displayName} updated ${input.displayName}'s roster details`,
       },
     };
+  },
+});
+
+/**
+ * A member's own choice about the club's scheduled email. Sign-in mail and
+ * anything a person sends on purpose are not covered by it.
+ */
+export const updateMyEmailPrefs = authedAction({
+  minRole: "read_only",
+  input: z.object({ category: z.enum(EMAIL_CATEGORIES), on: z.boolean() }),
+  handler: async (input, ctx) => {
+    await setEmailPref(ctx.member.id, input.category, input.on);
+    revalidatePath(`/members/${ctx.member.id}`);
+    return { data: { ok: true } };
+  },
+});
+
+/** "My address works": lift the pause a hard bounce put on scheduled email. */
+export const resumeMyEmail = authedAction({
+  minRole: "read_only",
+  input: z.object({}),
+  handler: async (_input, ctx) => {
+    await db
+      .update(member)
+      .set({ emailPrefs: sql`${member.emailPrefs} - 'undeliverableSince'`, updatedAt: new Date() })
+      .where(eq(member.id, ctx.member.id));
+    revalidatePath(`/members/${ctx.member.id}`);
+    return { data: { ok: true } };
   },
 });

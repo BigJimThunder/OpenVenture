@@ -8,7 +8,9 @@ import { createHmac } from "crypto";
  * value that is public knowledge.
  */
 
-const DEV_SECRET = "dev-secret-do-not-use-in-prod";
+// Local development and `next build` only — never a production runtime value.
+// Long and mixed so better-auth does not warn about it on every build.
+const DEV_SECRET = "ov-dev-only-7Fq2mX9cLr4TzB8nHs6VdK1wYp3JgE5aNu0RiCtM";
 
 /** True while `next build` is collecting page data — no real requests yet. */
 const building = () => process.env.NEXT_PHASE === "phase-production-build";

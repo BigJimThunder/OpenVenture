@@ -113,6 +113,14 @@ export type MemberRole = (typeof MEMBER_ROLES)[number];
 export const MEMBER_STATUSES = ["invited", "active", "alumni", "removed"] as const;
 export type MemberStatus = (typeof MEMBER_STATUSES)[number];
 
+/** Scheduled email a member can opt out of. */
+export const EMAIL_CATEGORIES = ["digest", "reminders"] as const;
+export type EmailCategory = (typeof EMAIL_CATEGORIES)[number];
+export type EmailPrefs = Partial<Record<EmailCategory, boolean>> & {
+  /** Set when the mail provider reports this address as undeliverable. */
+  undeliverableSince?: string;
+};
+
 export const member = pgTable("member", {
   id: uuid("id").primaryKey().defaultRandom(),
   orgId: uuid("org_id")
@@ -141,6 +149,11 @@ export const member = pgTable("member", {
   major: text("major"),
   offboardedAt: timestamp("offboarded_at", { withTimezone: true }),
   lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
+  /**
+   * What this member has switched off for themselves. Absent = on. Sign-in
+   * mail and mail a person sent on purpose are never subject to this.
+   */
+  emailPrefs: jsonb("email_prefs").$type<EmailPrefs>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 },
@@ -224,4 +237,29 @@ export const notificationLog = pgTable(
   (t) => [uniqueIndex("notification_log_unique").on(t.orgId, t.kind, t.key),
     index("notification_log_time_idx").on(t.orgId, t.kind, t.sentAt),
   ]
+);
+
+/**
+ * One row per run of the scheduled jobs, so "did the reminders go out?" has
+ * an answer that doesn't require reading server logs.
+ */
+export const JOB_TRIGGERS = ["schedule", "admin", "assistant"] as const;
+export type JobTrigger = (typeof JOB_TRIGGERS)[number];
+
+export const jobRun = pgTable(
+  "job_run",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull().default("daily"),
+    trigger: text("trigger").$type<JobTrigger>().notNull().default("schedule"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    /** Null while running; false if any job reported an error. */
+    ok: boolean("ok"),
+    emails: integer("emails").notNull().default(0),
+    failures: integer("failures").notNull().default(0),
+    /** The full per-job report (counts and error messages; never content). */
+    report: jsonb("report").$type<Record<string, unknown>>(),
+  },
+  (t) => [index("job_run_started_idx").on(t.kind, t.startedAt)]
 );

@@ -17,6 +17,8 @@ import { calendarToken } from "@/lib/calendar";
 import { defaultFounderEmail, type FounderEmailKind } from "@/lib/founder-emails";
 import { summarizePool } from "@/lib/grants/budget";
 import { appUrl } from "@/lib/notify";
+import { lastDailyRun } from "@/lib/automation/run";
+import { cronConfigured } from "@/lib/env";
 import { orgSettings } from "@/lib/org-settings";
 import { can } from "@/lib/permissions";
 import { getLookups } from "@/lib/queries/lookups";
@@ -27,6 +29,7 @@ import { CopyField } from "@/components/patterns/form-copy-field";
 import { AutoAssignSelect } from "@/components/settings/auto-assign-select";
 import { CalendarSection } from "@/components/settings/calendar-section";
 import { ClubSettings } from "@/components/settings/club-settings";
+import { DailyRun } from "@/components/settings/daily-run";
 import { EmailPreview } from "@/components/settings/email-preview";
 import {
   CriteriaManager,
@@ -115,6 +118,7 @@ export default async function SettingsPage() {
   if (!can(ctx.member.role, "manageClub")) return <NoAccess />;
 
   const settings = orgSettings(ctx.org);
+  const lastRun = await lastDailyRun();
   const [pools, poolGrants, stages, lookups, templates, templateSections, recentlySent] =
     await Promise.all([
       db
@@ -431,6 +435,19 @@ export default async function SettingsPage() {
             title="Automations"
             description="What the app does without being asked. A daily job runs these; each message is sent once, never twice."
           >
+            <SettingsCard title="Daily run">
+              <DailyRun
+                status={{
+                  lastStartedAt: lastRun?.startedAt.toISOString() ?? null,
+                  ok: lastRun?.ok ?? null,
+                  emails: lastRun?.emails ?? 0,
+                  failures: lastRun?.failures ?? 0,
+                  trigger: lastRun?.trigger ?? null,
+                  scheduled: cronConfigured(),
+                }}
+              />
+            </SettingsCard>
+
             <SettingsCard>
               {!emailConfigured && (
                 <p className="mb-3 rounded-md border border-warning-border bg-warning-bg px-3 py-2 text-xs text-warning">

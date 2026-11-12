@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { secretSource } from "@/lib/env";
+import { lastDailyRun } from "@/lib/automation/run";
 import journal from "../../../../drizzle/meta/_journal.json";
 
 /**
@@ -53,6 +54,19 @@ async function checkDatabase(): Promise<{ database: Check; migrations: Check }> 
   }
 }
 
+/** Configured is not the same as running: report the last run too. */
+async function scheduleCheck(): Promise<Check> {
+  if (!process.env.CRON_SECRET) {
+    return { ok: false, detail: "CRON_SECRET is not set — reminders and digests will not run" };
+  }
+  const last = await lastDailyRun().catch(() => null);
+  if (!last) return { ok: true, detail: "Protected by CRON_SECRET; no run recorded yet" };
+  const hours = Math.round((Date.now() - last.startedAt.getTime()) / 3_600_000);
+  if (last.ok === false) return { ok: false, detail: `Last run (${hours}h ago) had ${last.failures} failure(s)` };
+  if (hours > 36) return { ok: false, detail: `Last run was ${hours}h ago — the daily schedule is not firing` };
+  return { ok: true, detail: `Last run ${hours}h ago` };
+}
+
 export async function GET() {
   const { database, migrations } = await checkDatabase();
   const production = process.env.NODE_ENV === "production";
@@ -72,9 +86,7 @@ export async function GET() {
     email: process.env.RESEND_API_KEY
       ? { ok: true, detail: "Resend connected" }
       : { ok: false, detail: "RESEND_API_KEY is not set — emails only print to the server log" },
-    schedule: process.env.CRON_SECRET
-      ? { ok: true, detail: "Daily run is protected by CRON_SECRET" }
-      : { ok: false, detail: "CRON_SECRET is not set — reminders and digests will not run" },
+    schedule: await scheduleCheck(),
   };
   // Optional extras: reported, but they never make the deployment "unhealthy".
   const optional = {

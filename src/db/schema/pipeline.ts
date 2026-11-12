@@ -240,6 +240,10 @@ export const application = pgTable(
 
     appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
     enteredStageAt: timestamp("entered_stage_at", { withTimezone: true }).notNull().defaultNow(),
+    /** When the applicant agreed to the club's privacy notice (public form only). */
+    consentAt: timestamp("consent_at", { withTimezone: true }),
+    /** Set when the founder's personal data was erased on request; the row stays for the numbers. */
+    erasedAt: timestamp("erased_at", { withTimezone: true }),
     custom: jsonb("custom").$type<Record<string, unknown>>().notNull().default({}),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
