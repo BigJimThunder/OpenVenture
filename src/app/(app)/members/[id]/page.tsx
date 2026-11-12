@@ -19,6 +19,7 @@ import { Progress } from "@/components/ui/progress";
 import { MemberAdminControls } from "@/components/members/member-admin-controls";
 import { EditProfileDialog } from "@/components/members/edit-profile-dialog";
 import { DevicesCard } from "@/components/members/devices-card";
+import { EmailPrefsCard } from "@/components/members/email-prefs-card";
 import { OnboardingChecklist } from "@/components/members/onboarding-checklist";
 import { ROLE_BADGE } from "@/components/members/member-labels";
 import { MemberScheduleCard } from "@/components/scheduling/member-schedule-card";
@@ -227,6 +228,8 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
           {(isSelf || isAdmin) && m.status === "active" && (
             <MemberScheduleCard org={ctx.org} memberId={m.id} memberName={m.displayName} isSelf={isSelf} />
           )}
+
+          {isSelf && m.status === "active" && <EmailPrefsCard prefs={m.emailPrefs} />}
 
           {isSelf && devices.length > 0 && <DevicesCard sessions={devices} />}
 

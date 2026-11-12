@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { notificationLog, organization } from "@/db/schema";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, type EmailAudience } from "@/lib/email";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Outbound notifications: one email layout, Slack, and the idempotency guard
@@ -73,18 +74,23 @@ export function emailLayout(opts: {
   </div></body></html>`;
 }
 
-/** Send, but never throw — returns whether it went out. */
+/**
+ * Send, but never throw. True means the recipient is taken care of: the
+ * email went out, or they have switched that kind of email off (so there is
+ * nothing to retry). False means the send failed and is worth another run.
+ */
 export async function sendEmailSafe(opts: {
   to: string;
   subject: string;
   html: string;
   replyTo?: string;
+  audience?: EmailAudience;
 }): Promise<boolean> {
   try {
     await sendEmail(opts);
     return true;
   } catch (e) {
-    console.error(`[notify] email to ${opts.to} failed`, e);
+    reportError("email", e, { subject: opts.subject.slice(0, 80) });
     return false;
   }
 }

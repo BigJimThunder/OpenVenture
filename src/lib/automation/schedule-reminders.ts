@@ -99,7 +99,11 @@ export async function scheduleReminders(org: Org, roster: Roster, now: Date): Pr
           recipient: m.email,
           summary: `${term.name} schedule, reminder ${phase} of 2`,
         },
-        () => sendEmailSafe(scheduleReminderEmail({ org, to: m, term, second: phase === 2 }))
+        () =>
+          sendEmailSafe({
+            ...scheduleReminderEmail({ org, to: m, term, second: phase === 2 }),
+            audience: { memberId: m.id, category: "reminders", prefs: m.emailPrefs },
+          })
       );
       if (sent) emails++;
     }

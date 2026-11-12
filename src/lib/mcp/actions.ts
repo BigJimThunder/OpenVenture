@@ -168,7 +168,7 @@ export const runAutomations = authedAction({
   minRole: "admin",
   input: z.object({}),
   handler: async (_input, ctx) => {
-    const report = await runDaily();
+    const report = await runDaily(new Date(), "assistant");
     return {
       data: report,
       activity: {

@@ -116,7 +116,11 @@ export async function onboardingNudges(org: Org, roster: Roster, now: Date): Pro
       if (claimed) fresh.push(n.row);
     }
     if (fresh.length === 0) continue;
-    if (await sendEmailSafe(adminNoticeEmail({ org, to: admin, rows: fresh }))) emails++;
+    const sent = await sendEmailSafe({
+      ...adminNoticeEmail({ org, to: admin, rows: fresh }),
+      audience: { memberId: admin.id, category: "reminders", prefs: admin.emailPrefs },
+    });
+    if (sent) emails++;
     items += fresh.length;
   }
 
