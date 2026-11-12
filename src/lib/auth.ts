@@ -5,6 +5,7 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { sendEmail, magicLinkEmail } from "@/lib/email";
 import { appUrl } from "@/lib/notify";
+import { authSecret } from "@/lib/env";
 
 /**
  * Magic link + email OTP. The OTP is the escape hatch for university mail
@@ -16,7 +17,8 @@ export const auth = betterAuth({
   // BETTER_AUTH_URL when set (custom domain); otherwise the Vercel production
   // URL, so a fresh deploy sends working sign-in links with no configuration.
   baseURL: appUrl(),
-  secret: process.env.BETTER_AUTH_SECRET ?? "dev-secret-do-not-use-in-prod",
+  // Never a public fallback in production — see src/lib/env.ts.
+  secret: authSecret(),
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {

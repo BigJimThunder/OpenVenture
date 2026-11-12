@@ -24,6 +24,12 @@
  *   DATABASE_URL_DIRECT | DATABASE_URL_UNPOOLED | POSTGRES_URL_NON_POOLING |
  *   DATABASE_URL | POSTGRES_URL          first one set wins
  *   SKIP_DB_MIGRATE=1                    build without touching the database
+ *   MIGRATE_PREVIEW=1                    also migrate on Vercel preview builds
+ *
+ * Vercel preview builds (pull requests, branches) do NOT migrate by default:
+ * a preview usually shares the production database, and unmerged SQL must
+ * never reach it. If your previews have their own database (Neon branching),
+ * set MIGRATE_PREVIEW=1 for the Preview environment.
  *
  * Records are written the way drizzle-kit writes them, so `drizzle-kit
  * migrate` and this script agree about what has been applied.
@@ -49,6 +55,13 @@ const urlVar = URL_VARS.find((name) => process.env[name]);
 
 if (process.env.SKIP_DB_MIGRATE === "1" && !statusOnly) {
   log("SKIP_DB_MIGRATE=1 — leaving the database alone.");
+  process.exit(0);
+}
+if (process.env.VERCEL_ENV === "preview" && process.env.MIGRATE_PREVIEW !== "1" && !statusOnly) {
+  log(
+    "Preview build — not migrating, so unmerged schema changes cannot reach a shared database."
+  );
+  log("If this preview has its own database, set MIGRATE_PREVIEW=1 for the Preview environment.");
   process.exit(0);
 }
 if (!urlVar) {
