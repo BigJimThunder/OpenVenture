@@ -2,16 +2,17 @@ import { ImageResponse } from "next/og";
 import { BRAND, BrandMark } from "@/components/marketing/brand-image";
 
 export const alt =
-  "OpenVenture — run your grant club like a fund. Applications, screening, memos, blind votes and grants in one place.";
+  "A memo. To: whoever runs the club next year. From: the officers about to graduate. Re: everything we know leaves in May. OpenVenture, open-source software for student-run grant funds.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const STAGES = ["Application", "Screening", "Coffee chat", "Memo and vote", "Grant and outcome"];
+const label = { fontSize: 20, letterSpacing: "0.16em", color: BRAND.fgSubtle } as const;
 
 /**
- * The card a shared link unfurls into (Slack, iMessage, X, LinkedIn). Says
- * what the landing page's hero says, over the five pipeline stages. Built at
- * build time; Twitter falls back to this image, so there is no separate file.
+ * The card a shared link unfurls into (Slack, iMessage, X, LinkedIn). It is
+ * the head of the landing page's memo: same rule, same To / From / Re, same
+ * sentence. Built at build time; Twitter falls back to this image, so there
+ * is no separate file.
  */
 export default function OpenGraphImage() {
   return new ImageResponse(
@@ -22,78 +23,57 @@ export default function OpenGraphImage() {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "space-between",
-          padding: "64px 72px 60px",
+          padding: "56px 72px 52px",
           background: BRAND.bg,
           color: BRAND.fg,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <BrandMark size={56} />
-          <div style={{ fontSize: 34, letterSpacing: "-0.02em" }}>OpenVenture</div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginLeft: "auto",
-              padding: "8px 18px",
-              border: `1.5px solid ${BRAND.border}`,
-              borderRadius: 999,
-              background: BRAND.panel,
-              fontSize: 22,
-              color: BRAND.fgMuted,
-            }}
-          >
-            <div style={{ width: 10, height: 10, borderRadius: 999, background: BRAND.success }} />
-            Open source · MIT licensed · Self-hosted
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <BrandMark size={48} />
+          <div style={{ fontSize: 30, letterSpacing: "-0.02em" }}>OpenVenture</div>
+          <div style={{ ...label, marginLeft: "auto" }}>MEMORANDUM · MEM-001</div>
+        </div>
+        <div style={{ height: 3, background: BRAND.fg, marginTop: 26 }} />
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 30, fontSize: 26 }}>
+          <div style={{ display: "flex" }}>
+            <div style={{ ...label, width: 130, paddingTop: 6 }}>TO</div>
+            <div>Whoever runs the club next year</div>
+          </div>
+          <div style={{ display: "flex" }}>
+            <div style={{ ...label, width: 130, paddingTop: 6 }}>FROM</div>
+            <div>The officers who are about to graduate</div>
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", marginTop: 34 }}>
+          <div style={{ ...label, width: 130, paddingTop: 30 }}>RE</div>
           <div
             style={{
               display: "flex",
               flexDirection: "column",
-              fontSize: 100,
-              lineHeight: 1.04,
+              fontSize: 104,
+              lineHeight: 1,
               letterSpacing: "-0.045em",
             }}
           >
-            <div>Run your grant club</div>
-            <div style={{ color: BRAND.accent }}>like a fund.</div>
-          </div>
-          <div style={{ marginTop: 28, fontSize: 30, lineHeight: 1.4, color: BRAND.fgMuted }}>
-            Applications, screening, memos, blind votes and grants in one place.
+            <div>Everything we know</div>
+            <div>leaves in May.</div>
           </div>
         </div>
 
         <div
           style={{
             display: "flex",
-            border: `1.5px solid ${BRAND.border}`,
-            borderRadius: 16,
-            background: BRAND.panel,
-            overflow: "hidden",
+            marginTop: "auto",
+            paddingTop: 22,
+            borderTop: `1.5px solid ${BRAND.borderStrong}`,
+            fontSize: 24,
+            color: BRAND.fgMuted,
           }}
         >
-          {STAGES.map((name, i) => (
-            <div
-              key={name}
-              style={{
-                display: "flex",
-                flexGrow: 1,
-                alignItems: "center",
-                gap: 12,
-                padding: "20px 22px",
-                borderLeft: i === 0 ? "none" : `1.5px solid ${BRAND.border}`,
-                fontSize: 22,
-              }}
-            >
-              <div style={{ width: 12, height: 12, borderRadius: 999, background: BRAND.stages[i] }} />
-              {name}
-            </div>
-          ))}
+          Open-source software for student-run grant funds
+          <div style={{ marginLeft: "auto" }}>MIT · self-hosted</div>
         </div>
       </div>
     ),

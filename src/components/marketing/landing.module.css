@@ -1,96 +1,135 @@
-/* Landing-only motion. Everything visual (color, type) comes from the
-   global tokens — this file is choreography, not palette. */
+/* The landing page is set as a document — the club's own handover memo — so
+   this file is typography and layout. Every color is a global token. */
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(2.75rem, 8.2vw, 7.25rem);
+  line-height: 0.94;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+  font-optical-sizing: auto;
+}
+.display em {
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.03em;
 }
 
-.rise {
-  animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+.lede {
+  font-family: var(--font-display);
+  font-size: clamp(1.125rem, 1.55vw, 1.4rem);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.heading {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(1.9rem, 3.6vw, 3.1rem);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.prose {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  line-height: 1.62;
+  text-wrap: pretty;
+}
+
+/* Small caps for the memo's own furniture: TO, FROM, EXHIBIT A, § 2. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* A rubber stamp: outlined, slightly off-square, never a fill. */
+.stamp {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0.3rem 0.55rem 0.25rem;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  transform: rotate(-3deg);
+}
+.stampLarge {
+  font-size: 0.8125rem;
+  padding: 0.5rem 0.8rem 0.42rem;
+  border-width: 2px;
+  transform: rotate(-6deg);
+}
+
+/* A stamp landing on paper. Functional: it marks the moment a state changes. */
+@keyframes thunk {
+  0% {
+    opacity: 0;
+    transform: scale(1.5) rotate(-9deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.96) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-3deg);
+  }
+}
+.thunk {
+  animation: thunk 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   animation-delay: var(--d, 0s);
 }
 
-/* Scroll reveal. Visible by default: `data-reveal` is only ever set by the
-   mounted component (reveal.tsx), and only on blocks still below the fold —
-   so without JavaScript, or before it loads, nothing is hidden. */
-.reveal[data-reveal="wait"] {
-  opacity: 0;
-  transform: translateY(18px);
+/* The same landing, for a word that is set straight (a revealed ballot). */
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.pop {
+  animation: pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+  animation-delay: var(--d, 0s);
 }
 
-/* Tabbing into a block that hasn't scrolled in yet must never land on
-   something invisible. */
-.reveal[data-reveal="wait"]:focus-within {
-  opacity: 1;
-  transform: none;
-}
-
-.reveal[data-reveal="in"] {
-  transition:
-    opacity 0.6s cubic-bezier(0.2, 0.7, 0.2, 1),
-    transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
-  transition-delay: var(--d, 0s);
-}
-
-/* Sealed-ballot flip */
-.ballot {
-  perspective: 700px;
-}
-
-.ballotInner {
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 0.65s cubic-bezier(0.3, 0.6, 0.2, 1);
-  transition-delay: var(--d, 0s);
-}
-
-.flipped .ballotInner {
-  transform: rotateY(180deg);
-}
-
-.face {
-  backface-visibility: hidden;
-}
-
-.back {
-  position: absolute;
-  inset: 0;
-  transform: rotateY(180deg);
-  backface-visibility: hidden;
-}
-
-.tallyFill {
-  transition: width 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.6s;
+.fill {
+  transition: width 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rise,
-  .reveal,
-  .reveal[data-reveal] {
+  .thunk {
     animation: none;
-    opacity: 1;
-    transform: none;
-    transition: none;
   }
-  .ballotInner,
-  .tallyFill {
-    transition: none;
+  /* The same landing, for a word that is set straight (a revealed ballot). */
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
+.pop {
+  animation: pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+  animation-delay: var(--d, 0s);
+}
 
-/* Paper has no scroll position: print everything. */
-@media print {
-  .rise,
-  .reveal[data-reveal] {
-    animation: none;
-    opacity: 1;
-    transform: none;
+.fill {
+    transition: none;
   }
 }
