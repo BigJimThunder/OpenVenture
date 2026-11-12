@@ -515,6 +515,7 @@ export const recordCoffeeChatDebrief = authedAction({
 });
 
 export const recordCoffeeChatVerdict = authedAction({
+  record: { did: "recorded their coffee-chat verdict", entity: "coffee_chat", id: "coffeeChatId" },
   minRole: "analyst",
   input: z.object({
     coffeeChatId: z.string().uuid(),

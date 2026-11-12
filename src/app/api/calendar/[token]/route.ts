@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, gte } from "drizzle-orm";
 import { db } from "@/db";
 import { organization, meeting } from "@/db/schema";
-import { calendarToken } from "@/lib/calendar";
+import { calendarFeedMatches } from "@/lib/calendar";
 
 /**
  * iCal feed of scheduled meetings, for Google/Apple Calendar subscription.
- * Token = HMAC-SHA256("calendar", org.ingestSecret) — capability URL, no
- * login (calendar apps can't authenticate), no schema change.
+ * A capability URL — calendar apps can't sign in — whose token an admin can
+ * reset (see src/lib/calendar.ts).
  */
 
 function icsDate(d: Date) {
@@ -24,7 +24,7 @@ export async function GET(
 ) {
   const { token } = await params;
   const [org] = await db.select().from(organization).limit(1);
-  if (!org?.ingestSecret || token !== calendarToken(org.ingestSecret)) {
+  if (!org || !calendarFeedMatches(org, token)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

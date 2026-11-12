@@ -85,6 +85,7 @@ export const createCapTable = authedAction({
 });
 
 export const addCapEvent = authedAction({
+  record: { did: "added an event to a cap table", entity: "cap_table", id: "capTableId" },
   minRole: "analyst",
   input: z.object({
     capTableId: z.string().uuid(),
@@ -132,6 +133,7 @@ export const addCapEvent = authedAction({
 
 /** Only the LAST event is deletable — an append-only ledger you can undo. */
 export const deleteLastCapEvent = authedAction({
+  record: { did: "removed the last event from a cap table", entity: "cap_table", id: "capTableId" },
   minRole: "analyst",
   input: z.object({ capTableId: z.string().uuid() }),
   handler: async (input, ctx) => {
@@ -150,6 +152,7 @@ export const deleteLastCapEvent = authedAction({
 });
 
 export const duplicateAsScenario = authedAction({
+  record: { did: "duplicated a cap table as a scenario", entity: "cap_table", id: "capTableId" },
   minRole: "analyst",
   input: z.object({ capTableId: z.string().uuid(), name: z.string().min(1).max(120) }),
   handler: async (input, ctx) => {
@@ -192,6 +195,7 @@ export const duplicateAsScenario = authedAction({
 });
 
 export const archiveCapTable = authedAction({
+  record: { did: "archived a cap table", entity: "cap_table", id: "capTableId" },
   minRole: "analyst",
   input: z.object({ capTableId: z.string().uuid() }),
   handler: async (input, ctx) => {

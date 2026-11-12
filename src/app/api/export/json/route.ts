@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   organization,
@@ -47,6 +47,12 @@ import {
   stakeholder,
   capEvent,
   capTableSnapshot,
+  report,
+  apiToken,
+  availabilityBlock,
+  availabilityConfirmation,
+  notificationLog,
+  jobRun,
 } from "@/db/schema";
 import { getCtx, roleAtLeast } from "@/lib/actions/context";
 
@@ -59,6 +65,12 @@ export const dynamic = "force-dynamic";
  *  - vote rows for UNREVEALED rounds — the blind-vote invariant survives export
  *  - auth internals (user/session/account/verification) and secret columns
  */
+/** The calendar link is a secret too. */
+function redactSettings(settings: Record<string, unknown>): Record<string, unknown> {
+  const calendar = settings.calendar as { feedToken?: string } | undefined;
+  return calendar?.feedToken ? { ...settings, calendar: { ...calendar, feedToken: "<redacted>" } } : settings;
+}
+
 export async function GET() {
   const ctx = await getCtx();
   if (!ctx) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -97,7 +109,12 @@ export async function GET() {
 
   const data = {
     organization: org
-      ? { ...org, ingestSecret: "<redacted>", slackWebhookUrl: org.slackWebhookUrl ? "<redacted>" : null }
+      ? {
+          ...org,
+          ingestSecret: "<redacted>",
+          slackWebhookUrl: org.slackWebhookUrl ? "<redacted>" : null,
+          settings: redactSettings(org.settings),
+        }
       : null,
     members,
     invitations: (await db.select().from(invitation).where(eq(invitation.orgId, orgId))).map(
@@ -183,8 +200,41 @@ export async function GET() {
     cap_table_snapshots: await childrenOf(capIds, (v) =>
       db.select().from(capTableSnapshot).where(inArray(capTableSnapshot.capTableId, v))
     ),
+    reports: await db.select().from(report).where(eq(report.orgId, orgId)),
+    availability_blocks: await db.select().from(availabilityBlock).where(eq(availabilityBlock.orgId, orgId)),
+    availability_confirmations: await db
+      .select()
+      .from(availabilityConfirmation)
+      .where(eq(availabilityConfirmation.orgId, orgId)),
+    // Which tokens exist, never the tokens: only their hashes are stored, and those stay behind.
+    api_tokens: (await db.select().from(apiToken).where(eq(apiToken.orgId, orgId))).map((row) => ({
+      ...row,
+      tokenHash: "<redacted>",
+    })),
+    // What the app sent on its own. Rate-limit counters (hashed addresses) are bookkeeping, not records.
+    notification_log: await db
+      .select()
+      .from(notificationLog)
+      .where(
+        and(
+          eq(notificationLog.orgId, orgId),
+          notInArray(notificationLog.kind, ["apply_attempt", "signin_link", "signin_code", "ai_call", "ingest_delivery"])
+        )
+      ),
+    job_runs: await db.select().from(jobRun),
     activity: await db.select().from(activity).where(eq(activity.orgId, orgId)),
   };
+
+  await db.insert(activity).values({
+    orgId,
+    actorMemberId: ctx.member.id,
+    actorType: "member",
+    verb: "data.exported",
+    entityType: "organization",
+    entityId: orgId,
+    entityLabel: ctx.org.name,
+    summary: `${ctx.member.displayName} exported all of the club's data as JSON`,
+  });
 
   const payload = {
     _meta: {
@@ -196,7 +246,9 @@ export async function GET() {
         "application_demographics (aggregate-only by design — never exported)",
         "votes for unrevealed rounds (blind-voting invariant)",
         "auth sessions/accounts/verification tokens",
-        "organization.ingest_secret and invite token hashes (rotate/reissue after import)",
+        "organization.ingest_secret, invite token hashes and access token hashes (rotate/reissue after import)",
+        "rate-limit counters in notification_log (hashed addresses)",
+        "attached files themselves: the files table lists them with their storage URLs",
       ],
     },
     ...data,

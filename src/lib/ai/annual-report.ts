@@ -100,13 +100,6 @@ export async function draftUnfundedNote(input: Parameters<typeof unfundedNotePro
   return aiText({ system: UNFUNDED_NOTE_SYSTEM, prompt: unfundedNotePrompt(input), effort: "low", maxTokens: 600 });
 }
 
-/** Shown beside the essay when AI is off — the same questions the model is told to leave open. */
-export function essayQuestions(founder: string, company: string): string[] {
-  return [
-    `How did you first meet ${founder}, and what did you notice?`,
-    `What had they already built or tested before they asked us for money?`,
-    `What did ${founder} say or do in the coffee chat that changed your mind, or confirmed it?`,
-    `Why ${founder}, and not someone else, for ${company}?`,
-    `What do you expect to be true about ${company} a year from now?`,
-  ];
-}
+// Client components need this without the model wrapper (and its database
+// import), so it lives in its own module.
+export { essayQuestions } from "./essay-questions";

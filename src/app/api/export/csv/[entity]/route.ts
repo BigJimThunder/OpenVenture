@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  activity,
   application,
   company,
   pipelineStage,
@@ -11,6 +12,7 @@ import {
   outcomeUpdate,
 } from "@/db/schema";
 import { getCtx, roleAtLeast } from "@/lib/actions/context";
+import { toCsv } from "@/lib/export/csv";
 
 export const dynamic = "force-dynamic";
 
@@ -19,17 +21,6 @@ export const dynamic = "force-dynamic";
  * for. Demographics never appear here — aggregate-only means exports too.
  */
 
-function csv(rows: Record<string, unknown>[], columns: string[]): string {
-  const cell = (v: unknown) => {
-    if (v == null) return "";
-    const s = v instanceof Date ? v.toISOString() : String(v);
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  return [
-    columns.join(","),
-    ...rows.map((r) => columns.map((c) => cell(r[c])).join(",")),
-  ].join("\r\n");
-}
 
 const ENTITIES = ["applications", "grants", "members", "outcomes"] as const;
 type Entity = (typeof ENTITIES)[number];
@@ -161,7 +152,18 @@ export async function GET(
   }
   const e = entity as Entity;
   const rows = await buildRows(e, ctx.org.id);
-  const body = csv(rows as Record<string, unknown>[], HEADER_COLUMNS[e]);
+  const body = toCsv(rows as Record<string, unknown>[], HEADER_COLUMNS[e]);
+  // Data leaving the club is part of the record.
+  await db.insert(activity).values({
+    orgId: ctx.org.id,
+    actorMemberId: ctx.member.id,
+    actorType: "member",
+    verb: "data.exported",
+    entityType: "organization",
+    entityId: ctx.org.id,
+    entityLabel: ctx.org.name,
+    summary: `${ctx.member.displayName} exported ${e} as CSV (${rows.length} rows)`,
+  });
 
   return new NextResponse(body, {
     headers: {

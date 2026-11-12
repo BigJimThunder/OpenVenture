@@ -75,7 +75,7 @@ export function WebhookIntake({ endpoint, hasSecret }: { endpoint: string; hasSe
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Rotate the signing secret?"
-        description="The form that posts to this endpoint will be rejected until you paste the new secret into it. The calendar feed link also changes, so anyone subscribed will need the new link."
+        description="The form that posts to this endpoint will be rejected until you paste the new secret into it."
         confirmLabel="Rotate secret"
         tone="danger"
         onConfirm={rotate}

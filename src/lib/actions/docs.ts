@@ -102,6 +102,7 @@ export const updateDocContent = authedAction({
 });
 
 export const togglePinDoc = authedAction({
+  record: { did: "pinned or unpinned a doc", entity: "doc", id: "docId" },
   minRole: "partner",
   input: z.object({ docId: z.string().uuid(), pinned: z.boolean() }),
   handler: async (input, ctx) => {

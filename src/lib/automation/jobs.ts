@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   actionItem,
@@ -694,13 +694,21 @@ export async function digestRecipientsThisWeek(org: Org, now: Date): Promise<Set
 
 /** Rate-limit bookkeeping for the public form is only useful for a day. */
 export async function pruneIntakeAttempts(orgId: string, now: Date): Promise<number> {
+  // Rate-limit counters are only needed for their window; webhook delivery
+  // ids for as long as a sender might plausibly retry.
+  const days = (n: number) => new Date(now.getTime() - n * 86_400_000);
   const removed = await db
     .delete(notificationLog)
     .where(
       and(
         eq(notificationLog.orgId, orgId),
-        eq(notificationLog.kind, "apply_attempt"),
-        lt(notificationLog.sentAt, new Date(now.getTime() - 2 * 86_400_000))
+        or(
+          and(
+            inArray(notificationLog.kind, ["apply_attempt", "signin_link", "signin_code", "ai_call"]),
+            lt(notificationLog.sentAt, days(2))
+          ),
+          and(eq(notificationLog.kind, "ingest_delivery"), lt(notificationLog.sentAt, days(30)))
+        )
       )
     )
     .returning({ id: notificationLog.id });

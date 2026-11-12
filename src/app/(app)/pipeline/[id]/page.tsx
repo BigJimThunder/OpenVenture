@@ -36,6 +36,7 @@ import { AdvanceButton } from "@/components/applications/advance-button";
 import { DeclineButton } from "@/components/applications/decline-button";
 import { ReopenButton } from "@/components/applications/reopen-button";
 import { DecisionSummary } from "@/components/applications/decision-summary";
+import { EraseData } from "@/components/applications/erase-data";
 
 export const dynamic = "force-dynamic";
 
@@ -536,6 +537,18 @@ export default async function ApplicationDetailPage({ params }: PageProps<"/pipe
                   Fills empty fields from the company&apos;s own site. Anything you&apos;ve edited is left alone.
                 </p>
               </div>
+            )}
+            {app.erasedAt ? (
+              <p className="mt-3 border-t border-border pt-3 text-xs leading-relaxed text-fg-muted">
+                The applicant&apos;s personal data was erased on {format(app.erasedAt, "MMM d, yyyy")}, at
+                their request. The amounts, dates and decision are kept.
+              </p>
+            ) : (
+              can(ctx.member.role, "manageClub") && (
+                <div className="mt-3 flex flex-col border-t border-border pt-3">
+                  <EraseData applicationId={app.id} companyName={company.name} />
+                </div>
+              )
             )}
           </section>
 
