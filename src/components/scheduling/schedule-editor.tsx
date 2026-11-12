@@ -178,7 +178,7 @@ export function ScheduleEditor({
                 {otherTerms.map((t, i) => (
                   <React.Fragment key={t.key}>
                     {i > 0 && ", "}
-                    <Link href={`/schedule?term=${encodeURIComponent(t.key)}`} className="text-accent underline-offset-2 hover:underline">
+                    <Link href={`/schedule?term=${encodeURIComponent(t.key)}`} className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent">
                       {t.name}
                     </Link>
                   </React.Fragment>

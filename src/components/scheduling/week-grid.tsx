@@ -393,7 +393,7 @@ function GridBlock({
         >
           {name}
         </span>
-        {minutes >= 45 && <span className="tnum block truncate text-2xs opacity-80 max-sm:hidden">{time}</span>}
+        {minutes >= 45 && <span className="tnum block truncate text-2xs max-sm:hidden">{time}</span>}
       </span>
       {!readOnly && <span data-edge="end" className="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize max-md:hidden" />}
     </Tag>

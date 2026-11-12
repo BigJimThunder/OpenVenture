@@ -24,7 +24,7 @@ export function ScreenHeader({
       )}
     >
       <div className="flex min-w-0 items-center gap-2 text-sm">
-        <span className="font-semibold">{title}</span>
+        <h1 className="font-semibold tracking-normal">{title}</h1>
         {meta && <span className="tnum truncate text-xs text-fg-subtle">{meta}</span>}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

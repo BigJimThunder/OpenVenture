@@ -89,8 +89,9 @@ export function PhonePipeline() {
               <li
                 key={app.id}
                 className={cn(
-                  "flex items-stretch rounded-lg border border-border bg-panel shadow-xs",
-                  app.status === "declined" && "opacity-70"
+                  "flex items-stretch rounded-lg border border-border",
+                  // Declined recedes by losing the raised surface, not by fading its text.
+                  app.status === "declined" ? "border-dashed" : "bg-panel shadow-xs"
                 )}
               >
                 <button

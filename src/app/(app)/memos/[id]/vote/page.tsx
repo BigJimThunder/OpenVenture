@@ -155,7 +155,7 @@ export default async function VotePage({ params }: PageProps<"/memos/[id]/vote">
               .{" "}
             </>
           )}
-          <Link href={memoHref} className="text-accent underline-offset-2 hover:underline">
+          <Link href={memoHref} className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent">
             Read the memo
           </Link>
           {votingOpen && isEligible ? " before you vote." : "."}

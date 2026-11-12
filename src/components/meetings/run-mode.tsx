@@ -316,7 +316,11 @@ export function RunMode({
 
       <div className="flex min-h-0 flex-1">
         {/* Current item */}
-        <main className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pb-4 md:px-10 md:pb-8">
+        {/* Not a second <main>: run mode already renders inside the shell's. */}
+        <section
+          aria-label="Current agenda item"
+          className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pb-4 md:px-10 md:pb-8"
+        >
           {current ? (
             <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
               <div className="flex flex-1 flex-col justify-center py-5 md:py-8">
@@ -416,7 +420,7 @@ export function RunMode({
               </Button>
             </div>
           )}
-        </main>
+        </section>
 
         {/* Projector / laptop rail */}
         <aside className="hidden w-[22rem] shrink-0 flex-col gap-6 overflow-y-auto border-l border-border bg-bg-subtle/40 p-5 lg:flex">

@@ -12,6 +12,7 @@ import {
   type PaletteContext,
 } from "./command-palette";
 import { can } from "@/lib/permissions";
+import { SkipLink } from "@/components/patterns/skip-link";
 import { NewApplicationDialog } from "@/components/applications/new-application-dialog";
 
 /**
@@ -102,6 +103,7 @@ export function AppShell({
   return (
     <ViewerProvider value={viewer}>
       <PaletteContextProvider value={contextRef}>
+        <SkipLink />
         <div className="contents print:hidden">
           <Sidebar
             orgName={orgName}
@@ -118,7 +120,8 @@ export function AppShell({
               own inner scroll. On desktop it is a sheet lifted off the chrome. */}
           <main
             id="main"
-            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-bg md:rounded-xl md:border md:border-border md:shadow-xs print:block print:overflow-visible print:rounded-none print:border-0 print:shadow-none"
+            tabIndex={-1}
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-bg outline-none md:rounded-xl md:border md:border-border md:shadow-xs print:block print:overflow-visible print:rounded-none print:border-0 print:shadow-none"
           >
             {children}
           </main>

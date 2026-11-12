@@ -41,8 +41,10 @@ function MeetingRow({ row, past }: { row: Row; past?: boolean }) {
         {/* Date block: the thing people scan for. */}
         <div
           className={cn(
-            "tnum flex w-11 shrink-0 flex-col items-center rounded-md border border-border bg-bg-subtle/60 py-1 leading-none",
-            (past || cancelled) && "opacity-60"
+            "tnum flex w-11 shrink-0 flex-col items-center rounded-md border border-border py-1 leading-none",
+            // Past dates recede by losing their fill and ink weight, not by
+            // fading: faded text drops below readable contrast.
+            past || cancelled ? "border-dashed text-fg-muted" : "bg-bg-subtle/60"
           )}
         >
           <span className="text-2xs font-medium text-fg-muted uppercase">{format(m.scheduledAt, "MMM")}</span>

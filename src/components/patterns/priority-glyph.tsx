@@ -47,6 +47,7 @@ export function PriorityGlyph({
     return (
       <span
         className={cn("flex w-3.5 items-center justify-center", className)}
+        role="img"
         title={label}
         aria-label={label}
       >
@@ -61,6 +62,7 @@ export function PriorityGlyph({
   return (
     <span
       className={cn("flex w-3.5 items-end gap-[1.5px]", className)}
+      role="img"
       title={label}
       aria-label={label}
     >

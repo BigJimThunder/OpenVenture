@@ -15,12 +15,14 @@ const buttonVariants = cva(
         "danger-ghost": "text-danger hover:bg-danger-bg",
         link: "text-accent underline-offset-4 hover:underline",
       },
+      // The compact sizes are 28px for mouse density. Under a finger they grow
+      // to 36px — as a minimum, so a call site's own phone height still wins.
       size: {
         default: "h-8 px-3 py-1.5",
-        sm: "h-7 rounded-md px-2.5 text-xs",
+        sm: "h-7 rounded-md px-2.5 text-xs pointer-coarse:min-h-9",
         lg: "h-10 rounded-lg px-4 text-base",
         icon: "h-8 w-8",
-        "icon-sm": "h-7 w-7",
+        "icon-sm": "h-7 w-7 pointer-coarse:min-h-9 pointer-coarse:min-w-9",
       },
     },
     defaultVariants: { variant: "default", size: "default" },
