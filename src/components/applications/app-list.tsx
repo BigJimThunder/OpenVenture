@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 import { formatDistanceStrict } from "date-fns";
 import type { PipelineData, PipelineApp } from "@/lib/queries/applications";
@@ -76,7 +77,15 @@ export function AppList() {
                   <PriorityGlyph priority={a.priority} />
                 </TableCell>
                 <TableCell>
-                  <span className="block max-w-64 truncate text-sm font-medium">{a.companyName}</span>
+                  {/* A real link: the row's click handler is invisible to a keyboard,
+                      a screen reader, or a middle-click. The row still opens the peek. */}
+                  <Link
+                    href={`/pipeline/${a.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="block max-w-64 truncate rounded-sm text-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/50"
+                  >
+                    {a.companyName}
+                  </Link>
                   {a.companyOneLiner && (
                     <span className="block max-w-64 truncate text-2xs text-fg-muted">
                       {a.companyOneLiner}

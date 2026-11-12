@@ -25,6 +25,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Typecheck
+        run: pnpm typecheck
+
       # The cap-table golden fixtures are the hard gate — never merge red.
       - name: Test
         run: pnpm test
@@ -83,3 +86,80 @@ jobs:
           DATABASE_URL=$PUSHED_URL node scripts/migrate.mjs
           DATABASE_URL=$PUSHED_URL node scripts/migrate.mjs --status | tee status.log
           grep -q "Up to date" status.log
+
+  # The real server actions against a real Postgres: role gates, the money
+  # and vote races, intake, erasure. Run twice — through node-postgres, and
+  # through drizzle's Neon HTTP driver (the one production uses), with only
+  # the network hop replaced.
+  database-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ovtest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Create database
+        run: psql postgresql://postgres:postgres@localhost:5432/postgres -c "create database ovtest"
+      - name: Database tests (node-postgres)
+        run: pnpm test:db
+      - name: Database tests (Neon HTTP driver path)
+        run: OV_TEST_DRIVER=neon pnpm test:db
+
+  # The built app in a real browser with the demo club loaded: every screen
+  # at desktop and phone width with no console errors and no WCAG A/AA
+  # violations, plus security headers, invite-only sign-in and token scope.
+  end-to-end:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ovdemo
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install a browser
+        run: pnpm exec playwright-core install --with-deps chromium
+      - name: Create database
+        run: psql postgresql://postgres:postgres@localhost:5432/postgres -c "create database ovdemo"
+      # The build applies the migrations, as a deploy does.
+      - name: Build
+        run: pnpm build
+      - name: Load the demo club
+        run: pnpm seed:demo
+      - name: Smoke test
+        run: pnpm test:e2e
+
