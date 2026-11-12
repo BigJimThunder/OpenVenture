@@ -81,7 +81,7 @@ export function Sidebar({
   const signOut = useSignOut();
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col md:flex">
+    <aside aria-label="Workspace" className="hidden w-60 shrink-0 flex-col md:flex">
       <div className="flex h-12 items-center gap-2 px-3.5">
         <ClubMark name={orgName} />
         <span className="truncate text-sm font-semibold tracking-tight">{orgName}</span>
@@ -108,7 +108,7 @@ export function Sidebar({
         )}
       </div>
 
-      <nav className="scrollbar-none flex flex-1 flex-col gap-4 overflow-y-auto px-2.5 pb-2 pt-1">
+      <nav aria-label="Primary" className="scrollbar-none flex flex-1 flex-col gap-4 overflow-y-auto px-2.5 pb-2 pt-1">
         {NAV_GROUPS.map((group, i) => (
           <div key={group.label ?? i} className="flex flex-col gap-px">
             {group.label && (

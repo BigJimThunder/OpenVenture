@@ -329,7 +329,7 @@ export default async function SettingsPage() {
               description={
                 <>
                   What founders are told before they apply, and must agree to. It is public at{" "}
-                  <a href="/privacy" target="_blank" rel="noopener" className="text-accent underline-offset-2 hover:underline">
+                  <a href="/privacy" target="_blank" rel="noopener" className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent">
                     /privacy
                   </a>
                   . Leave the text empty to use the built-in notice, which describes exactly what this
@@ -625,7 +625,7 @@ export default async function SettingsPage() {
                   />
                 </div>
                 <div className="border-t border-border pt-4">
-                  <h4 className="text-xs font-medium text-fg-muted">What it does when it is on</h4>
+                  <h3 className="text-xs font-medium text-fg-muted">What it does when it is on</h3>
                   <ul className="mt-2 flex flex-col gap-1.5 text-sm">
                     <li>
                       <span className="font-medium">Memo first draft.</span>{" "}

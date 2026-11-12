@@ -383,6 +383,7 @@ function MyOnboarding({ journey }: { journey: Journey | null }) {
                       value={(summary.requiredDone / summary.requiredTotal) * 100}
                       indicatorClassName={complete ? "bg-success" : undefined}
                       className="max-w-56"
+                      aria-label="Required onboarding tasks done"
                     />
                     <span className="tnum text-xs text-fg-muted">
                       {summary.requiredDone} of {summary.requiredTotal} required

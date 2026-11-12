@@ -75,6 +75,7 @@ export function Outline({
           className="mx-2 mt-1.5 w-auto"
           value={progress.total === 0 ? 0 : (progress.ready / progress.total) * 100}
           indicatorClassName="bg-success"
+          aria-label="Report sections ready"
         />
       </div>
 

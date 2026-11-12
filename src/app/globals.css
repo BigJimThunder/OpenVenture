@@ -20,9 +20,13 @@
   --panel-raised: oklch(1 0 0);
   --border: oklch(0.922 0.004 264);
   --border-strong: oklch(0.86 0.006 264);
+  /* Text ramp. Every step clears WCAG AA (4.5:1) for small text on every
+     surface above, the tinted *-bg and --accent-subtle fills included:
+     muted is 7:1 or better, subtle 4.7:1 or better. Subtle is the floor —
+     to make something quieter than this, make it smaller, not lighter. */
   --fg: oklch(0.205 0.012 264);
-  --fg-muted: oklch(0.45 0.012 264);
-  --fg-subtle: oklch(0.6 0.01 264);
+  --fg-muted: oklch(0.43 0.012 264);
+  --fg-subtle: oklch(0.525 0.011 264);
 
   /* Single accent — cobalt. Primary actions, selection, focus rings. */
   --accent: oklch(0.52 0.2 264);
@@ -30,16 +34,18 @@
   --accent-fg: oklch(0.99 0.005 264);
   --accent-subtle: oklch(0.955 0.025 264);
 
-  --success: oklch(0.52 0.13 155);
+  /* Status colors double as text (on the page and on their own *-bg tint),
+     so each is pinned dark enough to hold 4.5:1 in both places. */
+  --success: oklch(0.51 0.13 155);
   --success-bg: oklch(0.96 0.035 155);
   --success-border: oklch(0.87 0.07 155);
-  --warning: oklch(0.58 0.13 70);
+  --warning: oklch(0.53 0.125 70);
   --warning-bg: oklch(0.965 0.045 85);
   --warning-border: oklch(0.87 0.08 85);
-  --danger: oklch(0.56 0.2 25);
+  --danger: oklch(0.55 0.2 25);
   --danger-bg: oklch(0.96 0.028 25);
   --danger-border: oklch(0.88 0.065 25);
-  --info: oklch(0.55 0.12 235);
+  --info: oklch(0.52 0.12 235);
   --info-bg: oklch(0.955 0.028 235);
   --info-border: oklch(0.87 0.06 235);
 
@@ -77,9 +83,11 @@
   --panel-raised: oklch(0.235 0.007 264);
   --border: oklch(0.265 0.007 264);
   --border-strong: oklch(0.35 0.009 264);
+  /* Same AA floor as light: subtle is 4.6:1 or better on every dark surface,
+     raised panels and tinted fills included; muted 7:1 or better. */
   --fg: oklch(0.95 0.004 264);
-  --fg-muted: oklch(0.72 0.008 264);
-  --fg-subtle: oklch(0.56 0.01 264);
+  --fg-muted: oklch(0.76 0.008 264);
+  --fg-subtle: oklch(0.65 0.01 264);
 
   --accent: oklch(0.67 0.16 264);
   --accent-hover: oklch(0.73 0.14 264);

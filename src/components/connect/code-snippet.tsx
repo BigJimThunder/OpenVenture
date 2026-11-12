@@ -37,8 +37,10 @@ export function CodeSnippet({
     // The button sits beside the scroll area, not over it, so long lines never run underneath.
     <div className={cn("flex items-start rounded-md border border-border bg-bg-subtle", className)}>
       <pre
+        // A sideways-scrolling block has to be reachable by keyboard to be read in full.
+        {...(wrap ? {} : { tabIndex: 0, role: "group", "aria-label": label })}
         className={cn(
-          "min-w-0 flex-1 py-2.5 pl-3 font-mono text-xs leading-relaxed text-fg select-all",
+          "min-w-0 flex-1 rounded-l-md py-2.5 pl-3 font-mono text-xs leading-relaxed text-fg outline-none select-all focus-visible:ring-2 focus-visible:ring-accent/40",
           wrap ? "break-words whitespace-pre-wrap" : "overflow-x-auto whitespace-pre"
         )}
       >

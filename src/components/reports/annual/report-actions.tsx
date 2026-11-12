@@ -194,7 +194,7 @@ export function ReaderActions({
             <p className="rounded-md border border-warning-border bg-warning-bg px-3 py-2 text-sm">
               No supporter emails are set.{" "}
               {admin ? (
-                <Link href="/settings" className="font-medium text-accent underline-offset-2 hover:underline">
+                <Link href="/settings" className="font-medium text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent">
                   Add them in Settings, under Reports.
                 </Link>
               ) : (

@@ -74,7 +74,7 @@ export function EnrollDialog({
           <div className="flex min-w-0 flex-col gap-1.5">
             <Label>Track</Label>
             <Select value={track.id} onValueChange={setTrackId} disabled={tracks.length === 1}>
-              <SelectTrigger className="max-md:h-10">
+              <SelectTrigger className="max-md:h-10" aria-label="Onboarding track">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -89,7 +89,7 @@ export function EnrollDialog({
           <div className="flex flex-col gap-1.5">
             <Label>Due</Label>
             <Select value={due} onValueChange={setDue}>
-              <SelectTrigger className="max-md:h-10">
+              <SelectTrigger className="max-md:h-10" aria-label="Onboarding due">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

@@ -242,7 +242,7 @@ export function TeamEditor({ content, derived, apply, canEdit, viewerId }: Edito
                     {mine && !canEdit && (
                       <p className="text-xs text-fg-muted">
                         This is you.{" "}
-                        <Link className="text-accent underline-offset-2 hover:underline" href={`/members/${m.id}`}>
+                        <Link className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent" href={`/members/${m.id}`}>
                           Edit your profile
                         </Link>{" "}
                         to change your bio; the report picks it up.

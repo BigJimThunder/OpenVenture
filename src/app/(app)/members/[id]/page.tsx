@@ -246,7 +246,11 @@ export default async function MemberProfilePage({ params }: PageProps<"/members/
                 </CardTitle>
                 <p className="text-xs text-fg-muted">{onboarding.trackName}</p>
                 {!onboarding.completedAt && onboarding.tasks.length > 0 && (
-                  <Progress value={(onboardingDone / onboarding.tasks.length) * 100} className="mt-1.5" />
+                  <Progress
+                    value={(onboardingDone / onboarding.tasks.length) * 100}
+                    className="mt-1.5"
+                    aria-label={`Onboarding progress for ${m.displayName}`}
+                  />
                 )}
               </CardHeader>
               <CardContent>

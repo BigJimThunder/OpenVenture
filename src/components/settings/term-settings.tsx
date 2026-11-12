@@ -233,7 +233,7 @@ export function TermSettings({
               <span className="tnum">
                 {roster.confirmed} of {roster.total} members have confirmed a schedule for {roster.termName}.
               </span>{" "}
-              <Link href="/schedule" className="text-accent underline-offset-2 hover:underline">
+              <Link href="/schedule" className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent">
                 See who, and remind the rest
               </Link>
             </StatusLine>
