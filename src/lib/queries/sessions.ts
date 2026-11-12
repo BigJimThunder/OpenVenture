@@ -1,3 +1,4 @@
+import { formatDistanceToNow } from "date-fns";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { session } from "@/db/schema";
@@ -5,8 +6,8 @@ import { session } from "@/db/schema";
 export type DeviceSession = {
   id: string;
   device: string;
-  signedInAt: Date;
-  lastSeenAt: Date;
+  /** "3 hours ago" — worded on the server so it cannot differ on hydration. */
+  lastSeen: string;
   current: boolean;
 };
 
@@ -57,8 +58,7 @@ export async function getDeviceSessions(userId: string, currentSessionId: string
   return rows.map((r) => ({
     id: r.id,
     device: describeDevice(r.userAgent),
-    signedInAt: r.createdAt,
-    lastSeenAt: r.updatedAt,
+    lastSeen: `${formatDistanceToNow(r.updatedAt)} ago`,
     current: r.id === currentSessionId,
   }));
 }

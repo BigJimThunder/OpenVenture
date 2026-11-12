@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
 import { DownloadIcon, FileIcon, ImageIcon, PaperclipIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { FILE_KINDS, type FileKind } from "@/db/schema";
@@ -178,7 +177,7 @@ export function FilesCard({ applicationId, files }: { applicationId: string; fil
                     </a>
                     <p className="truncate text-xs text-fg-muted">
                       {FILE_KIND_LABEL[f.kind]} · <span className="tnum">{formatBytes(f.sizeBytes)}</span>
-                      {f.uploadedByName ? ` · ${f.uploadedByName}` : ""} · {format(f.createdAt, "MMM d, yyyy")}
+                      {f.uploadedByName ? ` · ${f.uploadedByName}` : ""} · {f.attachedOn}
                     </p>
                   </div>
                   <Button variant="ghost" size="icon-sm" asChild>

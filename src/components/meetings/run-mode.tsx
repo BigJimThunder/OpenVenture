@@ -102,7 +102,10 @@ export function RunMode({
   // Local start times cover the gap before the server's startedAt arrives.
   const [localStart, setLocalStart] = React.useState<Record<string, number>>({});
   const [mountedAt] = React.useState(() => Date.now());
-  const [now, setNow] = React.useState(() => Date.now());
+  // Null until mounted: the server and the browser read the clock at different
+  // moments, so a clock value in the first render is a hydration mismatch.
+  // Timers show 0:00 for one frame, then the real elapsed time.
+  const [now, setNow] = React.useState<number | null>(null);
   const [sheet, setSheet] = React.useState<"attendance" | "actions" | "wrap" | null>(null);
   const [sendRecap, setSendRecap] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
@@ -111,8 +114,13 @@ export function RunMode({
   const isLast = idx >= items.length - 1;
 
   React.useEffect(() => {
+    // The first reading lands on the next frame, then once a second.
+    const first = requestAnimationFrame(() => setNow(Date.now()));
     const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    return () => {
+      cancelAnimationFrame(first);
+      clearInterval(t);
+    };
   }, []);
 
   // Opening run mode is what starts the meeting and the first item's clock.
@@ -216,7 +224,7 @@ export function RunMode({
     .map((i) => (i.startedAt ? Date.parse(i.startedAt) : localStart[i.id]))
     .filter((t): t is number => typeof t === "number");
   const meetingStart = starts.length ? Math.min(...starts) : mountedAt;
-  const meetingElapsed = now - meetingStart;
+  const meetingElapsed = (now ?? meetingStart) - meetingStart;
   const meetingOver = meetingElapsed > meeting.durationMinutes * 60_000;
 
   let itemElapsed = 0;
@@ -226,7 +234,7 @@ export function RunMode({
     if (current.status === "done" && current.startedAt && current.endedAt) {
       itemElapsed = Date.parse(current.endedAt) - Date.parse(current.startedAt);
     } else if (started) {
-      itemElapsed = now - started;
+      itemElapsed = (now ?? started) - started;
       itemRunning = true;
     }
   }

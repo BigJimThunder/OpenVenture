@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { signOutOtherDevices } from "@/lib/actions/sessions";
 import type { DeviceSession } from "@/lib/queries/sessions";
@@ -45,7 +44,7 @@ export function DevicesCard({ sessions }: { sessions: DeviceSession[] }) {
                 {s.current ? <span className="text-fg-muted"> · this device</span> : null}
               </span>
               <span className="tnum shrink-0 text-xs text-fg-muted">
-                {s.current ? "now" : `${formatDistanceToNow(s.lastSeenAt)} ago`}
+                {s.current ? "now" : s.lastSeen}
               </span>
             </li>
           ))}

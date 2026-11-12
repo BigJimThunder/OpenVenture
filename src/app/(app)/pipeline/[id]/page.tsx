@@ -63,7 +63,7 @@ export default async function ApplicationDetailPage({ params }: PageProps<"/pipe
   const [detail, lookups, files] = await Promise.all([
     getApplicationDetail(ctx.org.id, id),
     getPipelineLookups(ctx.org.id),
-    getApplicationFiles(ctx.org.id, id),
+    getApplicationFiles(ctx.org.id, id, ctx.org.timezone),
   ]);
   if (!detail) notFound();
 
