@@ -310,7 +310,9 @@ export function GrantsTable({
             <table className={dataTable.table}>
               <thead>
                 <tr>
-                  <th className={cn(dataTable.th, "w-8 px-0")} />
+                  <th className={cn(dataTable.th, "w-8 px-0")}>
+                    <span className="sr-only">Details</span>
+                  </th>
                   <th className={cn(dataTable.th, "pl-0")}>Company</th>
                   <th className={dataTable.th}>Status</th>
                   <th className={cn(dataTable.th, "text-right")}>Awarded</th>

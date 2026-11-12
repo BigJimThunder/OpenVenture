@@ -12,6 +12,7 @@ import {
   Shuffle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SkipLink } from "@/components/patterns/skip-link";
 import { BallotReveal } from "./ballot-reveal";
 import { Reveal } from "./reveal";
 import styles from "./landing.module.css";
@@ -177,9 +178,10 @@ const h2 = "text-[1.75rem] leading-[1.15] font-semibold tracking-[-0.025em] sm:t
 export function Landing({ applying }: { applying: { clubName: string } | null }) {
   return (
     <div className="min-h-svh bg-bg text-fg">
+      <SkipLink href="#top" />
       <header className="sticky top-0 z-40 border-b border-border/70 bg-bg/85 backdrop-blur">
         <nav className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
-          <a href="#top" className="flex items-center gap-2.5">
+          <a href="#top" className="flex h-10 items-center gap-2.5">
             <OVMark />
             <span className="text-base font-semibold tracking-tight">OpenVenture</span>
           </a>
@@ -200,7 +202,7 @@ export function Landing({ applying }: { applying: { clubName: string } | null })
         </nav>
       </header>
 
-      <main id="top">
+      <main id="top" tabIndex={-1} className="outline-none">
         {/* Hero */}
         <section className="mx-auto max-w-6xl px-4 pt-14 pb-16 sm:px-6 sm:pt-24 sm:pb-20">
           <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
@@ -258,7 +260,7 @@ export function Landing({ applying }: { applying: { clubName: string } | null })
                 href="/apply"
                 className={cn(
                   styles.rise,
-                  "mt-6 inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-accent underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/40"
+                  "mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-md text-sm font-medium text-accent underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/40"
                 )}
                 style={{ "--d": "0.34s" } as React.CSSProperties}
               >
@@ -494,7 +496,10 @@ export function Landing({ applying }: { applying: { clubName: string } | null })
               {applying && (
                 <p className="mt-5 text-sm text-fg-muted">
                   Looking for funding?{" "}
-                  <Link href="/apply" className="font-medium text-accent underline-offset-4 hover:underline">
+                  <Link
+                    href="/apply"
+                    className="font-medium text-accent underline decoration-accent/40 underline-offset-4 hover:decoration-accent"
+                  >
                     Apply for a grant from {applying.clubName}
                   </Link>
                 </p>
@@ -510,11 +515,12 @@ export function Landing({ applying }: { applying: { clubName: string } | null })
             <OVMark className="size-5" />
             <span>OpenVenture. Open-source software for student grant clubs.</span>
           </div>
-          <div className="flex items-center gap-5 sm:ml-auto">
-            <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-fg">GitHub</a>
-            <a href={DEPLOY_URL} className="hover:text-fg">Deploy</a>
-            {applying && <Link href="/apply" className="hover:text-fg">Apply</Link>}
-            <Link href="/login" className="hover:text-fg">Partner login</Link>
+          {/* py-2 on each link is tap area; the negative margin keeps the row's height. */}
+          <div className="-my-2 flex items-center gap-5 sm:ml-auto">
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="py-2 hover:text-fg">GitHub</a>
+            <a href={DEPLOY_URL} className="py-2 hover:text-fg">Deploy</a>
+            {applying && <Link href="/apply" className="py-2 hover:text-fg">Apply</Link>}
+            <Link href="/login" className="py-2 hover:text-fg">Partner login</Link>
           </div>
         </div>
         <p className="mx-auto max-w-6xl px-4 pb-6 text-xs text-fg-subtle sm:px-6">

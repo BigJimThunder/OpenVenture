@@ -279,8 +279,10 @@ export function AppCard({
     <div
       className={cn(
         "cursor-pointer rounded-md border border-border bg-panel p-2.5 transition-colors hover:border-border-strong",
-        app.status === "declined" && "opacity-60",
-        app.status === "funded" && "opacity-75",
+        // Closed applications recede by giving up the raised card surface.
+        // Never by opacity: faded text falls below readable contrast.
+        app.status === "declined" && "border-dashed bg-transparent",
+        app.status === "funded" && "bg-transparent",
         selected && "border-accent shadow-[0_0_0_1px_var(--accent)]",
         dragging && "rotate-1 shadow-lg",
         className

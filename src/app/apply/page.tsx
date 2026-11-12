@@ -17,11 +17,15 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const org = await loadSoleOrg();
+  const open = org ? orgSettings(org).apply.enabled : false;
   return {
     title: org ? `Apply · ${org.name}` : "Apply",
     description: org
       ? `Apply for a grant from ${org.name}. No equity, nothing to pay back.`
       : undefined,
+    alternates: { canonical: "/apply" },
+    // A closed form is a dead end: keep it out of search results until it opens.
+    ...(open ? {} : { robots: { index: false, follow: true } }),
   };
 }
 

@@ -207,14 +207,24 @@ export default async function ConnectPage() {
           ))}
           <SettingsCard title="What it can't do, on purpose">
             <ul className="flex flex-col gap-2">
-              <StatusLine ok>
-                Cast, change or reveal a vote. It can tell you a vote is open and hand you the link;
-                the ballot is yours, and nobody sees results before the reveal.
-              </StatusLine>
-              <StatusLine ok>Email a founder or anyone outside the club.</StatusLine>
-              <StatusLine ok>Approve or issue a grant, or touch the budget.</StatusLine>
-              <StatusLine ok>Invite, promote or offboard members, or change settings.</StatusLine>
-              <StatusLine ok>Delete anything, or make or revoke tokens.</StatusLine>
+              <li>
+                <StatusLine ok>
+                  Cast, change or reveal a vote. It can tell you a vote is open and hand you the link;
+                  the ballot is yours, and nobody sees results before the reveal.
+                </StatusLine>
+              </li>
+              <li>
+                <StatusLine ok>Email a founder or anyone outside the club.</StatusLine>
+              </li>
+              <li>
+                <StatusLine ok>Approve or issue a grant, or touch the budget.</StatusLine>
+              </li>
+              <li>
+                <StatusLine ok>Invite, promote or offboard members, or change settings.</StatusLine>
+              </li>
+              <li>
+                <StatusLine ok>Delete anything, or make or revoke tokens.</StatusLine>
+              </li>
             </ul>
           </SettingsCard>
         </SettingsSection>

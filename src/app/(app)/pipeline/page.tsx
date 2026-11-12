@@ -110,7 +110,7 @@ export default async function PipelinePage({ searchParams }: PageProps<"/pipelin
             ) : apps.length === 0 ? (
               <p className="px-4 py-16 text-center text-sm text-fg-muted">
                 No applications match {activeFilterCount(filters) === 1 ? "this filter" : "these filters"}.{" "}
-                <Link href={view === "list" ? "/pipeline?view=list" : "/pipeline"} className="text-accent hover:underline">
+                <Link href={view === "list" ? "/pipeline?view=list" : "/pipeline"} className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent">
                   Clear filters
                 </Link>
               </p>

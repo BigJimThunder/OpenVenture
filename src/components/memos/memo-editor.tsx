@@ -107,7 +107,11 @@ export function MemoEditor({
     <div className="flex min-w-0 flex-col gap-3">
       <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-bg/95 px-4 py-2 backdrop-blur md:mx-0 md:rounded-lg md:border md:bg-panel/95 md:shadow-xs">
         <div className="flex min-w-36 flex-1 items-center gap-2.5">
-          <Progress value={(filled / sections.length) * 100} className="max-w-40 flex-1" />
+          <Progress
+            value={(filled / sections.length) * 100}
+            className="max-w-40 flex-1"
+            aria-label="Memo sections filled in"
+          />
           <span className="tnum shrink-0 text-xs text-fg-muted">
             {filled}/{sections.length} sections · {totalWords.toLocaleString()} words
           </span>

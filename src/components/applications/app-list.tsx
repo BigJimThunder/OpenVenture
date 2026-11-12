@@ -36,12 +36,20 @@ export function AppList() {
   const rows = React.useMemo(() => sortForList(apps, stages), [apps, stages]);
 
   return (
-    <div className="h-full overflow-y-auto px-4 pt-3 pb-6">
+    <div
+      // Scrolls, so it has to be reachable from the keyboard to be read to the end.
+      tabIndex={0}
+      role="group"
+      aria-label="Applications"
+      className="h-full overflow-y-auto px-4 pt-3 pb-6 outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-inset"
+    >
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead className="w-20">Ref</TableHead>
-            <TableHead className="w-8" aria-label="Priority" />
+            <TableHead className="w-8">
+              <span className="sr-only">Priority</span>
+            </TableHead>
             <TableHead>Company</TableHead>
             <TableHead>Stage</TableHead>
             <TableHead>Owner</TableHead>

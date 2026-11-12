@@ -61,7 +61,7 @@ function ColorSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger>
+      <SelectTrigger aria-label="Stage color">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

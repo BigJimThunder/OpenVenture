@@ -12,6 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: org ? `Privacy · ${org.name}` : "Privacy",
     description: org ? `How ${org.name} handles the information founders send it.` : undefined,
+    alternates: { canonical: "/privacy" },
   };
 }
 
@@ -55,7 +56,7 @@ export default async function PrivacyPage() {
               {contact && (
                 <p className="text-fg-muted">
                   Questions, or to ask for a copy or deletion of your data:{" "}
-                  <a href={`mailto:${contact}`} className="text-accent underline-offset-2 hover:underline">
+                  <a href={`mailto:${contact}`} className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent">
                     {contact}
                   </a>
                 </p>
