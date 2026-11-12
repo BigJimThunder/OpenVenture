@@ -41,7 +41,8 @@ checks from $200–$4,000) but useful to any student investing group.
 | **Intake & pipeline** | A hosted application form (or your own, via a signed webhook) feeds a kanban: Applied → Screening → Coffee Chat → Pitched Group → Decision → Funded/Declined. Each application arrives with an owner and a duplicate check. Declines require a reason — that's what makes the annual retro real. |
 | **Automations** | One daily job: vote reminders and auto-close, stage-deadline nudges, a Monday digest, quarterly grantee check-ins. No per-event email storms; everything is deduplicated. |
 | **Memos & blind IC voting** | Templated memos with section versioning and comments; conviction voting that stays **hidden until reveal** — the cheapest anti-groupthink mechanism there is. |
-| **Grants** | The pool, requests, approve → issue → reconcile, receipts, budget burn-down with an overdraw guard. |
+| **Grants** | The pool, requests, approve → issue → reconcile, receipts, budget burn-down with an overdraw guard that holds even when two admins approve at the same moment. |
+| **Files** | Pitch decks, budgets and receipts attached to an application. Stored in your own database, opened only by signed-in members, removed when a founder's data is erased. |
 | **Onboarding** | Invite someone once: they get a guided welcome flow — confirm their details, enter their class schedule, then whatever videos, articles and acknowledgments the club requires. Admins watch a pipeline of who is where; reminders send themselves. |
 | **Scheduler** | Everyone enters their class schedule once a term (paint it, paste it, or import a calendar file). Coffee chats and meetings are then suggested around it: pick the people and see when they're all free, or pick "any two this week" and get people and times. |
 | **Members & meetings** | Roster, agenda builder, two-tap attendance, run mode, recaps, iCal feed. |
@@ -50,6 +51,7 @@ checks from $200–$4,000) but useful to any student investing group.
 | **Reports** | Three documents the club sends up, built from what is already in the app. **Funding requests**: the one-page memo for sign-off, with facts, the asked/approved line items and the vote pulled in, and the judgment sections prefilled from the memo. **Quarterly letters**: written from the ledger in plain sentences around a partner's opening. **Annual report**: team, mission, activity, a thesis-and-progress spread per company, programs and looking forward — printed as a publication. Numbers freeze when a report is finalized. |
 | **Connect your AI** | Each member can create an access token and plug their own assistant in over MCP. It acts as them, with their role: reads the pipeline, drafts notes, memos and reports, sends them a digest. It cannot vote, move money or email founders. |
 | **Enrichment & export** | One-click company enrichment from the founder's own website (optional Claude pass with an `ANTHROPIC_API_KEY`); full JSON/CSV export — your data is never locked in. |
+| **Privacy & records** | A plain-language privacy notice founders agree to before applying, one-click erasure of a founder's personal data on request, and an activity log of every change — who, what, when — that admins can search. |
 
 ## The work, not just the workflow
 
@@ -150,19 +152,24 @@ it to the project, and **Redeploy**.
 
 | Setting | Needed? | What to put |
 |---|---|---|
-| `BETTER_AUTH_SECRET` | Yes | Any long random string (40+ characters). It keeps sign-ins secure. A password manager's generator is ideal. |
+| `BETTER_AUTH_SECRET` | Recommended | Any long random string (40+ characters). It signs sign-in sessions. A password manager's generator is ideal. If you leave it out, a secret is derived from your database credentials instead — there is never a built-in default — but then changing the database password signs everyone out. |
 | `CRON_SECRET` | Yes | Another long random string. It lets Vercel — and only Vercel — trigger the daily reminders. |
 | `RESEND_API_KEY` | Yes, in practice | The key from step 1. Without it nobody receives a sign-in email. |
 | `DATABASE_URL` | Set for you | Added by the Neon integration. |
 | `EMAIL_FROM` | Later | Once you verify your club's domain in Resend: `Your Club <grants@yourclub.org>`. Until then email only reaches the Resend account owner — fine for setting up, **required before you invite anyone**. |
-| `BETTER_AUTH_URL` | With a custom domain | Your site's address, e.g. `https://grants.yourclub.org`. On a plain `*.vercel.app` address it is worked out automatically. |
-| `ANTHROPIC_API_KEY` | Optional | Turns on AI drafts (summaries, memo help). Always drafts for a human to edit. |
+| `BETTER_AUTH_URL` | With a custom domain | Your site's public address, e.g. `https://grants.yourclub.org`. Links in emails, the share image and the sitemap are built from it. On a plain `*.vercel.app` address it is worked out automatically. |
+| `ANTHROPIC_API_KEY` | Optional | Turns on AI drafts (summaries, memo help). Always drafts for a human to edit. Capped at 150 calls a day (`AI_DAILY_LIMIT`). |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional | Adds "Continue with Google". Still invite-only: an account that isn't on the member list is turned away. |
+| `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` | Optional | Adds "Continue with Microsoft" for your school's tenant. All three are required. |
+| `ERROR_WEBHOOK_URL` | Optional | A Slack (or any) webhook that is told when something fails on the server. |
+
+Every other setting, with what it does, is in [`.env.example`](.env.example).
 
 Slack is optional too, and isn't an environment variable: paste an incoming-webhook URL in
 **Settings → Intake** to get a ping for each new application.
 
 Open **`/api/health`** on your site at any time. It lists what is and isn't connected,
-without revealing any secrets.
+and whether the daily job is actually running, without revealing any secrets.
 
 **What it does on its own once deployed:** assigns each new application to the next member
 in rotation, emails the founder a confirmation, flags likely duplicates, reminds voters the
@@ -187,11 +194,23 @@ break-glass admin hatch.
 
   ```
   POST /api/ingest/application
-  x-openventure-signature: sha256=<HMAC-SHA256 of the raw body>
+  x-openventure-timestamp: <unix seconds, now>
+  x-openventure-signature: sha256=<HMAC-SHA256 of "<timestamp>.<raw body>">
+  x-openventure-delivery: <any unique id>      (optional: makes retries safe)
   ```
+
+  A request signed this way stops being valid after five minutes. Signing the raw body
+  alone, with no timestamp header, still works for forms set up before this existed.
 
 Both paths do the same thing: the application lands in the pipeline with an owner, the
 founder hears back, and Slack gets a ping.
+
+**What founders are told.** The hosted form links to `/privacy` and requires agreeing to it.
+The built-in notice says, in plain language, exactly what this software does with an
+application; replace it with your own wording in Settings → Intake if your school requires
+it. When a founder asks for their data to be removed, an admin opens the application and
+chooses *Erase the applicant's personal data* — see
+[ADMIN_RUNBOOK.md → Privacy requests](ADMIN_RUNBOOK.md#privacy-requests).
 
 ## Connect your AI (MCP)
 
@@ -237,9 +256,11 @@ is a small hand-written handler (`src/lib/mcp/protocol.ts`), not an SDK. The too
 (`src/lib/mcp/catalog.ts`) is the contract; every write tool calls the same `authedAction` the
 matching screen calls, so stage gates, role checks and the activity log apply without being
 restated. Tokens are stored as SHA-256 hashes, carry the member's role and never more, stop
-working when the member is offboarded, and cannot be used to create or revoke tokens. The
-endpoint accepts a token only — never a browser session — which is what makes it safe to call
-from anywhere. To turn the whole thing off, set `MCP_DISABLED=1`.
+working when the member is offboarded, and cannot be used to create or revoke tokens. A token
+is a credential at `/api/mcp` and nowhere else: pages, server actions, exports and the cron
+route ignore it, and a write token reaches only the actions that are explicitly marked for
+assistants (`allowToken`). The endpoint accepts a token only — never a browser session — which
+is what makes it safe to call from anywhere. To turn the whole thing off, set `MCP_DISABLED=1`.
 
 ## Local development
 
@@ -260,6 +281,25 @@ every stage (fictional companies only)?
 DATABASE_URL=… pnpm seed:demo   # wipes the database first; refuses on a real club's data
 ```
 
+**Tests.** Three layers, all in CI:
+
+```bash
+pnpm test        # unit tests; the cap-table golden fixtures are the hard gate
+TEST_DATABASE_URL=postgresql://…/disposable pnpm test:db   # the real actions against Postgres
+OV_TEST_DRIVER=neon TEST_DATABASE_URL=… pnpm test:db       # …again through the production driver's code path
+pnpm build && pnpm seed:demo && pnpm test:e2e              # the built app in a real browser
+```
+
+`test:db` empties the database it is given. It covers what a unit test can't: role gates,
+two people approving grants at once, a vote decided twice, ballots after a reveal, erasure.
+`test:e2e` opens every screen at desktop and phone width and fails on a console error, a
+WCAG A/AA violation or sideways scrolling.
+
+**A public demo.** Set `DEMO_MODE=1` on a deployment whose database was loaded with
+`pnpm seed:demo` and the sign-in page offers *Explore the demo*: anyone can look around as
+the fictional club's admin, and every change is refused. The variable does nothing on a
+real club's data.
+
 **Schema changes.** The SQL files in `drizzle/` are the source of truth, and every deploy
 applies them automatically (`pnpm build` runs `scripts/migrate.mjs` before `next build`).
 To change the schema: edit `src/db/schema/*`, run `pnpm db:generate`, commit the new
@@ -277,13 +317,15 @@ variables works. Schedule one daily request to `/api/cron/daily` — see
 - **Decisions leave a trail.** Stage moves, decline reasons, votes, and grants are all recorded — the club's memory survives officer turnover.
 - **Blind by default.** IC votes are hidden until reveal, enforced server-side.
 - **Privacy is code, not policy.** Demographics are aggregate-only with k-anonymity suppression.
+- **Safe with nothing configured.** A missing setting switches a feature off; it never falls back to a value anyone could guess.
 - **Teaching tool, not black box.** Every derived cap-table number expands to its inputs.
 - **Money is never a float.** All amounts and shares are `decimal.js` or numeric strings, and every cap-table calculation lives in one pure engine.
 
 ## Stack
 
 Next.js 16 (App Router) · TypeScript · Tailwind v4 + shadcn-style components · Drizzle ORM ·
-Neon Postgres · Better Auth (magic link + email OTP) · Resend · Recharts · dnd-kit · Vitest.
+Neon Postgres · Better Auth (magic link + email OTP, optional Google and Microsoft) · Resend ·
+Recharts · dnd-kit · Vitest · Playwright + axe-core for the end-to-end check.
 
 Every mutation goes through a single `authedAction` wrapper — Zod validation, session
 check, role check, handler, activity log — because Server Actions are public POST endpoints
@@ -295,7 +337,9 @@ Issues and pull requests are welcome. Before opening a PR:
 
 ```bash
 pnpm lint
+pnpm typecheck
 pnpm test     # the cap-table golden fixtures are the hard gate — never merge them red
+pnpm test:db  # needs TEST_DATABASE_URL; see Local development
 pnpm build
 ```
 

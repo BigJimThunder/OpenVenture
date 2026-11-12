@@ -11,12 +11,17 @@ export type AttachedFile = {
   kind: FileKind;
   uploadedByMemberId: string | null;
   uploadedByName: string | null;
-  createdAt: Date;
+  /** "Nov 12, 2026", in the club's timezone — worded on the server. */
+  attachedOn: string;
 };
 
 /** Finished attachments on one application, newest first. */
-export async function getApplicationFiles(orgId: string, applicationId: string): Promise<AttachedFile[]> {
-  return db
+export async function getApplicationFiles(
+  orgId: string,
+  applicationId: string,
+  timeZone = "UTC"
+): Promise<AttachedFile[]> {
+  const rows = await db
     .select({
       id: file.id,
       filename: file.filename,
@@ -31,6 +36,8 @@ export async function getApplicationFiles(orgId: string, applicationId: string):
     .leftJoin(member, eq(file.uploadedByMemberId, member.id))
     .where(and(eq(file.orgId, orgId), eq(file.applicationId, applicationId), eq(file.status, "ready")))
     .orderBy(desc(file.createdAt));
+  const day = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone });
+  return rows.map(({ createdAt, ...row }) => ({ ...row, attachedOn: day.format(createdAt) }));
 }
 
 /** A finished file's row, scoped to the org. */

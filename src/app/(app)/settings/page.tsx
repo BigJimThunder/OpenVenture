@@ -18,6 +18,7 @@ import { defaultFounderEmail, type FounderEmailKind } from "@/lib/founder-emails
 import { summarizePool } from "@/lib/grants/budget";
 import { appUrl } from "@/lib/notify";
 import { lastDailyRun } from "@/lib/automation/run";
+import { dailyRunStatus } from "@/lib/automation/status";
 import { cronConfigured } from "@/lib/env";
 import { orgSettings } from "@/lib/org-settings";
 import { can } from "@/lib/permissions";
@@ -475,16 +476,7 @@ export default async function SettingsPage() {
             description="What the app does without being asked. A daily job runs these; each message is sent once, never twice."
           >
             <SettingsCard title="Daily run">
-              <DailyRun
-                status={{
-                  lastStartedAt: lastRun?.startedAt.toISOString() ?? null,
-                  ok: lastRun?.ok ?? null,
-                  emails: lastRun?.emails ?? 0,
-                  failures: lastRun?.failures ?? 0,
-                  trigger: lastRun?.trigger ?? null,
-                  scheduled: cronConfigured(),
-                }}
-              />
+              <DailyRun status={dailyRunStatus(lastRun, cronConfigured())} />
             </SettingsCard>
 
             <SettingsCard>

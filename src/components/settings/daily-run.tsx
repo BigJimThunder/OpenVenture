@@ -2,50 +2,26 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export type DailyRunStatus = {
-  /** ISO timestamp of the last run's start, or null if it has never run. */
-  lastStartedAt: string | null;
-  ok: boolean | null;
-  emails: number;
-  failures: number;
-  trigger: "schedule" | "admin" | "assistant" | null;
-  /** Whether CRON_SECRET is set — without it the scheduler is refused. */
-  scheduled: boolean;
+  /** "ok" when it ran recently without failures. */
+  tone: "ok" | "warn";
+  /** The whole sentence, worded on the server: relative times computed in the
+   *  browser would differ from the server's by the time the page hydrates. */
+  headline: string;
 };
 
-const TRIGGER_LABEL = { schedule: "on schedule", admin: "by an admin", assistant: "by an assistant" } as const;
-
 /**
- * Whether the daily job is actually running, and a way to run it now. A day
- * and a half without a run means the schedule is broken, whatever the cause.
+ * Whether the daily job is actually running, and a way to run it now. The
+ * status itself is worked out by `dailyRunStatus` on the server.
  */
 export function DailyRun({ status }: { status: DailyRunStatus }) {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
-  // "Now" is read once on mount: rendering must stay pure.
-  const [now] = React.useState(() => Date.now());
-
-  const last = status.lastStartedAt ? new Date(status.lastStartedAt) : null;
-  const stale = last ? now - last.getTime() > 36 * 3_600_000 : true;
-  const tone = !last || stale || status.ok === false ? "warn" : "ok";
-
-  let headline: string;
-  if (!last) {
-    headline = status.scheduled
-      ? "Hasn't run yet. The first run happens within a day of deploying."
-      : "Hasn't run, and can't on its own: CRON_SECRET isn't set on this deployment.";
-  } else if (status.ok === false) {
-    headline = `Last run ${formatDistanceToNow(last, { addSuffix: true })} had ${status.failures} ${status.failures === 1 ? "failure" : "failures"}. The details are in the server log.`;
-  } else if (stale) {
-    headline = `Last ran ${formatDistanceToNow(last, { addSuffix: true })} — it should run every day. Check the schedule in your host's dashboard.`;
-  } else {
-    headline = `Last ran ${formatDistanceToNow(last, { addSuffix: true })}${status.trigger ? `, ${TRIGGER_LABEL[status.trigger]}` : ""} · ${status.emails} ${status.emails === 1 ? "email" : "emails"} sent`;
-  }
+  const { tone, headline } = status;
 
   async function runNow() {
     setBusy(true);

@@ -35,8 +35,12 @@ a magic link to that email — there is no password to share. Roles:
 
 ### Offboard a member
 Members → their profile → **Offboard**. Their history (votes, memos, sourcing
-credit) is preserved; they just can't sign in. Never delete rows in the database
-to remove someone.
+credit) is preserved; they just can't sign in. Any browser they are signed in on
+is signed out, and their AI access tokens stop working. Never delete rows in the
+database to remove someone.
+
+If the person had the calendar feed link, reset it too: Settings → Data →
+**Reset link**.
 
 ### Open or close applications
 Settings → Intake → **Application form**. When it's on, founders apply at
@@ -49,8 +53,9 @@ have.
 Only matters if your own website form posts applications to OpenVenture. If
 that secret leaks (or annually, out of caution): Settings → Intake →
 **Rotate secret**, then paste the new secret into wherever
-your website form is hosted. The old secret stops working immediately. Rotating
-also changes the calendar-feed URL — re-subscribe in Google/Apple Calendar.
+your website form is hosted. The old secret stops working immediately. The
+calendar feed is not affected: it has its own link, with its own **Reset link**
+button under Settings → Data.
 
 ### Email health
 If sign-in emails stop arriving: Resend dashboard → Domains → your domain should
@@ -61,7 +66,40 @@ can. Every sign-in email carries a 6-digit code as well as a link, because some
 university mail scanners "click" links before you do.
 
 Resend's free tier allows 100 emails a day. OpenVenture is built to stay well
-under it: reminders are batched into one email per person, never one per event.
+under it: reminders are batched into one email per person, never one per event,
+and a sign-in email is only ever sent to an address that is on the member list
+(so a stranger typing addresses into the sign-in page costs you nothing).
+
+**Members choose their own email.** The weekly digest and the reminders each
+carry a "Turn them off" link, and every member has the same two switches on
+their own profile. Sign-in emails and messages a member sends on purpose are
+never affected.
+
+**Bounces (optional).** If you add `RESEND_WEBHOOK_SECRET`, OpenVenture hears
+about bounces and spam complaints: in Resend → Webhooks, add
+`https://your-site/api/webhooks/resend` for the events *email.bounced* and
+*email.complained*, and copy the signing secret into that variable. A hard
+bounce then pauses scheduled email to that member and says so in the activity
+log, so you can fix the address.
+
+### Sign in with Google or Microsoft (optional)
+Email links always work. To add a button for your school's accounts:
+
+- **Google:** create an OAuth client (Google Cloud console → APIs & Services →
+  Credentials → Web application) with the redirect URI
+  `https://your-site/api/auth/callback/google`, then set `GOOGLE_CLIENT_ID` and
+  `GOOGLE_CLIENT_SECRET`.
+- **Microsoft:** register an app in your school's Entra ID with the redirect
+  URI `https://your-site/api/auth/callback/microsoft`, then set
+  `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` and `MICROSOFT_TENANT_ID`
+  (your school's tenant id — the button stays off without it).
+
+Either way the club stays invite-only: someone whose address is not on the
+member list is turned away with a message telling them to ask for an invite.
+
+### Signed-in devices
+Every member's own profile lists where they are signed in, with **Sign out
+everywhere else** — for a lost phone or a library computer.
 
 ### AI connections (access tokens)
 Any member can let their own AI assistant act as them: account menu → **Connect
@@ -136,10 +174,13 @@ A crontab line for 12:00 UTC: `0 12 * * * curl -fsS -H "Authorization: Bearer YO
 A free scheduled GitHub Action or cron-job.org does the same job. The response
 is a short JSON summary of what each job did.
 
-**Did it run?** Open the response, or look at Vercel → Logs for
-`/api/cron/daily`. `401` means the secret doesn't match; `503` means
-`CRON_SECRET` isn't set. If emails say "only printed to the server log",
-`RESEND_API_KEY` is missing.
+**Did it run?** Settings → Automations → **Daily run** shows when it last ran,
+how many emails it sent and whether anything failed, with a **Run now** button.
+`/api/health` reports the same, and flags a schedule that is set up but has not
+fired for a day and a half. In Vercel → Logs for `/api/cron/daily`: `401` means
+the secret doesn't match; `503` means `CRON_SECRET` isn't set; `500` means a job
+failed (the response says which). If emails say "only printed to the server
+log", `RESEND_API_KEY` is missing.
 
 ## The annual handover checklist (do this every spring)
 
@@ -174,6 +215,11 @@ Every admin graduated and nobody was promoted? There's a hatch:
    (or promoted to) an **admin**.
 5. **Remove the variable and redeploy again.** Don't leave the hatch open.
 
+While the variable is set, every admin sees a banner on every screen saying so,
+`/api/health` reports `breakGlassActive: true`, and each use is written to the
+activity log. On a brand-new deployment that has no club yet, setting it also
+reserves the first sign-in — and so the club's first admin — for that address.
+
 This requires access to the Vercel account — which is why step 3 of the handover
 checklist matters.
 
@@ -201,7 +247,10 @@ copy of the code was made:
   technically inclined" below — a five-minute job once or twice a year.
 
 Database changes that come with a new version are applied **automatically
-during that deploy**, before the new code goes live. You never run a database
+during that deploy**, before the new code goes live. Preview deployments (pull
+requests, other branches) never change the database, so trying out a branch
+cannot touch your data; if your previews have a database of their own, set
+`MIGRATE_PREVIEW=1` for the Preview environment. You never run a database
 command. If a database change fails, the deploy fails, nothing is changed, and
 the previous version keeps running — open the red deployment in Vercel and read
 the lines starting with `[migrate]`; they say what went wrong in plain words.
@@ -232,6 +281,47 @@ git push
 
 </details>
 
+## Privacy requests
+
+Founders are told how their information is handled at `https://your-site/privacy`
+and must agree before they apply. Write your own notice, and set the address
+founders should write to, in Settings → Intake → **Privacy notice**.
+
+**"Please delete my data."** Open the application → at the bottom of the
+right-hand column, **Erase the applicant's personal data**. It removes their
+name and email, everything they wrote, their academic details and optional
+answers, attached files, the company's contacts, and the notes and debriefs
+members wrote about them. If it was the company's only application, the
+company's name and profile go too, and the activity log stops naming it. The
+amounts, dates, decision and any grant stay, because the club's books need
+them and they no longer identify anyone. Memos and vote rationales are the
+club's own documents and are not rewritten — edit them if they name the founder.
+This cannot be undone.
+
+**"What do you hold on me?"** The application page is the answer; the JSON
+export contains the same rows.
+
+## Files
+
+Members attach pitch decks, budgets and receipts on an application's page. Files
+live in your own database (PDF, images and Office documents, up to 20 MB each),
+so there is nothing else to set up and nothing is reachable without signing in.
+
+The club's total is capped at 250 MB by default, because a free database is
+about 500 MB in all. Raise it with `FILE_STORAGE_LIMIT_MB` once you are on a
+paid database. Neon → your project shows how much storage is in use. The JSON
+export lists attachments but does not contain the files themselves; download
+the ones you need to keep from their application pages.
+
+## A public demo
+
+To show the app to people who are not members, deploy a **separate** copy, load
+it with `pnpm seed:demo`, and set `DEMO_MODE=1`. The sign-in page then offers
+*Explore the demo*: anyone can look around the fictional club as its admin, and
+every change is refused. Never point `seed:demo` at your club's database — it
+wipes it (and refuses unless forced). `DEMO_MODE` on its own does nothing to a
+real club: it only works on data the demo seed created.
+
 ## Exports and what's deliberately missing
 
 Settings → **Data** gives a full JSON dump plus CSVs for
@@ -241,6 +331,11 @@ by design, and this is not configurable:
 - **Self-reported founder demographics** — aggregate-only inside the app
   (small-group numbers are suppressed), and excluded from every export.
 - **Ballots for unrevealed vote rounds** — blind means blind, even for admins.
+
+Every export is written to the **activity log** (Settings → Data → Open the
+activity log), along with every other change in the club: who, what and when,
+searchable, with role changes, settings changes and anything the app did on its
+own.
 
 ## Money notes
 
@@ -255,7 +350,12 @@ by design, and this is not configurable:
 0. Open `https://your-site/api/health`. Anything marked `"ok": false` tells you
    where to look.
 1. Vercel → Deployments: red build? Open it and read the error. A rollback is
-   one click ("Instant Rollback" on the last green deployment).
-2. Neon → is the project suspended (free-tier idle) or out of storage?
-3. Still stuck? Open an issue on the GitHub repo — this is open source, and the
+   one click ("Instant Rollback" on the last green deployment). Rolling back
+   the code does not undo a database change, and does not need to: new
+   versions only ever add tables, columns and indexes.
+2. A member saw "Something went wrong … reference ab12cd34"? Search Vercel →
+   Logs for that reference: the line next to it is the actual error. To be told
+   about failures as they happen, set `ERROR_WEBHOOK_URL` to a Slack webhook.
+3. Neon → is the project suspended (free-tier idle) or out of storage?
+4. Still stuck? Open an issue on the GitHub repo — this is open source, and the
    maintainers have seen your error before.

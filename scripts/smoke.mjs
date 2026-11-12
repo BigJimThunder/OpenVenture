@@ -210,6 +210,11 @@ async function main() {
       await p.close();
     }
     await first.close();
+    // Screens that hang off a detail page.
+    const meeting = detail.find((d) => d.startsWith("/meetings/"));
+    if (meeting) detail.push(`${meeting}/run`);
+    const memo = detail.find((d) => d.startsWith("/memos/"));
+    if (memo) detail.push(`${memo}/vote`);
 
     for (const viewport of VIEWPORTS) {
       console.log(`Signed-in screens, ${viewport.name} (${viewport.width}px)`);
