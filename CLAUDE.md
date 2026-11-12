@@ -36,6 +36,7 @@ Open-source suite for student-run VC clubs making non-dilutive grants. Full plan
 - Keyboard hints (`Kbd`) are only shown for shortcuts that work. Anything that opens a record is a real link or button, not a click handler on a row.
 - Accessibility is tested, not hoped for: text uses `--fg`, `--fg-muted` or `--fg-subtle` (the AA floor — never dim text with opacity), icon-only controls have an `aria-label`, and the smoke test fails on any WCAG A/AA violation.
 - Inline scripts need the CSP nonce (`(await headers()).get("x-nonce")`); prefer not adding any.
+- Landing page (`/`, src/components/marketing): a product site, not an app screen — see DESIGN_BRIEF.md §11. Interactive replicas of the app built from `kit.tsx`, plain confident copy (no jokes, no framing devices), motion that never hides content. It must stay readable with JavaScript off and pass the same axe check in both themes.
 - UI: components consume semantic tokens from globals.css (`--bg`, `--fg-muted`, `--accent`, `--cat-N`) — never raw colors. Every screen must work at 390px wide (phones get a tab bar; dialogs become bottom sheets). Pages compose `components/patterns/*`, not raw `components/ui/*`. Tabular numerals (`.tnum`) on every money/metric column.
 
 <!-- BEGIN:nextjs-agent-rules -->

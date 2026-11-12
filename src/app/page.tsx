@@ -8,9 +8,9 @@ import { orgSettings } from "@/lib/org-settings";
 import { Landing } from "@/components/marketing/landing";
 import { demoMode } from "@/lib/demo";
 
-const TITLE = "OpenVenture · Open-source software for student-run grant funds";
+const TITLE = "OpenVenture · The operating system for student venture funds";
 const DESCRIPTION =
-  "Everything a student grant club knows leaves in May. OpenVenture keeps it: applications, screening, memos, blind votes and a budget that checks itself. Open source, self-hosted.";
+  "Pipeline, diligence memos, blind committee votes and grant accounting in one open-source workspace. Self-hosted, MIT licensed and free to run for a student fund.";
 
 // The one page meant to be found and shared. The share image is
 // opengraph-image.tsx; the canonical URL resolves against metadataBase.
