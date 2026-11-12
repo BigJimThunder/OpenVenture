@@ -2,9 +2,10 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared frame for the signed-out screens (sign in, first-run setup). Sits
- * near the top on phones so the keyboard doesn't cover the form, centred on
- * larger screens.
+ * Shared frame for the screens outside the app shell (sign in, first-run
+ * setup, page not found). Sits near the top on phones so the keyboard doesn't
+ * cover the form, centred on larger screens. It is the page's `<main>`
+ * landmark, so everything on these screens is reachable by landmark.
  */
 export function AuthFrame({
   title,
@@ -20,7 +21,7 @@ export function AuthFrame({
   footer?: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-svh flex-col items-center bg-chrome px-4 pb-8 pt-10 sm:justify-center sm:pt-8">
+    <main className="flex min-h-svh flex-col items-center bg-chrome px-4 pb-8 pt-10 sm:justify-center sm:pt-8">
       <div className={cn("w-full", wide ? "max-w-md" : "max-w-sm")}>
         <Link
           href="/"
@@ -34,6 +35,6 @@ export function AuthFrame({
         {children && <div className="mt-6">{children}</div>}
         {footer && <div className="mt-6 text-sm text-fg-muted">{footer}</div>}
       </div>
-    </div>
+    </main>
   );
 }

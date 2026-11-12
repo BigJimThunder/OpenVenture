@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
@@ -5,6 +6,10 @@ import { getCtx } from "@/lib/actions/context";
 import { getShellCounts } from "@/lib/queries/dashboard";
 import { getSetupProgress } from "@/lib/queries/setup-progress";
 import { AppShell } from "@/components/shell/app-shell";
+
+// Belt and braces: these screens redirect anyone signed out and robots.ts
+// disallows them, but nothing behind the login should ever be indexed.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 /**
  * Auth-guarded shell. This layout AND every server action independently
