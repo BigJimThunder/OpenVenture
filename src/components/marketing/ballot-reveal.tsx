@@ -18,33 +18,42 @@ const VOTE_LABEL = { fund: "Fund", decline: "Decline", abstain: "Abstain" } as c
 
 /**
  * The signature moment: a vote round the way the product runs one. Ballots
- * render sealed, flip on scroll-in, then the tally draws. Reduced motion
- * gets the revealed end state immediately.
+ * seal, flip on scroll-in, then the tally draws.
+ *
+ * The server renders the revealed end state, so the result reads without
+ * JavaScript and under reduced motion. Once mounted, a round that is still
+ * below the fold is sealed (out of sight) and plays when it scrolls in.
  */
 export function BallotReveal() {
   const ref = React.useRef<HTMLDivElement>(null);
-  const [revealed, setRevealed] = React.useState(false);
-  const [instant, setInstant] = React.useState(false);
+  const [revealed, setRevealed] = React.useState(true);
 
   React.useEffect(() => {
     const el = ref.current;
-    if (!el) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!el || !("IntersectionObserver" in window)) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let sealed = false;
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) return;
-        io.disconnect();
-        if (reduced) {
-          setInstant(true);
-          setRevealed(true);
-        } else {
-          setTimeout(() => setRevealed(true), 700);
+        if (!entry.isIntersecting) {
+          // First report, still off screen: seal it so there is a reveal to watch.
+          if (!sealed && entry.boundingClientRect.top >= window.innerHeight) {
+            sealed = true;
+            setRevealed(false);
+          }
+          return;
         }
+        io.disconnect();
+        if (sealed) timer = setTimeout(() => setRevealed(true), 700);
       },
-      { threshold: reduced ? 0.1 : 0.5 }
+      { threshold: 0.5 }
     );
     io.observe(el);
-    return () => io.disconnect();
+    return () => {
+      io.disconnect();
+      clearTimeout(timer);
+    };
   }, []);
 
   const funds = BALLOTS.filter((b) => b.vote === "fund").length;
@@ -64,7 +73,7 @@ export function BallotReveal() {
           >
             <div
               className={cn(styles.ballotInner, "h-full w-full")}
-              style={{ "--d": instant ? "0s" : `${i * 0.09}s` } as React.CSSProperties}
+              style={{ "--d": `${i * 0.09}s` } as React.CSSProperties}
             >
               {/* Sealed face */}
               <div
@@ -129,12 +138,14 @@ export function BallotReveal() {
             style={{ width: revealed ? `${(funds / BALLOTS.length) * 100}%` : "0%" }}
           />
         </div>
-        <div className="mt-3 text-center">
+        <div className="mt-1 text-center">
           <button
             type="button"
             onClick={replay}
+            // Invisible while the round is sealed, so it must not take focus either.
+            disabled={!revealed}
             className={cn(
-              "cursor-pointer text-xs text-fg-subtle underline-offset-4 transition-opacity duration-500 hover:text-fg hover:underline",
+              "cursor-pointer rounded-sm px-2 py-2 text-xs text-fg-subtle underline-offset-4 outline-none transition-opacity duration-500 hover:text-fg hover:underline focus-visible:ring-2 focus-visible:ring-accent/40",
               revealed ? "opacity-100" : "pointer-events-none opacity-0"
             )}
           >
