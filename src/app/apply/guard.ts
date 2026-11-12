@@ -2,6 +2,7 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { and, eq, gte, like, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { application, notificationLog } from "@/db/schema";
+import { authSecret } from "@/lib/env";
 
 /**
  * Spam protection for the public application form, with no third-party
@@ -9,7 +10,7 @@ import { application, notificationLog } from "@/db/schema";
  * (handled in the action), and rate limits counted in Postgres.
  */
 
-const secret = () => process.env.BETTER_AUTH_SECRET ?? "dev-secret-do-not-use-in-prod";
+const secret = () => authSecret();
 const sign = (value: string) => createHmac("sha256", secret()).update(`apply:${value}`).digest("hex");
 
 /** Fastest a person could plausibly fill the required fields. */

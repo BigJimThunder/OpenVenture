@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
+import { secretSource } from "@/lib/env";
 import journal from "../../../../drizzle/meta/_journal.json";
 
 /**
@@ -58,9 +59,16 @@ export async function GET() {
   const checks: Record<string, Check> = {
     database,
     migrations,
-    auth: process.env.BETTER_AUTH_SECRET
-      ? { ok: true, detail: "Session secret set" }
-      : { ok: !production, detail: "BETTER_AUTH_SECRET is not set — sessions use an insecure default" },
+    auth:
+      secretSource() === "env"
+        ? { ok: true, detail: "Session secret set" }
+        : secretSource() === "derived"
+          ? {
+              ok: true,
+              detail:
+                "Session secret derived from the database credentials — set BETTER_AUTH_SECRET to manage it yourself",
+            }
+          : { ok: !production, detail: "Development secret in use" },
     email: process.env.RESEND_API_KEY
       ? { ok: true, detail: "Resend connected" }
       : { ok: false, detail: "RESEND_API_KEY is not set — emails only print to the server log" },
