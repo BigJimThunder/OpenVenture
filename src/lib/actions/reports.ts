@@ -56,6 +56,8 @@ const label = (p: Period) => `FY${p.fiscalYear} Q${p.quarter}`;
 
 /** Autosave for the partners' paragraphs. Creates the letter on the first edit. */
 export const saveQuarterlyLetter = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "partner",
   input: z.object({ ...period, patch: quarterlyPatchSchema }),
   handler: async (input, ctx) => {

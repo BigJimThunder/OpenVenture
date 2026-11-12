@@ -53,6 +53,8 @@ function firstNameOf(name: string | null): string {
 }
 
 export const createApplication = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({
     companyName: z.string().trim().min(1, "Company name is required").max(120),
@@ -208,6 +210,8 @@ export const createApplication = authedAction({
  * application moved back to an active stage becomes `open` again).
  */
 export const moveApplicationStage = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({
     applicationId: z.string().uuid(),
@@ -328,6 +332,8 @@ export const reorderApplication = authedAction({
 });
 
 export const upsertScreeningScores = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({
     applicationId: z.string().uuid(),
@@ -548,6 +554,8 @@ export const recordCoffeeChatVerdict = authedAction({
 });
 
 export const setNextStep = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({
     applicationId: z.string().uuid(),
@@ -601,6 +609,8 @@ export const setNextStep = authedAction({
  * verdict land in one write instead of three screens.
  */
 export const logCoffeeChat = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({
     applicationId: z.string().uuid(),
@@ -684,6 +694,8 @@ const DIFF_REDACTED = new Set([
  * `null` clears a field. Every editable fact on the record goes through here.
  */
 export const updateApplicationFacts = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({
     applicationId: z.string().uuid(),
@@ -947,6 +959,8 @@ export const updateCompanyProfile = authedAction({
 });
 
 export const addApplicationNote = authedAction({
+  // Assistants may do this through the MCP endpoint.
+  allowToken: true,
   minRole: "analyst",
   input: z.object({
     applicationId: z.string().uuid(),
