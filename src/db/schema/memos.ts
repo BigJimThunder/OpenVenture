@@ -8,6 +8,7 @@ import {
   jsonb,
   numeric,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 import { organization, member } from "./core";
 import { application } from "./pipeline";
@@ -77,7 +78,9 @@ export const memo = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("memo_org_ref_idx").on(t.orgId, t.ref)]
+  (t) => [uniqueIndex("memo_org_ref_idx").on(t.orgId, t.ref),
+    index("memo_application_idx").on(t.applicationId),
+  ]
 );
 
 export const memoVersion = pgTable(
@@ -112,7 +115,11 @@ export const memoSection = pgTable("memo_section", {
   wordCount: integer("word_count").notNull().default(0),
   updatedByMemberId: uuid("updated_by_member_id").references(() => member.id),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("memo_section_memo_idx").on(t.memoId),
+  ]
+);
 
 export const memoComment = pgTable("memo_comment", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -131,7 +138,11 @@ export const memoComment = pgTable("memo_comment", {
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   resolvedByMemberId: uuid("resolved_by_member_id").references(() => member.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("memo_comment_memo_idx").on(t.memoId),
+  ]
+);
 
 // ——— IC voting ———
 
@@ -171,7 +182,13 @@ export const voteRound = pgTable("vote_round", {
   outcomeNote: text("outcome_note"),
   decidedByMemberId: uuid("decided_by_member_id").references(() => member.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("vote_round_memo_idx").on(t.memoId),
+    index("vote_round_application_idx").on(t.applicationId),
+    index("vote_round_org_status_idx").on(t.orgId, t.status),
+  ]
+);
 
 export const voteEligibility = pgTable(
   "vote_eligibility",

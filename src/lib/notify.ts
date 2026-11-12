@@ -101,6 +101,15 @@ export async function notifyMany(tasks: (() => Promise<unknown>)[], concurrency 
   );
 }
 
+/**
+ * Escape text for Slack. Slack treats `<…>` as control sequences (mentions
+ * like `<!channel>`, links like `<https://evil|Open>`), so anything a founder
+ * or member typed must go through this before it is interpolated.
+ */
+export function slackEscape(value: string | null | undefined): string {
+  return (value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 /** Post to the club's Slack incoming webhook, if one is configured. */
 export async function postSlack(
   org: Pick<typeof organization.$inferSelect, "slackWebhookUrl">,

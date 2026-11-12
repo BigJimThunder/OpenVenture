@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { db } from "@/db";
 import {
@@ -17,7 +17,7 @@ import {
 } from "@/db/schema";
 import { ActionError } from "@/lib/actions/safe-action";
 import { formatMoney } from "@/lib/utils";
-import { atomic } from "./atomic";
+import { atomic, guard, guardFailure, lock } from "./atomic";
 import { assertStageGates, findLiveGrant, stageMoveWrites } from "./moves";
 
 /**
@@ -160,6 +160,41 @@ export async function decideVoteRound(
         ]
       : [];
 
+  // Everything above was read before the writes. A second click, or a second
+  // person, could decide the same round in between — so every decision takes
+  // its turn on the application and re-checks, inside the unit, that the
+  // round is still undecided and the application has not moved.
+  const preconditions = (q: typeof db) => [
+    lock(q, "application", app.id),
+    guard(
+      q,
+      sql`exists (select 1 from ${voteRound} where ${voteRound.id} = ${round.id} and ${voteRound.status} = 'revealed' and ${voteRound.outcome} is null)`,
+      "already_decided"
+    ),
+    guard(
+      q,
+      sql`exists (select 1 from ${application} where ${application.id} = ${app.id} and ${application.stageId} = ${app.stageId} and ${application.status} = ${app.status})`,
+      "application_moved"
+    ),
+  ];
+  const commit = async (build: (q: typeof db) => PromiseLike<unknown>[]) => {
+    try {
+      await atomic((q) => [...preconditions(q), ...build(q)]);
+    } catch (e) {
+      const failed = guardFailure(e);
+      if (failed === "already_decided") {
+        throw new ActionError("A decision was just recorded for this vote — refresh to see it");
+      }
+      if (failed === "application_moved") {
+        throw new ActionError("This application was just moved by someone else — refresh and try again");
+      }
+      if (failed === "grant_exists") {
+        throw new ActionError("A grant was just proposed for this application — refresh and try again");
+      }
+      throw e;
+    }
+  };
+
   if (input.outcome === "fund") {
     const [wonStage, liveGrant] = await Promise.all([
       terminalStage(actor.orgId, "won"),
@@ -203,7 +238,17 @@ export async function decideVoteRound(
     const narrative = input.useOfFundsNarrative?.trim() || null;
     const useOfFunds = input.useOfFunds;
 
-    await atomic((q) => [
+    await commit((q) => [
+      // Proposing a grant: the application must still have none.
+      ...(proposal
+        ? [
+            guard(
+              q,
+              sql`not exists (select 1 from ${grant} where ${grant.applicationId} = ${app.id} and ${grant.status} <> 'cancelled')`,
+              "grant_exists"
+            ),
+          ]
+        : []),
       roundWrite(q),
       ...memoWrite(q),
       ...(needsMove
@@ -262,7 +307,7 @@ export async function decideVoteRound(
     const needsMove = app.stageId !== lostStage.id || app.status !== "declined";
     const summary = `The club voted to decline ${companyName}`;
 
-    await atomic((q) => [
+    await commit((q) => [
       roundWrite(q),
       ...memoWrite(q),
       ...(needsMove
@@ -290,7 +335,7 @@ export async function decideVoteRound(
       ? `The club will revisit ${companyName}${nextStep ? ` — ${nextStep}` : ""}`
       : `The ${companyName} vote did not reach quorum${nextStep ? ` — ${nextStep}` : ""}`;
 
-  await atomic((q) => [
+  await commit((q) => [
     roundWrite(q),
     ...(nextStep
       ? [

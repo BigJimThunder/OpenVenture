@@ -7,6 +7,7 @@ import {
   uuid,
   jsonb,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -62,7 +63,11 @@ export const session = pgTable("session", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-});
+},
+  (t) => [
+    index("session_user_idx").on(t.userId),
+  ]
+);
 
 export const account = pgTable("account", {
   id: text("id").primaryKey(),
@@ -80,7 +85,11 @@ export const account = pgTable("account", {
   password: text("password"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("account_user_idx").on(t.userId),
+  ]
+);
 
 export const verification = pgTable("verification", {
   id: text("id").primaryKey(),
@@ -89,7 +98,11 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+},
+  (t) => [
+    index("verification_identifier_idx").on(t.identifier),
+  ]
+);
 
 // ——— Club membership (separate from auth: alumni keep records after their
 //     auth account is gone; a member can exist before first login) ———
@@ -130,7 +143,12 @@ export const member = pgTable("member", {
   lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("member_user_idx").on(t.userId),
+    index("member_org_email_idx").on(t.orgId, t.email),
+  ]
+);
 
 export const invitation = pgTable("invitation", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -174,7 +192,13 @@ export const activity = pgTable("activity", {
   summary: text("summary").notNull(),
   /** {field: {from, to}} for changed fields only. Keep student PII out. */
   diff: jsonb("diff").$type<Record<string, { from: unknown; to: unknown }>>(),
-});
+},
+  (t) => [
+    index("activity_entity_idx").on(t.orgId, t.entityType, t.entityId, t.occurredAt),
+    index("activity_org_time_idx").on(t.orgId, t.occurredAt),
+    index("activity_org_verb_idx").on(t.orgId, t.verb),
+  ]
+);
 
 // ——— Notification log: what the app has already sent on its own.
 //     Scheduled jobs run daily and must be idempotent — a (kind, key) pair is
@@ -197,5 +221,7 @@ export const notificationLog = pgTable(
     summary: text("summary"),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("notification_log_unique").on(t.orgId, t.kind, t.key)]
+  (t) => [uniqueIndex("notification_log_unique").on(t.orgId, t.kind, t.key),
+    index("notification_log_time_idx").on(t.orgId, t.kind, t.sentAt),
+  ]
 );

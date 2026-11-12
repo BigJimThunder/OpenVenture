@@ -5,6 +5,7 @@ import {
   integer,
   uuid,
   numeric,
+  index,
 } from "drizzle-orm/pg-core";
 import { organization, member } from "./core";
 import { application, company, file } from "./pipeline";
@@ -90,7 +91,13 @@ export const grant = pgTable("grant", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+},
+  (t) => [
+    index("grant_pool_idx").on(t.poolId),
+    index("grant_application_idx").on(t.applicationId),
+    index("grant_org_status_idx").on(t.orgId, t.status),
+  ]
+);
 
 export const receipt = pgTable("receipt", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -107,4 +114,8 @@ export const receipt = pgTable("receipt", {
   submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
   verifiedByMemberId: uuid("verified_by_member_id").references(() => member.id),
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
-});
+},
+  (t) => [
+    index("receipt_grant_idx").on(t.grantId),
+  ]
+);

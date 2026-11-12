@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { after } from "next/server";
 import { z } from "zod";
 import Decimal from "decimal.js";
@@ -17,7 +18,7 @@ import {
 } from "@/db/schema";
 import { pickAssignee } from "@/lib/automation/assign";
 import { sendFounderEmail } from "@/lib/founder-emails";
-import { appUrl, emailLayout, postSlack, sendEmailSafe, sendOnce, textToHtml } from "@/lib/notify";
+import { appUrl, emailLayout, postSlack, sendEmailSafe, sendOnce, slackEscape, textToHtml } from "@/lib/notify";
 import { orgSettings } from "@/lib/org-settings";
 import {
   findDuplicateCandidates,
@@ -25,7 +26,7 @@ import {
   type DuplicateCandidate,
 } from "@/lib/pipeline/duplicates";
 import { formatRef } from "@/lib/refs";
-import { withRef } from "@/lib/refs-server";
+import { atomic, isUniqueViolation, lock } from "@/lib/pipeline/atomic";
 import { formatMoney } from "@/lib/utils";
 
 /**
@@ -178,105 +179,137 @@ export async function receiveApplication(
 
   const owner = settings.automation.autoAssign === "round_robin" ? await chooseOwner(org.id) : null;
 
-  // Reuse an existing company on domain match; otherwise create.
-  let companyId: string | null = null;
-  if (domain) {
-    const [existing] = await db
-      .select({ id: company.id })
-      .from(company)
-      .where(and(eq(company.orgId, org.id), eq(company.domain, domain)))
-      .limit(1);
-    companyId = existing?.id ?? null;
-  }
-  if (!companyId) {
-    const [created] = await db
-      .insert(company)
-      .values({
-        orgId: org.id,
-        name: input.companyName,
-        domain,
-        websiteUrl: domain ? `https://${domain}` : null,
-        oneLiner: input.pitchSummary?.slice(0, 200),
-      })
-      .returning({ id: company.id });
-    companyId = created.id;
-  }
-
-  const app = await withRef(application, application.orgId, application.ref, org.id, async (ref) => {
-    const [inserted] = await db
-      .insert(application)
-      .values({
-        orgId: org.id,
-        ref,
-        companyId,
-        stageId: entry.id,
-        ownerMemberId: owner?.id,
-        pitchSummary: input.pitchSummary,
-        amountRequested: amount,
-        useOfFundsNarrative: input.useOfFunds,
-        applicantName: input.applicantName,
-        applicantEmail: input.applicantEmail,
-        department: input.department,
-        major: input.major,
-        school: input.school,
-        classYear: input.classYear,
-        teamSize: input.teamSize,
-        teamComposition: input.teamComposition,
-        teamStudentMix: input.teamStudentMix,
-        campusSource: input.campusSource,
-        howHeard: input.howHeard,
-        custom: {
-          intakeSource: source,
-          ...(duplicates.length ? { duplicateCandidates: duplicates } : {}),
-        },
-      })
-      .returning({ id: application.id, ref: application.ref });
-    return inserted;
-  });
-
-  await db.insert(stageHistory).values({ orgId: org.id, applicationId: app.id, toStageId: entry.id });
-
-  if (input.demographics && Object.values(input.demographics).some((v) => v != null)) {
-    await db.insert(applicationDemographics).values({
-      orgId: org.id,
-      applicationId: app.id,
-      gender: input.demographics.gender,
-      raceEthnicity: input.demographics.raceEthnicity,
-      firstGeneration: input.demographics.firstGeneration,
-      international: input.demographics.international,
-    });
-  }
-
   const ask = amount ? ` asking ${formatMoney(amount)}` : "";
-  const refLabel = formatRef("application", app.ref);
-  await db.insert(activity).values([
-    {
-      orgId: org.id,
-      actorType: "integration" as const,
-      verb: "application.received",
-      entityType: "application",
-      entityId: app.id,
-      entityLabel: input.companyName,
-      summary: `New application: ${input.companyName}${ask}${
-        source === "form" ? " (application form)" : ""
-      }${duplicates.length ? ` — possible duplicate of ${formatRef("application", duplicates[0].ref)}` : ""}`,
-    },
-    ...(owner
-      ? [
-          {
-            orgId: org.id,
-            actorType: "system" as const,
-            verb: "application.auto_assigned",
-            entityType: "application",
-            entityId: app.id,
-            entityLabel: input.companyName,
-            secondaryEntityType: "member",
-            secondaryEntityId: owner.id,
-            summary: `${input.companyName} was assigned to ${owner.displayName} (next in rotation)`,
+  const hasDemographics =
+    input.demographics != null && Object.values(input.demographics).some((v) => v != null);
+
+  /**
+   * Everything an application consists of — company, application, its first
+   * stage-history row, demographics, the activity entries — is written as one
+   * unit, so a failure can never leave a company with no application or an
+   * application with no history.
+   *
+   * The reference number is allocated inside the unit, under a lock, so two
+   * founders submitting in the same instant get consecutive numbers instead
+   * of one of them getting an error.
+   */
+  const write = async () => {
+    // Reuse an existing company on domain match; otherwise create.
+    let companyId: string | null = null;
+    if (domain) {
+      const [existing] = await db
+        .select({ id: company.id })
+        .from(company)
+        .where(and(eq(company.orgId, org.id), eq(company.domain, domain)))
+        .limit(1);
+      companyId = existing?.id ?? null;
+    }
+    const newCompanyId = companyId ? null : randomUUID();
+    const applicationId = randomUUID();
+    const useCompanyId = companyId ?? newCompanyId!;
+
+    const results = await atomic((q) => [
+      lock(q, "application-ref", org.id),
+      ...(newCompanyId
+        ? [
+            q.insert(company).values({
+              id: newCompanyId,
+              orgId: org.id,
+              name: input.companyName,
+              domain,
+              websiteUrl: domain ? `https://${domain}` : null,
+              oneLiner: input.pitchSummary?.slice(0, 200),
+            }),
+          ]
+        : []),
+      q
+        .insert(application)
+        .values({
+          id: applicationId,
+          orgId: org.id,
+          ref: sql`(select coalesce(max(${application.ref}), 0) + 1 from ${application} where ${application.orgId} = ${org.id})`,
+          companyId: useCompanyId,
+          stageId: entry.id,
+          ownerMemberId: owner?.id,
+          pitchSummary: input.pitchSummary,
+          amountRequested: amount,
+          useOfFundsNarrative: input.useOfFunds,
+          applicantName: input.applicantName,
+          applicantEmail: input.applicantEmail,
+          department: input.department,
+          major: input.major,
+          school: input.school,
+          classYear: input.classYear,
+          teamSize: input.teamSize,
+          teamComposition: input.teamComposition,
+          teamStudentMix: input.teamStudentMix,
+          campusSource: input.campusSource,
+          howHeard: input.howHeard,
+          custom: {
+            intakeSource: source,
+            ...(duplicates.length ? { duplicateCandidates: duplicates } : {}),
           },
-        ]
-      : []),
-  ]);
+        })
+        .returning({ id: application.id, ref: application.ref }),
+      q.insert(stageHistory).values({ orgId: org.id, applicationId, toStageId: entry.id }),
+      ...(hasDemographics
+        ? [
+            q.insert(applicationDemographics).values({
+              orgId: org.id,
+              applicationId,
+              gender: input.demographics!.gender,
+              raceEthnicity: input.demographics!.raceEthnicity,
+              firstGeneration: input.demographics!.firstGeneration,
+              international: input.demographics!.international,
+            }),
+          ]
+        : []),
+      q.insert(activity).values([
+        {
+          orgId: org.id,
+          actorType: "integration" as const,
+          verb: "application.received",
+          entityType: "application",
+          entityId: applicationId,
+          entityLabel: input.companyName,
+          summary: `New application: ${input.companyName}${ask}${
+            source === "form" ? " (application form)" : ""
+          }${duplicates.length ? ` — possible duplicate of ${formatRef("application", duplicates[0].ref)}` : ""}`,
+        },
+        ...(owner
+          ? [
+              {
+                orgId: org.id,
+                actorType: "system" as const,
+                verb: "application.auto_assigned",
+                entityType: "application",
+                entityId: applicationId,
+                entityLabel: input.companyName,
+                secondaryEntityType: "member",
+                secondaryEntityId: owner.id,
+                summary: `${input.companyName} was assigned to ${owner.displayName} (next in rotation)`,
+              },
+            ]
+          : []),
+      ]),
+    ]);
+    const inserted = results[newCompanyId ? 2 : 1] as { id: string; ref: number }[];
+    return inserted[0];
+  };
+
+  // A unique-index collision means another request won a race this unit
+  // could not see coming: the same new domain arriving twice, or a member
+  // creating an application by hand at the same moment. Nothing was written,
+  // so look again and retry.
+  let app: { id: string; ref: number } | undefined;
+  for (let attempt = 1; !app; attempt++) {
+    try {
+      app = await write();
+    } catch (e) {
+      if (attempt >= 4 || !isUniqueViolation(e)) throw e;
+    }
+  }
+  const refLabel = formatRef("application", app.ref);
 
   const link = appUrl(`/pipeline/${app.id}`);
   const duplicateLine = duplicates.length
@@ -291,10 +324,14 @@ export async function receiveApplication(
       postSlack(
         org,
         [
-          `New application ${refLabel}: *${input.companyName}*${ask}`,
-          input.pitchSummary ? `> ${input.pitchSummary.slice(0, 280).replace(/\n+/g, " ")}` : "",
-          owner ? `Owner: ${owner.displayName}` : "No owner yet.",
-          duplicateLine,
+          // Founder-written text is escaped: Slack would otherwise read
+          // `<!channel>` or a disguised `<url|label>` link out of it.
+          `New application ${refLabel}: *${slackEscape(input.companyName)}*${ask}`,
+          input.pitchSummary
+            ? `> ${slackEscape(input.pitchSummary.slice(0, 280).replace(/\n+/g, " "))}`
+            : "",
+          owner ? `Owner: ${slackEscape(owner.displayName)}` : "No owner yet.",
+          slackEscape(duplicateLine),
           `<${link}|Open in OpenVenture>`,
         ]
           .filter(Boolean)

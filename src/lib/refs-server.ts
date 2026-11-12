@@ -1,6 +1,7 @@
 import { sql, eq, type SQL } from "drizzle-orm";
 import type { PgTable, PgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db";
+import { isUniqueViolation } from "@/lib/pipeline/atomic";
 
 /**
  * Allocating the next per-org `ref`. Split from `refs.ts` because that module
@@ -29,13 +30,6 @@ export async function nextRef(
     .from(table)
     .where(eq(orgIdColumn, orgId) as SQL);
   return row?.next ?? 1;
-}
-
-/** Postgres unique-violation. */
-function isUniqueViolation(e: unknown): boolean {
-  return (
-    typeof e === "object" && e !== null && "code" in e && (e as { code?: string }).code === "23505"
-  );
 }
 
 /**
