@@ -37,6 +37,8 @@ import { DeclineButton } from "@/components/applications/decline-button";
 import { ReopenButton } from "@/components/applications/reopen-button";
 import { DecisionSummary } from "@/components/applications/decision-summary";
 import { EraseData } from "@/components/applications/erase-data";
+import { FilesCard } from "@/components/applications/files-card";
+import { getApplicationFiles } from "@/lib/queries/files";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +60,10 @@ const MOVE_VERBS = new Set([
 export default async function ApplicationDetailPage({ params }: PageProps<"/pipeline/[id]">) {
   const ctx = await requireCtx();
   const { id } = await params;
-  const [detail, lookups] = await Promise.all([
+  const [detail, lookups, files] = await Promise.all([
     getApplicationDetail(ctx.org.id, id),
     getPipelineLookups(ctx.org.id),
+    getApplicationFiles(ctx.org.id, id),
   ]);
   if (!detail) notFound();
 
@@ -442,6 +445,8 @@ export default async function ApplicationDetailPage({ params }: PageProps<"/pipe
               })}
             />
           )}
+
+          {!app.erasedAt && <FilesCard applicationId={app.id} files={files} />}
 
           <section id="coffee-chats" className="scroll-mt-4 rounded-lg border border-border bg-panel shadow-xs">
             <div className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-2.5">

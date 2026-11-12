@@ -13,6 +13,7 @@ import {
   coffeeChatAttendee,
   company,
   contact,
+  file,
   notificationLog,
   screeningScore,
 } from "@/db/schema";
@@ -27,8 +28,8 @@ const ERASED = "Erased applicant";
  *
  * Removed, in one unit: the applicant's name and email, everything they wrote
  * (pitch, use of funds, how they heard), their academic details, the optional
- * demographic answers, the company's contacts, and the notes, debriefs and
- * score comments members wrote about them. If the company has no other
+ * demographic answers, attached files, the company's contacts, and the notes,
+ * debriefs and score comments members wrote about them. If the company has no other
  * application, its name and profile go too, and the club's activity log
  * stops naming it.
  *
@@ -91,6 +92,8 @@ export const eraseApplicantData = authedAction({
         })
         .where(and(eq(application.id, app.id), eq(application.orgId, ctx.org.id))),
       q.delete(applicationDemographics).where(eq(applicationDemographics.applicationId, app.id)),
+      // Decks and receipts carry names and addresses; their bytes go with the rows.
+      q.delete(file).where(and(eq(file.applicationId, app.id), eq(file.orgId, ctx.org.id))),
       q.delete(applicationNote).where(eq(applicationNote.applicationId, app.id)),
       q.update(screeningScore).set({ note: null }).where(eq(screeningScore.applicationId, app.id)),
       q.update(coffeeChat).set({ debrief: null, location: null }).where(eq(coffeeChat.applicationId, app.id)),

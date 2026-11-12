@@ -5,6 +5,7 @@ import {
   activity,
   application,
   company,
+  file,
   grant,
   grantPool,
   meeting,
@@ -712,5 +713,10 @@ export async function pruneIntakeAttempts(orgId: string, now: Date): Promise<num
       )
     )
     .returning({ id: notificationLog.id });
-  return removed.length;
+  // Uploads that never finished (a closed tab, a dropped connection).
+  const abandoned = await db
+    .delete(file)
+    .where(and(eq(file.orgId, orgId), eq(file.status, "uploading"), lt(file.createdAt, days(1))))
+    .returning({ id: file.id });
+  return removed.length + abandoned.length;
 }
