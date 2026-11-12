@@ -160,7 +160,7 @@ export function InviteMemberDialog({
       <div className="flex flex-col gap-1.5">
         <Label>Role</Label>
         <Select value={role} onValueChange={(v) => setRole(v as MemberRole)}>
-          <SelectTrigger className="max-md:h-10">
+          <SelectTrigger className="max-md:h-10" aria-label="Role">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -207,7 +207,7 @@ export function InviteMemberDialog({
               <div className="flex min-w-0 flex-col gap-1.5">
                 <Label>Track</Label>
                 <Select value={trackId ?? NO_TRACK} onValueChange={setTrackId}>
-                  <SelectTrigger className="max-md:h-10">
+                  <SelectTrigger className="max-md:h-10" aria-label="Onboarding track">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -224,7 +224,7 @@ export function InviteMemberDialog({
               <div className="flex flex-col gap-1.5">
                 <Label>Due</Label>
                 <Select value={due} onValueChange={setDue} disabled={!track}>
-                  <SelectTrigger className="max-md:h-10">
+                  <SelectTrigger className="max-md:h-10" aria-label="Onboarding due">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

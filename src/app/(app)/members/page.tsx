@@ -162,7 +162,7 @@ export default async function MembersPage() {
                           <span className="text-xs text-success">Complete</span>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <Progress value={onboarding} className="w-16" />
+                            <Progress value={onboarding} className="w-16" aria-label={`Onboarding progress for ${m.displayName}`} />
                             <span className="tnum text-xs text-fg-muted">{onboarding}%</span>
                           </div>
                         )}

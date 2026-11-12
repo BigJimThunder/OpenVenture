@@ -77,7 +77,10 @@ export default async function MemoPage({ params }: PageProps<"/memos/[id]">) {
         description={
           <>
             {detail.companyOneLiner ? `${detail.companyOneLiner} · ` : ""}Written by {detail.authorName} ·{" "}
-            <Link href={`/pipeline/${detail.applicationId}`} className="text-accent hover:underline">
+            <Link
+              href={`/pipeline/${detail.applicationId}`}
+              className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+            >
               Open the application
             </Link>
           </>
