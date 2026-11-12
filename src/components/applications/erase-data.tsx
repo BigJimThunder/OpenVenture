@@ -37,7 +37,7 @@ export function EraseData({ applicationId, companyName }: { applicationId: strin
         description={
           <>
             For when a founder asks you to. This permanently removes their name and email, what they
-            wrote, their academic details and optional answers, the company&apos;s contacts, and the
+            wrote, their academic details and optional answers, attached files, the company&apos;s contacts, and the
             notes and debriefs members wrote about them. If this is the company&apos;s only
             application, its name and profile are removed too.
             <br />

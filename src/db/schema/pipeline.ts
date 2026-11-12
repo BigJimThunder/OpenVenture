@@ -9,6 +9,7 @@ import {
   numeric,
   uniqueIndex,
   index,
+  customType,
 } from "drizzle-orm/pg-core";
 import { organization, member } from "./core";
 
@@ -401,6 +402,16 @@ export const applicationNote = pgTable("application_note", {
 export const FILE_KINDS = ["deck", "one_pager", "budget", "receipt", "legal", "other"] as const;
 export type FileKind = (typeof FILE_KINDS)[number];
 
+export const FILE_STATUSES = ["uploading", "ready"] as const;
+export type FileStatus = (typeof FILE_STATUSES)[number];
+
+/**
+ * An attachment: a pitch deck, a budget, a receipt. The bytes live in
+ * `file_chunk`, in the club's own database — no storage service to set up,
+ * nothing reachable by URL without signing in, and gone when the application's
+ * personal data is erased. `blob_url` / `pathname` are kept (unused) for
+ * databases created before attachments worked this way.
+ */
 export const file = pgTable("file", {
   id: uuid("id").primaryKey().defaultRandom(),
   orgId: uuid("org_id")
@@ -408,18 +419,42 @@ export const file = pgTable("file", {
     .references(() => organization.id),
   applicationId: uuid("application_id").references(() => application.id, { onDelete: "set null" }),
   companyId: uuid("company_id").references(() => company.id, { onDelete: "set null" }),
-  blobUrl: text("blob_url").notNull(),
-  pathname: text("pathname").notNull(),
+  blobUrl: text("blob_url"),
+  pathname: text("pathname"),
   filename: text("filename").notNull(),
   mime: text("mime").notNull(),
   sizeBytes: integer("size_bytes").notNull(),
   kind: text("kind").$type<FileKind>().notNull().default("other"),
+  /** "uploading" until every chunk has arrived; only "ready" files are listed or served. */
+  status: text("status").$type<FileStatus>().notNull().default("ready"),
+  chunkCount: integer("chunk_count").notNull().default(0),
   uploadedByMemberId: uuid("uploaded_by_member_id").references(() => member.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 },
   (t) => [
     index("file_application_idx").on(t.applicationId),
   ]
+);
+
+const bytea = customType<{ data: string; driverData: string }>({
+  dataType: () => "bytea",
+});
+
+/**
+ * A file's bytes, in order. Always written with `decode($1, 'base64')` and
+ * read with `encode(data, 'base64')`, so both database drivers carry plain
+ * text and no single statement is ever larger than one chunk.
+ */
+export const fileChunk = pgTable(
+  "file_chunk",
+  {
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => file.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    data: bytea("data").notNull(),
+  },
+  (t) => [uniqueIndex("file_chunk_pk").on(t.fileId, t.seq)]
 );
 
 /** Quarterly check-in history per grantee — powers time-to-outcome charts. */

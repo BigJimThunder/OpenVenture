@@ -57,6 +57,13 @@
       "when": 1794504350695,
       "tag": "0007_freezing_baron_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794506808008,
+      "tag": "0008_complete_dreaming_celestial",
+      "breakpoints": true
     }
   ]
 }

@@ -239,6 +239,42 @@ async function main() {
       }
     }
 
+    console.log("Attachments");
+    {
+      // A real upload through the UI: two chunks, then download and compare.
+      const context = await browser.newContext({ viewport: VIEWPORTS[0], storageState: state });
+      const page = await context.newPage();
+      const errors = [];
+      page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 200)));
+      const applicationPath = detail.find((d) => d.startsWith("/pipeline/"));
+      await page.goto(BASE + applicationPath, { waitUntil: "networkidle" });
+      const original = Buffer.concat([Buffer.from("%PDF-1.7\n"), randomBytes(700 * 1024)]);
+      await page.setInputFiles('input[type="file"]', { name: "Smoke test deck.pdf", mimeType: "application/pdf", buffer: original });
+      const link = page.locator('#files a[download]', { hasText: "Smoke test deck.pdf" }).first();
+      try {
+        await link.waitFor({ timeout: 30_000 });
+        const href = await link.getAttribute("href");
+        const res = await context.request.get(BASE + href);
+        const same = createHash("sha256").update(await res.body()).digest("hex") === createHash("sha256").update(original).digest("hex");
+        if (res.status() !== 200 || !same) fail("attachments", `download did not match the upload (HTTP ${res.status()})`);
+        const headers = res.headers();
+        if (!/^attachment/.test(headers["content-disposition"] ?? "")) fail("attachments", "not served as a download");
+        if (headers["x-content-type-options"] !== "nosniff" || !/sandbox/.test(headers["content-security-policy"] ?? "")) {
+          fail("attachments", "download is missing nosniff or the sandbox policy");
+        }
+        const anonymous = await fetch(BASE + href);
+        if (anonymous.status !== 401) fail("attachments", `signed out, the file answered HTTP ${anonymous.status}`);
+        await page.getByRole("button", { name: "Remove Smoke test deck.pdf" }).click();
+        await page.getByRole("button", { name: "Remove file" }).click();
+        await link.waitFor({ state: "detached", timeout: 15_000 });
+        for (const e of errors) fail("attachments", `console: ${e}`);
+        if (failures.every((f) => !f.startsWith("attachments"))) ok("upload, byte-identical download, members only, remove");
+      } catch (e) {
+        fail("attachments", `the upload did not complete (${String(e).slice(0, 160)})`);
+      }
+      await context.close();
+    }
+
     console.log("Without JavaScript");
     const plain = await browser.newContext({ javaScriptEnabled: false, viewport: VIEWPORTS[0] });
     const landing = await plain.newPage();

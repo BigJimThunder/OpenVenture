@@ -248,7 +248,7 @@ export async function GET() {
         "auth sessions/accounts/verification tokens",
         "organization.ingest_secret, invite token hashes and access token hashes (rotate/reissue after import)",
         "rate-limit counters in notification_log (hashed addresses)",
-        "attached files themselves: the files table lists them with their storage URLs",
+        "the bytes of attached files (file_chunk): the files table lists them; download each from its application page",
       ],
     },
     ...data,
